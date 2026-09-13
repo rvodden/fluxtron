@@ -17,8 +17,10 @@ Module-specific decisions live in each module's own folder
   code with higher quantity, not a new number.
 - Panel aesthetic: aluminium panels, matte black, etched so graphics read as
   silver-on-black. Brief: "clean but psychotic" — jagged hand-drawn divider
-  lines and small asymmetric details (a scratch/crack mark, an off-center
-  footer wordmark) rather than clutter. Sections use symbolic icons where
+  lines and small asymmetric details (e.g. a scratch/crack mark) rather than
+  clutter. **No footer wordmark** — an off-centre one was in the original
+  brief, tried on VO-1 and rejected; don't re-propose it. The FLUXTRON
+  wordmark appears once, at the top. Sections use symbolic icons where
   natural (e.g. a MIDI DIN end-view icon, a pulse-wave icon) rather than text
   labels, except where a plain word is clearer (jack names, "CHANNEL").
 - Fonts: **Rubik Dirt** for the FLUXTRON wordmark, **Kode Mono** for

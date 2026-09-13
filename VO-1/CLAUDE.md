@@ -99,7 +99,7 @@ have fitted vertically.
 5. Jack row (inputs, 3 across): **1V/O**, **FM**, **PWM**
 6. **SYNC** jack at left, **PULSE** jack at right, gap between them
 7. Jack row (outputs, 3 across): **SAW**, **SUB**, **TRI**
-8. Jagged divider, footer
+8. Jagged divider
 
 **All eight jacks fit, and triangle is kept** — an earlier draft dropped it
 to live within seven positions across three clean rows, which the row-6
