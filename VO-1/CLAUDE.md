@@ -107,18 +107,21 @@ pairing makes unnecessary.
 
 4 mounting holes, symmetric, standard oval slots.
 
-### Panel graphics: the knobs must not have pointer lines
+### Mockup drawing conventions
 
-The mockup draws the four controls as knobs with an indicator line. That is
-a **pot** graphic and it misrepresents the design: these are incremental
-encoders with no end stops and no absolute position, so a pointer line
-points at nothing and will read as broken the first time a MIDI CC moves a
-parameter while the knob stays put.
+So these aren't re-flagged on every review of a panel mockup:
 
-Use a plain knob with no indicator, or a knurled/D-shaft cap. The honest
-alternative is an LED ring for position feedback, which was ruled out here
-on space and cost — but if position indication is wanted, that is the way
-to get it, not a painted line.
+- **Knobs are drawn oversize on purpose** — they represent the twiddle
+  clearance a finger needs, not the diameter of the cap. Don't read the
+  drawn circle as the part.
+- **The indicator line is a drawing convention** marking "this is a knob,
+  not a random circle." It is not panel art and not a feature of the part.
+
+The related real decision: **the fitted knob caps carry no indicator line.**
+The encoders are incremental, so there is no absolute position for a pointer
+to show, and one would desynchronise the moment a MIDI CC moved the
+parameter. If position feedback is ever wanted it has to be an LED ring,
+which was ruled out here on space and cost.
 
 ### Jack labelling
 
