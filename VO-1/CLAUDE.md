@@ -77,8 +77,8 @@ takes an M6 × 0.5 nut, and packing jacks tight enough that the socket won't
 fit is a well-known DIY failure mode.
 
 **Three across (13.5mm centres) is the practical maximum at 8HP**, and that
-is what VO-1's two jack rows use. The remaining two jacks are placed beside
-the knobs rather than in a row — see the layout below.
+is what VO-1's two full jack rows use. The remaining two (SYNC and PULSE)
+share a wider-spaced row of their own — see the layout below.
 
 > **This applies to MC-1 too** — its spec currently calls for a row of four
 > jacks on an 8HP panel. Flagged in `../MC-1/CLAUDE.md`; needs re-laying out
@@ -86,25 +86,24 @@ the knobs rather than in a row — see the layout below.
 
 ### Layout, top to bottom
 
-Settled from a panel mockup. The key move is **interleaving jacks with the
-encoders instead of keeping them in separate bands** — SYNC and PULSE live
-in the dead space beside the large knobs. That recovers two positions and
-gets all eight jacks onto the panel without a fourth jack row, which would
-not have fitted vertically.
+Settled from a panel mockup. All eight jacks fit **and** the four encoders
+stay clustered, which is the arrangement that keeps the encoder sub-board
+viable (see below). Controls on top, jacks below, with SYNC and PULSE
+sharing a row rather than needing a fourth full jack row — which would not
+have fitted vertically.
 
-1. FLUXTRON wordmark + module code
+1. FLUXTRON wordmark + "VO–1"
 2. Jagged divider
-3. Jack row (inputs, 3 across): **CV**, **FM**, **PWM**
-4. **SYNC** jack at left, status LED centre, **TUNE** encoder at right
-5. **FINE** encoder at left; jagged divider at right
-6. **WIDTH** encoder at right
-7. **DEPTH** encoder at left, **PULSE** jack at right
-8. Jack row (outputs, 3 across): **SAW**, **SUB**, **TRI**
-9. Jagged divider, footer
+3. Encoder row A: **FINE** (left), **TUNE** (right)
+4. Encoder row B: **DEPTH** (left), **WIDTH** (right)
+5. Jack row (inputs, 3 across): **1V/O**, **FM**, **PWM**
+6. **SYNC** jack at left, **PULSE** jack at right, gap between them
+7. Jack row (outputs, 3 across): **SAW**, **SUB**, **TRI**
+8. Jagged divider, footer
 
-**All eight jacks fit, and triangle is kept** — the earlier draft dropped it
-to live within seven positions across three clean rows. The interleaved
-layout makes that unnecessary.
+**All eight jacks fit, and triangle is kept** — an earlier draft dropped it
+to live within seven positions across three clean rows, which the row-6
+pairing makes unnecessary.
 
 4 mounting holes, symmetric, standard oval slots.
 
@@ -123,9 +122,9 @@ to get it, not a painted line.
 
 ### Jack labelling
 
-**"CV" is ambiguous on this panel** — FM and PWM are both CV inputs too.
-Label the pitch input **1V/OCT** (or V/OCT), which is also what every other
-Eurorack module calls it.
+The pitch input is labelled **1V/O**. Unambiguous against FM and PWM, which
+was the point, though **V/OCT** is the more conventional spelling and fits
+the same width if preferred.
 
 ## Controls and parameters
 
@@ -139,20 +138,32 @@ Eurorack module calls it.
 | Sub division (/2 or /4) | — | yes | MCU GPIO → mux |
 | Calibrate now | — | yes | firmware action |
 
-Four encoders. The range rule says 3+ encoders get a dedicated encoder
-sub-board — but **the mockup's layout makes that impractical, so VO-1 uses
-flying leads instead.**
+Four encoders, clustered as a 2×2 block at the top of the panel with every
+jack below them. Per the range rule (3+ encoders), they go on a **dedicated
+encoder sub-board** — 4×(A, B) + 4×(switch) + common = 13 lines, so a 14-way
+ribbon back to the main PCB.
 
-The four controls are scattered diagonally down the panel (TUNE upper right,
-FINE mid left, WIDTH mid right, DEPTH lower left) and interleaved with jacks.
-A single sub-board spanning them would be nearly the full panel — i.e. the
-main PCB's own footprint — and two narrow side strips would foul the jack
-rows top and bottom. The rule's purpose was to avoid a growing bundle of
-loose leads; here geometry wins. Budget **4 × 5 = 20 flying leads**, which is
-a real bundle and wants strain relief and a sane wiring order.
+The clustering is what makes this work. A scattered layout (an earlier
+mockup put the four encoders diagonally down the panel, interleaved with
+jacks) would have forced 20 loose flying leads instead, because a sub-board
+spanning them would have been the main PCB's own footprint.
 
-Clustering the four encoders into one block would restore the sub-board
-option, at the cost of the interleaving that got the eighth jack on.
+**Consequence for the main PCB: it ends below the encoder zone rather than
+running the full panel height.** That keeps the sub-board clear without
+notching anything, but it concentrates the AS3340, MCU, both DACs, the
+LM13700, the 74HC74/74HC14 pair, the power section and all eight jacks into
+roughly the lower two-thirds — call it 40mm × 80mm. Workable, but expect to
+go 4-layer rather than 2.
+
+### Status LED: missing from the current mockup
+
+The auto-tune sweep needs an indicator and the latest mockup has dropped
+it. Without one there is no way to tell whether a calibration is running,
+finished, or failed — the module would just go quiet mid-sweep with no
+explanation.
+
+**The gap between SYNC and PULSE in row 6 is the natural home for it** and
+is already empty. THT LED per the range-wide preference.
 
 ### ⚠️ Unverified: does a PEC16 actually clash with the main PCB?
 

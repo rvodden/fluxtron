@@ -122,14 +122,17 @@ the case vendor's own bus board.
   cheap, matches MC-1). **3+ encoders** → give that module a small dedicated
   encoder sub-board carrying all its encoders, with one multi-pin
   header/ribbon back to the main board, rather than a growing bundle of
-  loose flying leads. (Likely applies to LF-1; check EG-1 once its control
-  set — fixed vs. continuous ADSR stages — is settled. **Does not apply to
-  VO-1**, whose four encoders are scattered and interleaved with jacks, so a
-  sub-board would span the whole panel — it uses flying leads instead.)
-  - **A sub-board only helps when the encoders are clustered.** Where a
-    module's layout spreads them across the panel, flying leads win despite
-    the 3+ rule; the rule exists to tame cable bundles, not to override
-    geometry.
+  loose flying leads. (Applies to VO-1; likely LF-1 too; check EG-1 once its
+  control set — fixed vs. continuous ADSR stages — is settled.)
+  - **A sub-board only helps when the encoders are clustered**, so lay the
+    panel out that way when a module has 3+. VO-1 went through a mockup with
+    its four encoders scattered diagonally and interleaved with jacks, which
+    would have forced 20 loose flying leads because a sub-board spanning
+    them was the main PCB's own footprint. Clustering them into one block
+    fixed it.
+  - **A clustered encoder block means the main PCB stops short of it**
+    rather than running the full panel height — no notch needed, but the
+    remaining board area gets tight on an 8HP module. See VO-1.
 - **⚠️ The 16.1mm PEC16 depth figure above is unverified and may be wrong.**
   It is recorded as "body length behind the panel", but Bourns pairs it with
   an M9 × 0.75 bushing in 8.3 / 9.3 / 12.5mm lengths, which suggests 16.1mm
