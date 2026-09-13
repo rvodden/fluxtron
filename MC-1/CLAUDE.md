@@ -11,6 +11,12 @@ pitch CV, gate, velocity CV, and a clock/sync pulse for the rest of the
 phase-1 analogue system. Also the module carrying the MIDI channel-select
 control, since each MC-1 unit filters to one configured channel.
 
+**MC-1 is also the digital bus master.** The phase-1 bus decision (see
+`../CLAUDE.md`) makes MC-1 the only module receiving MIDI, so it decodes
+CC/NRPN and pushes parameter values to every other module over the 4-pin
+I2C bus. That is a firmware role, not extra hardware — the bus connector was
+already specified on every module.
+
 ## Panel: 8HP
 
 Layout, top to bottom:
@@ -23,6 +29,17 @@ Layout, top to bottom:
 5. Channel-select encoder (no LED ring — just the knob + "CHANNEL" label)
 
 4 mounting holes, symmetric, standard oval slots.
+
+> ⚠️ **Rows 2 and 3 above do not physically fit and need re-laying out.**
+> Four jacks across an 8HP panel is 10.16mm centres, leaving roughly 1mm
+> past the outer nuts to the panel edge and no room for a nut driver — see
+> the jack-density rule now in `../CLAUDE.md`. Three across (13.5mm
+> centres) is the maximum. Row 2 (USB-C bulkhead plus two TRS jacks plus an
+> icon) is dense for the same reason and wants checking against real
+> footprints. With six jacks plus a USB-C bulkhead, a display and an
+> encoder, MC-1 may simply not close at 8HP; the range's multiple-of-8HP
+> rule means the fallback is 16HP, which the spare 20HP could absorb.
+> Not resolved here — flagged before the board is fabbed.
 
 ## Outputs: CLK and velocity are both kept
 
@@ -117,6 +134,10 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
 
 ## Open items
 
+- **Panel re-layout** — the row-of-4 jack problem above, and whether MC-1
+  closes at 8HP at all.
+- **Bus master firmware** — parameter addressing/encoding over I2C is
+  unspecified and is now load-bearing in phase 1.
 - Exact USB-C connector part number for the daughterboard.
 - Display colour choice.
 - AS1115 polarity check against OPS-D2010 (common anode).
