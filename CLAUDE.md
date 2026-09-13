@@ -1,0 +1,183 @@
+# FluxTron — Project Overview
+
+A MIDI-controllable analogue Eurorack modular synth system. Looks and patches
+like a normal analogue modular system, but every parameter is also
+MIDI-controllable via CC/NRPN, with panel encoders for direct hands-on
+control.
+
+This file holds decisions that apply across the whole module range.
+Module-specific decisions live in each module's own folder
+(e.g. `MC-1/CLAUDE.md`).
+
+## Product identity
+
+- Range name: **FluxTron**
+- Module naming: `FluxTron AB-N` — two/three-letter code + number.
+  Same design built more than once (e.g. two envelope generators) reuses one
+  code with higher quantity, not a new number.
+- Panel aesthetic: aluminium panels, matte black, etched so graphics read as
+  silver-on-black. Brief: "clean but psychotic" — jagged hand-drawn divider
+  lines and small asymmetric details (a scratch/crack mark, an off-center
+  footer wordmark) rather than clutter. Sections use symbolic icons where
+  natural (e.g. a MIDI DIN end-view icon, a pulse-wave icon) rather than text
+  labels, except where a plain word is clearer (jack names, "CHANNEL").
+- Fonts: **Rubik Dirt** for the FLUXTRON wordmark, **Kode Mono** for
+  everything else (module code, jack labels, control labels). Use an en-dash
+  in module codes, e.g. "MC–1".
+- Sizing rule: every module width is a **multiple of 8HP**.
+
+## Scope: Phase 1 (monophonic voice)
+
+Monophonic system. Modules:
+
+| Module | Function | Qty | HP |
+|---|---|---|---|
+| MC-1 | MIDI-to-CV/Gate interface | 1 | 8 |
+| VO-1 | VCO | 1 | 8 |
+| VF-1 | VCF | 1 | 8 |
+| VA-1 | VCA | 1 | 8 |
+| EG-1 | Envelope generator (ADSR) | 2 | 8 each |
+| LF-1 | LFO | 1 | 8 |
+| MX-1 | Mixer | 1 | 8 |
+
+Total 64HP of 84HP (KOMA Case 3U/84HP) — 20HP spare, not yet allocated
+(candidates: extra spacing, blind panels, an output/headphone module).
+
+Flagged for later, not in scope now: **LF-2**, a fuller multi-waveform
+crossfade LFO (separate sine/saw/square cores blended via a dual-VCA-style
+crossfader), vs. LF-1's single continuous triangle↔saw/square skew control.
+
+## Case
+
+**KOMA Case 3U/84HP** — unpowered (bring your own PSU), 70mm depth. Bought
+direct from koma-elektronik.com (not widely stocked via third-party
+retailers). PSU/power distribution to be designed separately, not tied to
+the case vendor's own bus board.
+
+## Signal architecture: hybrid CV + digital bus
+
+- **Phase 1 modules are pure analogue CV/gate** — pitch, gate, velocity,
+  clock all travel as patch-cable voltages, same as traditional Eurorack.
+  Each module's MCU only handles its own MIDI-CC parameters (encoders), not
+  system-level note/gate data.
+- **A shared digital bus is designed into the connector/PCB footprint from
+  day one**, even though phase-1 modules don't use it — so later modules can
+  go digital without a backplane redesign.
+  - Physical: a **separate 4-pin connector** (bus VCC, SDA, SCL, GND)
+    alongside the standard Eurorack power header, its own ribbon, kept away
+    from analogue sections at layout time. Populated on every module even
+    when unused.
+  - Protocol: **I2C**, reusing the same physical layer as each module's
+    local AS1115 (see below).
+  - Addressing: **DIP/jumper-selectable** for phase 1. Auto-addressing
+    (daisy-chained enable line) is a flagged future enhancement, not
+    required now.
+  - Multi-case future: **buffered I2C** (e.g. PCA9615-style differential
+    extender) when that's needed — no CAN/RS-485 headroom being designed in.
+
+## PCB / panel construction
+
+- PCB mounted **parallel to the panel** (standard Eurorack practice) — not
+  perpendicular. Panel-mount components (pots, encoders, jacks) are designed
+  around this orientation; perpendicular would need right-angle variants of
+  everything.
+- **Depth budget is set by whichever component needs the most reach from
+  panel to PCB** — and different component families need very different
+  reach, which is the recurring design problem across every module:
+  - **Jacks** (Thonkiconn PJ301M-12, the Eurorack-standard 3.5mm mono jack):
+    **10mm** panel-to-PCB. This is now the number that sets the main PCB's
+    standoff distance on every module, since jacks are on every module and
+    are the shallowest of the "needs real panel-mount depth" components.
+  - **THT encoders** (Bourns PEC16): **16.1mm** body length behind the
+    panel — too deep to let dictate the whole board. Resolved by **not
+    mounting the encoder on the main PCB at all** — it's wired to the main
+    board on flying leads (A, B, common, switch ×2 — 5 wires) and gets its
+    mechanical support entirely from its own panel nut, same as always.
+    Leaves a keep-out zone on the main PCB directly behind the encoder
+    (16.1mm deep) — don't route tall components there.
+  - **Small digit displays / USB-C**: too *shallow* to sit at the 10mm jack
+    depth and still reach the panel (see MC-1 for the worked example) — each
+    needs its **own small daughterboard** at its own shallower standoff,
+    connected back to the main PCB via a short header/jumper. Components
+    needing meaningfully different depths do **not** share one daughterboard
+    even if both are "digital" — depth compatibility decides board grouping,
+    not function.
+  - **THT indicator LEDs**: not a depth constraint at all — leads are simply
+    trimmed/bent to reach the panel flush, whatever the standoff. Prefer
+    THT over SMD for any panel-facing indicator LED for this reason.
+- **Encoder/jack split rule for boards with multiple encoders**: 1–2
+  encoders on a module → flying leads straight to the main board (simple,
+  cheap, matches MC-1). **3+ encoders** → give that module a small dedicated
+  encoder sub-board carrying all its encoders, with one multi-pin
+  header/ribbon back to the main board, rather than a growing bundle of
+  loose flying leads. (Likely applies to LF-1 at minimum; check EG-1 once
+  its control set — fixed vs. continuous ADSR stages — is settled.)
+- Mounting holes: use proper elongated/oval slots (not round), sized per
+  standard Eurorack practice, not plain round corner holes.
+
+## Common components (repeat across modules)
+
+- **Jacks**: Thonkiconn PJ301M-12, 3.5mm mono, panel-mount — 10mm depth,
+  sets main PCB standoff on every module.
+- **Encoders**: Bourns PEC16, THT, panel-mount bushing — mounted off-PCB on
+  flying leads per the depth rule above. (Bourns PEC11S, an SMD variant with
+  a real metal bushing/shaft and ~6-7mm body, is a known option if a
+  shallow, PCB-mounted encoder is ever wanted instead — lower mechanical
+  life spec, worth weighing against the flying-lead approach case by case.)
+- **LED/button driver**: **AS1115** (I2C) — drives up to 64 LEDs or 8 digits
+  of 7-segment, plus keyscan for up to 64 buttons. One per module is
+  generally enough to cover an LED ring (where used), a pushbutton, and/or a
+  small digit display. Confirm common-anode/common-cathode polarity against
+  the specific display part before committing (AS1115 expects a specific
+  drive polarity).
+- **MIDI I/O**: **3.5mm TRS, Type A** (MIDI Association-ratified standard,
+  2018) — not 5-pin DIN (too big), not 2.5mm (non-standard minority format).
+- **Bus connector**: 4-pin (VCC, SDA, SCL, GND), separate from power header,
+  populated on every module regardless of phase.
+
+## Circuit protection standard
+
+Applies to every module's schematic. Cheap to design in now, painful to
+retrofit after boards are fabbed — treat this as a checklist each module
+must satisfy, not a per-module decision to re-derive.
+
+- **Reverse power protection**: shrouded, keyed 10-pin power header on every
+  module (prevents backwards insertion mechanically) *plus* a
+  reverse-polarity protection circuit on each rail as a backstop for the
+  "offset by one pin" case a keyed shroud doesn't catch. Default to simple
+  series diodes (~0.7V drop, acceptable given ±12V headroom) unless a
+  specific module's circuit is voltage-sensitive enough to need an
+  ideal-diode/PMOS approach instead.
+- **Per-module overcurrent protection**: a resettable PTC polyfuse on each
+  power rail, per module, so a fault on one module can't pull down the
+  shared bus and affect its neighbours. Exact current rating TBD per
+  module's actual draw.
+- **Output short-circuit protection**: series resistor (~1kΩ typical) on
+  every CV/audio/gate output, so a patching mistake (output shorted to
+  ground or to another output) is current-limited rather than damaging.
+- **Input overvoltage protection**: clamp diodes to the rails on every
+  CV/audio input, since any input can have another module's output patched
+  into it and Eurorack signal levels aren't universally well-behaved.
+- **ESD protection**: TVS diode arrays on jack signal lines (and on any
+  other user-facing exposed conductor, e.g. encoder shafts) on every
+  module — patch cables and panel controls are genuine static discharge
+  entry points.
+- **Decoupling**: adequate local decoupling (bulk electrolytic + local
+  ceramic near ICs) on every module, so a module's own current transients
+  don't drag down the shared rail for its neighbours — particularly
+  relevant given the shared backplane/daisy-chain approach.
+- **Bus connector (I2C) ESD**: basic ESD protection on SDA/SCL at each
+  module's bus connector, even in phase 1 while the bus is unused — cheap
+  now, saves a retrofit once the bus is load-bearing across more modules.
+
+Module-specific protection beyond this baseline (e.g. MC-1's USB-C ESD/VBUS
+protection and MIDI opto-isolation) is noted in that module's own
+`CLAUDE.md`, not here.
+
+## Open items / not yet decided
+
+- Spare 20HP allocation (extra spacing vs. blind panel vs. new module).
+- EG-1's control set (fully continuous ADSR via 4 encoders vs. some fixed
+  stages) — affects whether it needs a dedicated encoder sub-board.
+- PSU design for the (unpowered) KOMA case.
+- Auto-addressing scheme for the digital bus (deferred, not blocking).

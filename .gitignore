@@ -1,0 +1,13 @@
+# KiCad
+*-backups/
+*.bak
+fp-info-cache
+*.kicad_pcb-bak
+*.kicad_sch-bak
+_autosave-*
+*.000
+*.kicad_prl
+
+# General
+.DS_Store
+Thumbs.db
