@@ -77,7 +77,8 @@ takes an M6 × 0.5 nut, and packing jacks tight enough that the socket won't
 fit is a well-known DIY failure mode.
 
 **Three across (13.5mm centres) is the practical maximum at 8HP**, and that
-is what VO-1 uses. Two across is comfortable but too wasteful here.
+is what VO-1's two jack rows use. The remaining two jacks are placed beside
+the knobs rather than in a row — see the layout below.
 
 > **This applies to MC-1 too** — its spec currently calls for a row of four
 > jacks on an 8HP panel. Flagged in `../MC-1/CLAUDE.md`; needs re-laying out
@@ -85,28 +86,46 @@ is what VO-1 uses. Two across is comfortable but too wasteful here.
 
 ### Layout, top to bottom
 
-1. FLUXTRON wordmark + "VO–1"
-2. Encoder row A: **TUNE**, **FINE**
-3. Encoder row B: **PW**, **FM**
-4. Jack row (inputs, 3): 1V/OCT, FM, PWM
-5. Jack row (offset): SYNC at left, tune/status LED at right, with the
-   jagged divider line running between the input and output sections
-6. Jack row (outputs, 3): SAW, PULSE, SUB
-7. Footer wordmark, off-centre
+Settled from a panel mockup. The key move is **interleaving jacks with the
+encoders instead of keeping them in separate bands** — SYNC and PULSE live
+in the dead space beside the large knobs. That recovers two positions and
+gets all eight jacks onto the panel without a fourth jack row, which would
+not have fitted vertically.
 
-Three jack rows and two encoder rows is what fits: ~48mm of jacks + ~44mm of
-encoders + header and footer leaves a little over 12mm of slack in 128.5mm.
-A fourth jack row does not fit.
+1. FLUXTRON wordmark + module code
+2. Jagged divider
+3. Jack row (inputs, 3 across): **CV**, **FM**, **PWM**
+4. **SYNC** jack at left, status LED centre, **TUNE** encoder at right
+5. **FINE** encoder at left; jagged divider at right
+6. **WIDTH** encoder at right
+7. **DEPTH** encoder at left, **PULSE** jack at right
+8. Jack row (outputs, 3 across): **SAW**, **SUB**, **TRI**
+9. Jagged divider, footer
 
-**Seven jacks, not eight.** The chosen output set was saw / pulse /
-triangle / sub, but the 3-across limit leaves nine positions across three
-rows and the layout above uses seven of them. **Triangle is the one
-dropped** — saw, pulse and sub-octave cover a subtractive mono voice, and
-the triangle remains available on-chip if a later revision wants it. The
-spare position in row 5 is deliberate breathing space and is where the LED
-and divider live.
+**All eight jacks fit, and triangle is kept** — the earlier draft dropped it
+to live within seven positions across three clean rows. The interleaved
+layout makes that unnecessary.
 
 4 mounting holes, symmetric, standard oval slots.
+
+### Panel graphics: the knobs must not have pointer lines
+
+The mockup draws the four controls as knobs with an indicator line. That is
+a **pot** graphic and it misrepresents the design: these are incremental
+encoders with no end stops and no absolute position, so a pointer line
+points at nothing and will read as broken the first time a MIDI CC moves a
+parameter while the knob stays put.
+
+Use a plain knob with no indicator, or a knurled/D-shaft cap. The honest
+alternative is an LED ring for position feedback, which was ruled out here
+on space and cost — but if position indication is wanted, that is the way
+to get it, not a painted line.
+
+### Jack labelling
+
+**"CV" is ambiguous on this panel** — FM and PWM are both CV inputs too.
+Label the pitch input **1V/OCT** (or V/OCT), which is also what every other
+Eurorack module calls it.
 
 ## Controls and parameters
 
@@ -114,27 +133,55 @@ and divider live.
 |---|---|---|---|
 | Coarse tune | TUNE | yes | 16-bit DAC → expo summing node |
 | Fine tune | FINE | yes | same DAC channel as coarse |
-| Pulse width | PW | yes | 12-bit DAC → AS3340 PW input |
-| FM depth | FM | yes | 12-bit DAC → OTA in FM CV path |
+| Pulse width | WIDTH | yes | 12-bit DAC → AS3340 PW input |
+| FM depth | DEPTH | yes | 12-bit DAC → OTA in FM CV path |
 | PWM CV depth | — | yes | 12-bit DAC → OTA in PWM CV path |
 | Sub division (/2 or /4) | — | yes | MCU GPIO → mux |
 | Calibrate now | — | yes | firmware action |
 
-Four encoders, so per the range rule (3+ encoders) they go on a **dedicated
-encoder sub-board** with one ribbon back to the main PCB — 4×(A, B) +
-4×(switch) + common = 13 lines, so a 14-way ribbon.
+Four encoders. The range rule says 3+ encoders get a dedicated encoder
+sub-board — but **the mockup's layout makes that impractical, so VO-1 uses
+flying leads instead.**
 
-### The encoder sub-board has a depth clash the range rule didn't anticipate
+The four controls are scattered diagonally down the panel (TUNE upper right,
+FINE mid left, WIDTH mid right, DEPTH lower left) and interleaved with jacks.
+A single sub-board spanning them would be nearly the full panel — i.e. the
+main PCB's own footprint — and two narrow side strips would foul the jack
+rows top and bottom. The rule's purpose was to avoid a growing bundle of
+loose leads; here geometry wins. Budget **4 × 5 = 20 flying leads**, which is
+a real bundle and wants strain relief and a sane wiring order.
 
-The PEC16 body is 16.1mm behind the panel, so a sub-board carrying the
-encoders sits at a **16.1mm standoff — 6.1mm *behind* the main PCB's 10mm
-plane**, not in front of it. The two boards overlap in space.
+Clustering the four encoders into one block would restore the sub-board
+option, at the cost of the interleaving that got the eighth jack on.
 
-Resolved by **notching the main PCB** in the encoder zone (top of the panel)
-so the sub-board drops through, mounted on the encoder nuts themselves plus
-one standoff. This is worth feeding back into the range-wide encoder/jack
-split rule, which is written as though a sub-board is always shallower than
-the main board.
+### ⚠️ Unverified: does a PEC16 actually clash with the main PCB?
+
+The previous draft of this file (and the range-wide rule it fed into)
+asserted that a PEC16 body extends 16.1mm behind the panel and therefore
+intersects the main PCB's 10mm plane, requiring a cutout. **That is not
+confirmed and may well be wrong.**
+
+The range doc's 16.1mm figure is described as "body length behind the
+panel", but Bourns' own dimension list pairs it with an **M9 × 0.75 bushing
+in 8.3 / 9.3 / 12.5mm lengths** — which reads much more like 16.1mm being an
+*overall* length with the bushing included. If so, the behind-panel body is
+somewhere near 8mm and **clears the 10mm main PCB entirely**, with no cutout
+needed anywhere on any module.
+
+The two outcomes differ a lot:
+
+- **Behind-panel body ≲ 9mm**: no cutouts, no clash. Encoders still can't be
+  main-PCB-mounted (they'd fall short of reaching the panel from 10mm), so
+  flying leads regardless — but the boards get much simpler.
+- **Behind-panel body ≈ 16.1mm**: every PEC16 on every module needs a
+  clearance hole (~14mm) through the main PCB, flying leads or not. On VO-1
+  that is four holes punched through the middle of the board that has to
+  carry the AS3340, MCU, DACs, LM13700 and power section.
+
+**Check the PEC16 dimensional drawing before laying out any module.** The
+distributor and Bourns domains are blocked from this environment, so it
+could not be resolved here. This also decides whether the range-wide
+encoder-depth rule in `../CLAUDE.md` is correct as written.
 
 ### Tune resolution
 
@@ -185,8 +232,9 @@ overkill at two channels.
 ## Confirmed parts
 
 - **VCO core**: Alfa Rpar AS3340.
-- **Jacks**: Thonkiconn PJ301M-12 ×7 (1V/OCT, FM, PWM, SYNC in; SAW,
-  PULSE, SUB out), at 13.5mm centres, three across.
+- **Jacks**: Thonkiconn PJ301M-12 ×8 (1V/OCT, FM, PWM, SYNC in; SAW,
+  PULSE, SUB, TRI out). The three-across rows are at 13.5mm centres; SYNC
+  and PULSE sit beside the knobs.
 - **Encoders**: Bourns PEC16 ×4, on a dedicated sub-board per above.
 - **Sub divider**: 74HC74; pulse squaring 74HC14.
 - **Depth VCAs**: LM13700.

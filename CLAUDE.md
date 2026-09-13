@@ -122,14 +122,23 @@ the case vendor's own bus board.
   cheap, matches MC-1). **3+ encoders** → give that module a small dedicated
   encoder sub-board carrying all its encoders, with one multi-pin
   header/ribbon back to the main board, rather than a growing bundle of
-  loose flying leads. (Applies to VO-1; likely LF-1 too; check EG-1 once
-  its control set — fixed vs. continuous ADSR stages — is settled.)
-  - **An encoder sub-board sits *behind* the main PCB, not in front of it.**
-    The PEC16 is 16.1mm deep against the main board's 10mm, so the two
-    overlap in space — this rule was originally written as though a
-    sub-board were always the shallower of the two. Resolve by notching the
-    main PCB in the encoder zone so the sub-board drops through, mounted on
-    the encoder nuts plus a standoff. See VO-1 for the worked example.
+  loose flying leads. (Likely applies to LF-1; check EG-1 once its control
+  set — fixed vs. continuous ADSR stages — is settled. **Does not apply to
+  VO-1**, whose four encoders are scattered and interleaved with jacks, so a
+  sub-board would span the whole panel — it uses flying leads instead.)
+  - **A sub-board only helps when the encoders are clustered.** Where a
+    module's layout spreads them across the panel, flying leads win despite
+    the 3+ rule; the rule exists to tame cable bundles, not to override
+    geometry.
+- **⚠️ The 16.1mm PEC16 depth figure above is unverified and may be wrong.**
+  It is recorded as "body length behind the panel", but Bourns pairs it with
+  an M9 × 0.75 bushing in 8.3 / 9.3 / 12.5mm lengths, which suggests 16.1mm
+  is an *overall* length including the bushing — in which case the
+  behind-panel body is nearer 8mm and clears the 10mm main PCB with no
+  cutout at all. If instead it really is 16.1mm behind the panel, every
+  PEC16 on every module needs a ~14mm clearance hole through the main PCB.
+  **Resolve against the PEC16 dimensional drawing before laying out any
+  board** — it changes every module, MC-1 included. See VO-1's spec.
 - **Jack density: three across is the maximum on an 8HP panel.** 8HP is
   40.64mm, so four across means 10.16mm centres — about 1mm of clearance
   past the outer nuts to the panel edge, and no room to get a nut driver
