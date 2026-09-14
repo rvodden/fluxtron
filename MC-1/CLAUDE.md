@@ -139,7 +139,7 @@ values) cannot express a 6/8 or 12/8 beat, whose pulse is a dotted quarter.
 ### Display encoding
 
 `t` and `d` are both cleanly renderable on 7-segment, so **the scheme does
-not depend on the OPS-D2010 having decimal points** — an open question that
+not depend on the display having decimal points** — an open question that
 would otherwise have been load-bearing. If the part does turn out to have
 DPs, lighting one on the dotted values is optional garnish, nothing rests
 on it. `t8`/`t4` stay visually distinct from `08`/`04` at 5mm digit height.
@@ -241,19 +241,32 @@ Each daughterboard connects to the main PCB via a short header/jumper
 
 - **Jacks**: Thonkiconn PJ301M-12 ×6 — V/OCT, GATE, VEL, CLK, plus the
   TRS MIDI IN/THRU pair. Two across, three rows.
-- **Display**: **Opto Plus OPS-D2010 series ×2** (CH and DIV) — 0.2"
-  (5.08mm) dual-digit SMD 7-segment, Diamond seg., **3mm thick**,
-  10mm × 14.4mm footprint. Four digits total, well inside the AS1115's
-  8-digit capability — one driver, one I2C address, no extra silicon.
-  **Blue** per the range-wide indicator palette — the earlier amber/warm
-  suggestion is withdrawn. The series lists 8 colours (e.g. OPS-D2010LR
-  red, OPS-D2010SA amber) but **whether it is offered in blue is
-  unconfirmed and is the first thing to check.** The part is only in the
-  spec because it is 3mm thick, so a blue substitute must also be ~3mm and
-  ~0.2" dual-digit or the display daughterboard's standoff changes with it.
-  Currently common anode; if the part is being re-picked for colour anyway,
-  **pick a common-cathode blue part** and close the AS1115 polarity item
-  below at the same time.
+- **Display**: **GS2020CB-G ×2** (CH and DIV), blue, per the range-wide
+  indicator palette. Supersedes the Opto Plus OPS-D2010, which was only
+  ever in the spec for its 3mm thickness and whose blue availability was
+  never confirmed.
+  Four digits total, well inside the AS1115's 8-digit capability — one
+  driver, one I2C address, no extra silicon.
+  **⚠️ Datasheet not yet on file — four figures are load-bearing and none
+  is recorded here yet.** No public datasheet could be found for this part
+  number from this environment, so nothing below is inferred from the part
+  number and nothing should be until the datasheet is read:
+  - **Thickness.** The display daughterboard exists as a separate board
+    purely because the OPS-D2010 was 3mm and could not reach the panel from
+    the jacks' 10mm plane. If GS2020CB-G is meaningfully thicker or
+    thinner, that standoff moves with it; if it were ever to approach
+    ~10mm it could share the main PCB and the daughterboard disappears.
+  - **Common cathode or common anode.** Decides whether the standing
+    AS1115 polarity question closes or stays open. (If the `C` in `CB`
+    does denote common cathode, it closes — but that is a guess about a
+    part number, not a fact, and must be read off the datasheet.)
+  - **Forward voltage.** Decides whether MC-1 actually needs the local 5V
+    LDO that blue segments imply (see `../CLAUDE.md`), and with it the
+    extra dissipation on the PTC budget.
+  - **Body width and digit height.** Two of these sit side by side on a
+    40.64mm panel, so the pair plus their gap and the `CH`/`DIV` labels
+    have to fit across 8HP — and vertical height feeds the panel budget
+    that is already the tight axis.
   **Still to confirm**: AS1115 digit-drive polarity (common-anode vs.
   common-cathode) is compatible with this part before ordering.
 - **Encoder**: Bourns PEC16, THT, off-board per above.
@@ -289,16 +302,18 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
 - **Bus master firmware** — parameter addressing/encoding over I2C is
   unspecified and is now load-bearing in phase 1.
 - Exact USB-C connector part number for the daughterboard.
-- **Sourcing a blue display** — blue in the OPS-D2010 series is
-  unconfirmed, and any substitute is constrained to ~3mm thickness by the
-  daughterboard standoff, not just by colour.
+- **GS2020CB-G datasheet** — thickness, drive polarity, forward voltage
+  and footprint are all unrecorded, and each feeds a decision already made
+  elsewhere in this file. Highest-value item on this list.
 - **A local 5V rail for the AS1115**, which blue segments force (see the
   range doc). Adds an LDO and its dissipation to MC-1's PTC budget — the
   10-pin power header carries no +5V.
-- AS1115 polarity check against OPS-D2010 (common anode).
-- Whether the OPS-D2010 has decimal points — affects only the focus
+- AS1115 drive-polarity check against the GS2020CB-G (was an open item
+  against the OPS-D2010, which was common anode; the new part's polarity
+  is not yet known).
+- Whether the GS2020CB-G has decimal points — affects only the focus
   indicator and the optional dotted-value marker, not the division
-  encoding itself.
+  encoding itself, which was deliberately designed not to need them.
 - **Free-running internal clock** (MC-1 as master when no MIDI clock is
   present) — genuinely useful, genuinely separate: it needs a tempo
   control, a start/stop affordance and probably tap, none of which fit the
