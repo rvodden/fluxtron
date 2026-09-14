@@ -30,7 +30,8 @@ Layout, top to bottom:
 5. Jagged divider
 6. USB-C bulkhead, centred on its own row
 7. **IN** / **THRU** jacks (the TRS MIDI pair)
-8. **VEL** / **CLK** jacks
+8. **VEL** / **CLK** jacks, with the **CLK indicator LED** and pulse-wave
+   icon in the centre gap, offset toward CLK
 9. **V/OCT** / **GATE** jacks
 10. Jagged divider
 
@@ -59,6 +60,43 @@ constraint, with only single-digit millimetres of slack.** Those numbers
 are estimates from the mockup, not measured footprints — this is the item
 most likely to force another re-layout, and it should be checked against
 real footprints before the board is laid out.
+
+### CLK indicator LED
+
+A blue THT LED beside the CLK jack, flashing on each emitted clock pulse.
+It answers two questions the panel otherwise cannot: whether MIDI clock is
+arriving at all, and what rate is actually coming out — the latter being a
+check on the DIV setting that does not require reading the display.
+
+**Placement costs no vertical space**, which matters given the budget
+above: it sits in the centre gap on the existing VEL/CLK row rather than
+taking a row of its own. **Offset toward CLK, not centred** — an LED
+equidistant between VEL and CLK reads as belonging to both.
+
+This also restores the **pulse-wave icon**, which the original row-of-four
+layout specified ("pulse icon centered between the middle two") and which
+the 2×3 relayout silently dropped. The icon and the LED belong together.
+
+- **Driven from its own MCU GPIO, not the AS1115.** MC-1 has an AS1115 for
+  the displays and it has spare capacity, but hanging the clock LED off it
+  would multiplex the indicator at the display refresh rate and bind its
+  brightness to the displays' global intensity — which is already being
+  set as a compromise between readability and LDO dissipation. A GPIO
+  keeps clock timing independent of display refresh and lets the LED be
+  dimmed on its own terms. +12V through a series resistor and a small
+  NPN/MOSFET, per the range-wide blue-LED rule.
+- **The LED needs its own on-time, longer than the jack pulse.** The CLK
+  output is `min(10ms, period/4)`; 10ms of light reads as a flicker, not a
+  blink. Use **`min(50ms, period/2)`** for the LED. That gives a crisp 50ms
+  flash at `04` (10% duty at 120 BPM) and still half-duty rather than a
+  solid glow at `32`, where the period is only 62.5ms.
+- **⚠️ Dark must not mean "stopped" when it means "slow".** At `8b` the
+  output is one pulse every 16 seconds, so a flash-only LED is
+  indistinguishable from no clock at all for 15.95 of them. **Hold the LED
+  at a low PWM duty whenever MIDI clock is being received**, and drive it
+  to full for the flash. Dark then means genuinely no clock; dim means
+  clock present but between pulses; bright is the pulse itself. The GPIO
+  drive is already there, so this costs nothing but firmware.
 
 ### Jack labelling
 
@@ -359,8 +397,10 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
 - **Vertical panel budget** — the row-of-4 problem is resolved and MC-1
   closes at 8HP, but height is now the tight axis with only a few
   millimetres of slack, on estimated rather than measured footprints.
-- **MIDI DIN icon** for the IN/THRU row, so those two jacks are
-  distinguishable from the four CV jacks.
+- **Panel icons** — the MIDI DIN end-view icon for the IN/THRU row, so
+  those two jacks are distinguishable from the four CV jacks, and the
+  pulse-wave icon beside the CLK LED. Both were in the original spec and
+  neither is in the current mockup.
 - **Bus master firmware** — parameter addressing/encoding over I2C is
   unspecified and is now load-bearing in phase 1.
 - Exact USB-C connector part number for the daughterboard.
