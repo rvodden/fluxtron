@@ -241,18 +241,26 @@ Each daughterboard connects to the main PCB via a short header/jumper
 
 - **Jacks**: Thonkiconn PJ301M-12 ×6 — V/OCT, GATE, VEL, CLK, plus the
   TRS MIDI IN/THRU pair. Two across, three rows.
-- **Display**: **Guangcai GS2022CB-G ×2** (CH and DIV) — 0.2" (5.08mm)
-  dual-digit SMD 7-segment, blue, common cathode, grey reference surface.
-  Supersedes the Opto Plus OPS-D2010, which was only ever in the spec for
-  its 3mm thickness and whose blue availability was never confirmed.
-  Datasheet rev A, 2022.09.20, on file.
+- **Display**: **Guangcai GS2022CB-B ×2** (CH and DIV) — 0.2" (5.08mm)
+  dual-digit SMD 7-segment, blue, common cathode, **black** reference
+  surface. Supersedes the Opto Plus OPS-D2010, which was only ever in the
+  spec for its 3mm thickness and whose blue availability was never
+  confirmed. Datasheet:
+  `../datasheets/GS2022_Guangcai_7seg_revA_2022-09-20.pdf`.
+
+  **Black reference surface, not grey.** The series offers both (`-B`
+  black, `-G` grey). Black makes unlit segments disappear into the matte
+  black panel, so the display reads as blue characters floating on the
+  panel rather than as a grey rectangle stuck to it — the right call for
+  the cold palette. No electrical difference between the two.
 
   **Part number decode**, since ordering the wrong variant is easy: the
   datasheet is headed `GS2022A/CX-X`, where `A`/`C` selects common anode
   or common cathode, the next letter is the emitting colour and the `-X`
-  suffix is the reference-surface colour. So `GS2022CB-G` = common
-  **C**athode, **B**lue, **G**rey surface. The common-anode `GS2022Ax` is
-  the wrong part here — see polarity below.
+  suffix is the reference-surface colour. So `GS2022CB-B` = common
+  **C**athode, **B**lue, **B**lack surface — note the `B` means different
+  things in the two positions. The common-anode `GS2022Ax` is the wrong
+  part here; see polarity below.
 
   Confirmed figures, all four of which were previously open:
 
@@ -351,13 +359,9 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
 - **Bus master firmware** — parameter addressing/encoding over I2C is
   unspecified and is now load-bearing in phase 1.
 - Exact USB-C connector part number for the daughterboard.
-- **AS1115 segment/digit driver dropout at 5V** against the GS2022CB-G's
+- **AS1115 segment/digit driver dropout at 5V** against the GS2022CB-B's
   3.80V worst-case Vf — the tightest electrical margin on the module.
 - **I2C level shifting** between the 3.3V MCU and the 5V AS1115.
-- **Reference surface: grey (`-G`) or black (`-B`)?** The part is
-  specified grey; black would make unlit segments vanish into a matte
-  black panel, which suits the cold palette better. Aesthetic call, no
-  electrical difference.
 - **A local 5V rail for the AS1115** is now confirmed necessary, not just
   likely — sizing and thermals per the note above.
 - **Free-running internal clock** (MC-1 as master when no MIDI clock is
