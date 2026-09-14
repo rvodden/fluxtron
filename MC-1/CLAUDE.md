@@ -387,9 +387,13 @@ Two further consequences:
   **Sit it on the 3.3V side of the AS1115 level shifter**, not the 5V
   side: the AS1115 needs 5V only because blue segments demand it, and
   there is no reason to drag the DAC up with it.
-- **Pitch DAC**: 16-bit with a precision reference, part not yet chosen —
-  the V/OCT output has the same requirement as VO-1's tune, and the range
-  doc calls for picking one part for both.
+- **Pitch DAC**: **AD5662** (16-bit, SPI, midscale power-on reset) with a
+  **REF5025** 2.5V reference, 3ppm/°C grade, for the V/OCT output. The
+  REF5025 can run from MC-1's existing 5V rail, so the headroom question
+  that affects VO-1 does not arise here.
+  **MC-1 is the module where pitch accuracy actually matters** — it has no
+  feedback loop, unlike VO-1's auto-tune. It needs a **user calibration
+  routine** storing gain and offset in the reserved settings flash page.
 - **Encoder**: Bourns **PEC11R-4015F-S0024** — switched, since the push
   toggles CH/DIV focus. THT, detentless, 15mm shaft, off-board on flying
   leads per above. See the range doc for the quadrature-counting rule.

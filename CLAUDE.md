@@ -250,10 +250,84 @@ the case vendor's own bus board.
   - **⚠️ Two on one bus needs address programming.** The three address LSBs
     are set by an LDAC-assisted write sequence, not by pins. Fine at one
     per module; plan for it if a module ever needs more than 4 channels.
-- **Pitch DAC**: 16-bit, precision reference, **part not yet chosen**.
-  Needed by both VO-1 (tune) and MC-1 (V/OCT out) to the same spec, so it
-  should be picked once for the range rather than per module — see VO-1's
-  tune-resolution note for where the 16-bit requirement comes from.
+- **Pitch DAC**: **AD5662** (16-bit, single-channel, SPI, buffered
+  rail-to-rail output, guaranteed monotonic, MSOP-8 or SOT-23-8) with a
+  **REF5025** 2.5V precision reference. One of each on VO-1 (tune) and on
+  MC-1 (V/OCT out). An AD5683R with an on-chip 2ppm reference would have
+  saved the second part but is hard to source.
+  - **⚠️ Specify the 3ppm/°C REF5025 grade, not the 8ppm.** Reference drift
+    lands directly on tuning: 3ppm/°C is 0.72 cent over a 20°C warm-up,
+    8ppm/°C is 1.92 cents, which is perceptible on a sustained note. This
+    is the single most consequential line in the pitch BOM.
+  - **⚠️ Check REF5025 dropout against a 3.3V supply before committing
+    VO-1's power design.** VO-1 has no AS1115 and therefore no 5V rail, so
+    its reference would run from 3.3V to produce 2.5V. If the headroom is
+    not there, VO-1 needs a 5V rail it does not otherwise want. MC-1
+    already has 5V for the AS1115, so only VO-1 is exposed.
+  - **⚠️ Pick the power-on reset variant deliberately.** The AD5662 ships
+    in reset-to-zero-scale and reset-to-midscale versions (the `-1`/`-2`
+    suffix — confirm against the datasheet when ordering). **Midscale** is
+    the right default: VO-1's oscillator free-runs and makes sound
+    immediately at power-up, so a zero-scale tune offset would drop it to
+    the bottom of its range until firmware initialises. Same part on both
+    modules.
+  - **SPI rather than I2C is a minor benefit, not the reason.** Keeping
+    pitch off the bus that carries parameter and display traffic does mean
+    a note-on cannot queue behind a CC update — but the worst-case delay
+    is about 95us at 400kHz, against 320us for a single MIDI byte, and it
+    vanishes entirely if firmware writes pitch before raising gate. The
+    real driver for this part was sourcing. Recorded so the next person
+    does not treat the bus split as load-bearing when it is not.
+  - **The I2C sibling (AD5693R) remains a live alternative**: same family,
+    2ppm on-chip reference rather than the REF5025's 3ppm, one part rather
+    than two, and it would make the 3.3V headroom question below moot
+    since it generates its own reference. It lost on sourcing, not merit.
+
+### ⚠️ The pitch DAC is the easy part — the output stage is not
+
+One cent at 1V/oct is **833µV**, which over a 10V span is **83ppm**. That
+number governs the whole chain, and the DAC contributes almost none of it:
+
+| Source | Drift over 20°C | Cents |
+|---|---|---|
+| 16-bit LSB over 10V | — | 0.18 |
+| REF5025 at 3ppm/°C | 60 ppm | 0.72 |
+| REF5025 at 8ppm/°C | 160 ppm | 1.92 |
+| **Discrete 1% resistors, 25ppm/°C** | **500 ppm** | **6.00** |
+| Matched thin-film array, 1ppm/°C tracking | 20 ppm | 0.24 |
+| Precision op-amp, 3µV/°C at gain 4 | — | 0.29 |
+| Jellybean op-amp, 10µV/°C at gain 4 | — | 0.96 |
+
+Two rules follow, and they matter more than the DAC part number:
+
+1. **Use a matched thin-film resistor network in the scaling stage, never
+   two discretes.** It is *tracking* tempco that counts, not absolute —
+   which is why an array specified at 25ppm absolute can still track to
+   1ppm. Discretes throw away six cents over a warm-up and would waste
+   every penny spent on the reference.
+2. **Use a precision op-amp, not a TL072.** Offset voltage can be
+   calibrated out; offset *drift* cannot. Note the 2.5V reference means a
+   gain of about 4 to reach a 10V span, which multiplies the op-amp's
+   input-referred drift by 4 rather than 2 — so this matters more here
+   than it would with a 5V reference.
+
+### Precision lands on MC-1, not VO-1
+
+Counterintuitive, and worth stating plainly because the instinct is the
+other way round:
+
+- **VO-1 auto-tunes.** Its closed loop measures real oscillator frequency
+  and corrects, absorbing DAC gain error, reference tolerance and slow
+  drift. It needs monotonicity and short-term stability, little else.
+- **MC-1 has no feedback at all.** Its V/OCT goes into someone else's VCO
+  and whatever comes out is what you hear. The precision requirement lands
+  on the interface module.
+
+MC-1 should therefore carry a **user calibration routine** — output a known
+code, measure with a meter, store gain and offset in the flash page already
+reserved for settings. That removes the absolute-accuracy burden entirely
+and leaves only drift, which calibration cannot fix. It is the reason to
+spend the BOM on tempco rather than on initial accuracy.
 - **MIDI I/O**: **3.5mm TRS, Type A** (MIDI Association-ratified standard,
   2018) — not 5-pin DIN (too big), not 2.5mm (non-standard minority format).
 - **Bus connector**: 4-pin (VCC, SDA, SCL, GND), separate from power header,
