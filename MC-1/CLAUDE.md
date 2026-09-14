@@ -218,10 +218,10 @@ main board:
   since jacks reach their native depth directly.
 - **Channel/division encoder**: off-board entirely, on flying leads (A, B,
   common, switch ×2 — 5 wires) back to the main PCB. Its own panel nut
-  provides all the mechanical support; main-PCB keep-out zone behind it
-  (16.1mm deep, per Bourns PEC16 body length — but see the range doc's
-  warning that this figure is unverified). The switch pair is now used, for
-  the channel/division focus toggle.
+  provides all the mechanical support. **No main-PCB keep-out is needed**:
+  the PEC11R sits 6.5mm behind the panel, wholly in front of the 10mm main
+  PCB, which retires the cutout worry the PEC16 carried. The switch pair is
+  now used, for the channel/division focus toggle.
 - **USB-C daughterboard**: separate small board, its own shallow standoff
   set by whichever connector is chosen (checked against 219320-0001 as a
   reference point — 8.8mm, i.e. deeper than the display, hence the separate
@@ -326,7 +326,10 @@ Two further consequences:
   range-wide linear-only rule applies to it as much as to VO-1.
   **Still to confirm**: AS1115 digit-drive polarity (common-anode vs.
   common-cathode) is compatible with this part before ordering.
-- **Encoder**: Bourns PEC16, THT, off-board per above.
+- **Encoder**: Bourns **PEC11R-4230F-S0024** — switched, since the push
+  toggles CH/DIV focus. THT, off-board on flying leads per above. 24
+  detents / 24 pulses; see the range doc for the quadrature-counting and
+  shaft-length cautions.
 - **USB-C connector**: not yet finalised. 219320-0001 (Molex, 8.8mm) used
   as a reference depth point; still need to pick the actual part for the
   daughterboard.

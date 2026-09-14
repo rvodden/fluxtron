@@ -112,13 +112,15 @@ the case vendor's own bus board.
     **10mm** panel-to-PCB. This is now the number that sets the main PCB's
     standoff distance on every module, since jacks are on every module and
     are the shallowest of the "needs real panel-mount depth" components.
-  - **THT encoders** (Bourns PEC16): **16.1mm** body length behind the
-    panel — too deep to let dictate the whole board. Resolved by **not
-    mounting the encoder on the main PCB at all** — it's wired to the main
-    board on flying leads (A, B, common, switch ×2 — 5 wires) and gets its
-    mechanical support entirely from its own panel nut, same as always.
-    Leaves a keep-out zone on the main PCB directly behind the encoder
-    (16.1mm deep) — don't route tall components there.
+  - **THT encoders** (Bourns PEC11R): **6.5mm** behind the panel's rear
+    face, switched and unswitched variants alike. That is *shallower* than
+    the 10mm jack plane, not deeper, so there is no clash, no cutout and
+    no keep-out — the body sits wholly in front of the main PCB with about
+    3.5mm to spare, and nothing on the board has to route around it.
+    The constraint runs the other way instead: an encoder soldered to a
+    PCB puts that PCB at 6.5mm, so it still cannot share the main board at
+    10mm. Flying leads or a dedicated sub-board at its own 6.5mm standoff,
+    per the split rule below.
   - **Small digit displays / USB-C**: too *shallow* to sit at the 10mm jack
     depth and still reach the panel (see MC-1 for the worked example) — each
     needs its **own small daughterboard** at its own shallower standoff,
@@ -145,15 +147,6 @@ the case vendor's own bus board.
   - **A clustered encoder block means the main PCB stops short of it**
     rather than running the full panel height — no notch needed, but the
     remaining board area gets tight on an 8HP module. See VO-1.
-- **⚠️ The 16.1mm PEC16 depth figure above is unverified and may be wrong.**
-  It is recorded as "body length behind the panel", but Bourns pairs it with
-  an M9 × 0.75 bushing in 8.3 / 9.3 / 12.5mm lengths, which suggests 16.1mm
-  is an *overall* length including the bushing — in which case the
-  behind-panel body is nearer 8mm and clears the 10mm main PCB with no
-  cutout at all. If instead it really is 16.1mm behind the panel, every
-  PEC16 on every module needs a ~14mm clearance hole through the main PCB.
-  **Resolve against the PEC16 dimensional drawing before laying out any
-  board** — it changes every module, MC-1 included. See VO-1's spec.
 - **Jack density: three across is the maximum on an 8HP panel.** 8HP is
   40.64mm, so four across means 10.16mm centres — about 1mm of clearance
   past the outer nuts to the panel edge, and no room to get a nut driver
@@ -166,11 +159,31 @@ the case vendor's own bus board.
 
 - **Jacks**: Thonkiconn PJ301M-12, 3.5mm mono, panel-mount — 10mm depth,
   sets main PCB standoff on every module.
-- **Encoders**: Bourns PEC16, THT, panel-mount bushing — mounted off-PCB on
-  flying leads per the depth rule above. (Bourns PEC11S, an SMD variant with
-  a real metal bushing/shaft and ~6-7mm body, is a known option if a
-  shallow, PCB-mounted encoder is ever wanted instead — lower mechanical
-  life spec, worth weighing against the flying-lead approach case by case.)
+- **Encoders**: **Bourns PEC11R**, 12mm incremental, THT, M7 × 0.75 metal
+  bushing and metal shaft, 6.5mm behind the panel. Replaces the PEC16,
+  which was larger (M9 bushing, 16mm body) and whose behind-panel depth the
+  range doc could never confirm. Datasheet:
+  `datasheets/PEC11R_Bourns_encoder_revD_2026-04.pdf`.
+  - `PEC11R-4230F-N0024` — no switch
+  - `PEC11R-4230F-S0024` — with push momentary switch
+  - Decode: `4` = PC pin horizontal/rear-facing, `2` = 24 detents,
+    `30` = 30mm shaft, `F` = metal flatted (D) shaft, `N`/`S` = switch
+    option, `0024` = 24 pulses per revolution.
+  - **⚠️ Firmware: 24 detents *and* 24 pulses per revolution means one full
+    quadrature cycle per click.** Firmware counting all four edges gets
+    four counts per detent — count whole cycles, or divide by four, or
+    every encoder on every module steps 4× too fast. Contact bounce is
+    2.0ms max at 15 RPM; debounce against that.
+  - **⚠️ The 30mm shaft is long for Eurorack.** It is measured from the
+    mounting surface, so roughly 28mm protrudes past a 2mm panel, against
+    the 14–20mm of a typical Eurorack knob. Check it against the chosen
+    knob before ordering — 15, 20 and 25mm shafts exist in the same series
+    with identical footprint, depth and pinout if a shorter one is wanted.
+  - **Bourns states hand soldering is not recommended** (wave solder,
+    260°C max for 3 ±1s). Worth knowing for a hand-built module; it is not
+    a prohibition so much as a warranty boundary.
+  - Switch is SPST momentary, 0.5mm travel, 610 ±306gf. Rotational life
+    30,000 cycles, switch life 20,000. Contacts rated 10mA @ 5VDC.
 - **LED/button driver**: **AS1115** (I2C) — drives up to 64 LEDs or 8 digits
   of 7-segment, plus keyscan for up to 64 buttons. One per module is
   generally enough to cover an LED ring (where used), a pushbutton, and/or a

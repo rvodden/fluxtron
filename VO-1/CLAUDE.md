@@ -64,7 +64,7 @@ NPN/MOSFET off the GPIO. See `../CLAUDE.md`.
 ### Encoders are incremental, so MIDI and panel don't fight
 
 Worth recording because it falls out of the range's encoder choice for free:
-the Bourns PEC16 is a relative/incremental encoder, not a pot. When a CC
+the Bourns PEC11R is a relative/incremental encoder, not a pot. When a CC
 changes a parameter there is no stale knob position to reconcile and no
 value-pickup problem — the encoder just nudges from wherever the parameter
 currently is. A pot-based design would have needed pickup/catch logic.
@@ -180,34 +180,23 @@ through a transistor (see the control-architecture section above and
 `../CLAUDE.md`). Size the series resistor for 2–3mA; a blue LED at full
 tilt on a matte black panel is a distraction, not an indicator.
 
-### ⚠️ Unverified: does a PEC16 actually clash with the main PCB?
+### Encoder vs main PCB: resolved, and the board is unpunctured
 
-The previous draft of this file (and the range-wide rule it fed into)
-asserted that a PEC16 body extends 16.1mm behind the panel and therefore
-intersects the main PCB's 10mm plane, requiring a cutout. **That is not
-confirmed and may well be wrong.**
+An earlier draft of this file flagged that a PEC16 might extend 16.1mm
+behind the panel, intersecting the main PCB's 10mm plane and forcing four
+~14mm clearance holes through the middle of the board that carries the
+AS3340, MCU, DACs, LM13700 and power section. It could not be resolved at
+the time.
 
-The range doc's 16.1mm figure is described as "body length behind the
-panel", but Bourns' own dimension list pairs it with an **M9 × 0.75 bushing
-in 8.3 / 9.3 / 12.5mm lengths** — which reads much more like 16.1mm being an
-*overall* length with the bushing included. If so, the behind-panel body is
-somewhere near 8mm and **clears the 10mm main PCB entirely**, with no cutout
-needed anywhere on any module.
+**Moot — the range moved to the Bourns PEC11R**, whose body is **6.5mm**
+behind the mounting surface. That is the benign outcome the earlier draft
+hoped for: no cutout, no clash, no keep-out, on any module. VO-1's main
+PCB stays whole.
 
-The two outcomes differ a lot:
-
-- **Behind-panel body ≲ 9mm**: no cutouts, no clash. Encoders still can't be
-  main-PCB-mounted (they'd fall short of reaching the panel from 10mm), so
-  flying leads regardless — but the boards get much simpler.
-- **Behind-panel body ≈ 16.1mm**: every PEC16 on every module needs a
-  clearance hole (~14mm) through the main PCB, flying leads or not. On VO-1
-  that is four holes punched through the middle of the board that has to
-  carry the AS3340, MCU, DACs, LM13700 and power section.
-
-**Check the PEC16 dimensional drawing before laying out any module.** The
-distributor and Bourns domains are blocked from this environment, so it
-could not be resolved here. This also decides whether the range-wide
-encoder-depth rule in `../CLAUDE.md` is correct as written.
+What does not change is the sub-board. 6.5mm is *shallower* than the main
+PCB's 10mm, so the encoders still cannot sit on it — they would fall short
+of the panel. The four-encoder sub-board stands, now at its own 6.5mm
+standoff.
 
 ### Tune resolution
 
@@ -261,7 +250,14 @@ overkill at two channels.
 - **Jacks**: Thonkiconn PJ301M-12 ×8 (V/OCT, FM, PWM, SYNC in; SAW,
   PULSE, SUB, TRI out). The three-across rows are at 13.5mm centres; SYNC
   and PULSE sit beside the knobs.
-- **Encoders**: Bourns PEC16 ×4, on a dedicated sub-board per above.
+- **Encoders**: Bourns **PEC11R-4230F-N0024** ×4 (no switch), on a
+  dedicated sub-board at 6.5mm per above.
+  - **Worth reconsidering: should one of them be the `-S0024`?** The
+    self-calibration sweep is specified as running "on command (or at
+    power-on)", and no local control currently issues that command — it
+    would have to arrive over MIDI or the bus. A switched encoder gives a
+    manual recalibrate trigger at zero panel cost and near-zero BOM cost,
+    on a module whose calibration state already has a dedicated LED.
 - **Sub divider**: 74HC74; pulse squaring 74HC14.
 - **Depth VCAs**: LM13700.
 - **Tune DAC**: 16-bit required; exact part not yet chosen.
