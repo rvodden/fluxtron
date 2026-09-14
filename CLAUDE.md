@@ -177,10 +177,12 @@ the case vendor's own bus board.
   small digit display. Confirm common-anode/common-cathode polarity against
   the specific display part before committing (AS1115 expects a specific
   drive polarity).
-- **⚠️ Blue LEDs do not run off the 3.3V rail.** A red or amber LED drops
-  roughly 1.8–2.2V; a blue one drops **2.7–3.4V**. Two consequences of the
-  blue-indicator decision, both of which have to be designed in rather than
-  discovered at bring-up:
+- **⚠️ Blue LEDs do not run off the 3.3V rail.** Red and amber AlGaInP dice
+  drop about 2.0V typical / 2.5V max; blue InGaN/GaN drops **3.0V typical
+  and 3.8V maximum** (figures from the Guangcai GS2022 datasheet, MC-1's
+  display, and representative of blue dice generally). Two consequences of
+  the blue-indicator decision, both of which have to be designed in rather
+  than discovered at bring-up:
   - **A blue LED cannot be driven directly from a 3.3V MCU GPIO.** Allowing
     for the GPIO's own drop there is around 2.9–3.1V available, which for a
     3.2V part leaves nothing across the series resistor — dim, and wildly
@@ -193,7 +195,11 @@ the case vendor's own bus board.
     it cannot drive blue segments at all. Any module with a blue display
     needs a **local 5V rail** (another LDO from +12V) for the AS1115.
     Budget that dissipation into the module's PTC rating, same as the 3.3V
-    LDO.
+    LDO. Note the margin is genuinely tight — a 3.8V worst-case segment
+    against the AS1115's 5.5V maximum leaves little for the drivers — and
+    a 5V AS1115 talking to a 3.3V MCU needs the I2C level shift thought
+    about. MC-1's spec works this through; any later module with a blue
+    display inherits the same three problems.
 - **MIDI I/O**: **3.5mm TRS, Type A** (MIDI Association-ratified standard,
   2018) — not 5-pin DIN (too big), not 2.5mm (non-standard minority format).
 - **Bus connector**: 4-pin (VCC, SDA, SCL, GND), separate from power header,

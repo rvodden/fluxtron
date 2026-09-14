@@ -241,32 +241,81 @@ Each daughterboard connects to the main PCB via a short header/jumper
 
 - **Jacks**: Thonkiconn PJ301M-12 ×6 — V/OCT, GATE, VEL, CLK, plus the
   TRS MIDI IN/THRU pair. Two across, three rows.
-- **Display**: **GS2020CB-G ×2** (CH and DIV), blue, per the range-wide
-  indicator palette. Supersedes the Opto Plus OPS-D2010, which was only
-  ever in the spec for its 3mm thickness and whose blue availability was
-  never confirmed.
-  Four digits total, well inside the AS1115's 8-digit capability — one
-  driver, one I2C address, no extra silicon.
-  **⚠️ Datasheet not yet on file — four figures are load-bearing and none
-  is recorded here yet.** No public datasheet could be found for this part
-  number from this environment, so nothing below is inferred from the part
-  number and nothing should be until the datasheet is read:
-  - **Thickness.** The display daughterboard exists as a separate board
-    purely because the OPS-D2010 was 3mm and could not reach the panel from
-    the jacks' 10mm plane. If GS2020CB-G is meaningfully thicker or
-    thinner, that standoff moves with it; if it were ever to approach
-    ~10mm it could share the main PCB and the daughterboard disappears.
-  - **Common cathode or common anode.** Decides whether the standing
-    AS1115 polarity question closes or stays open. (If the `C` in `CB`
-    does denote common cathode, it closes — but that is a guess about a
-    part number, not a fact, and must be read off the datasheet.)
-  - **Forward voltage.** Decides whether MC-1 actually needs the local 5V
-    LDO that blue segments imply (see `../CLAUDE.md`), and with it the
-    extra dissipation on the PTC budget.
-  - **Body width and digit height.** Two of these sit side by side on a
-    40.64mm panel, so the pair plus their gap and the `CH`/`DIV` labels
-    have to fit across 8HP — and vertical height feeds the panel budget
-    that is already the tight axis.
+- **Display**: **Guangcai GS2022CB-G ×2** (CH and DIV) — 0.2" (5.08mm)
+  dual-digit SMD 7-segment, blue, common cathode, grey reference surface.
+  Supersedes the Opto Plus OPS-D2010, which was only ever in the spec for
+  its 3mm thickness and whose blue availability was never confirmed.
+  Datasheet rev A, 2022.09.20, on file.
+
+  **Part number decode**, since ordering the wrong variant is easy: the
+  datasheet is headed `GS2022A/CX-X`, where `A`/`C` selects common anode
+  or common cathode, the next letter is the emitting colour and the `-X`
+  suffix is the reference-surface colour. So `GS2022CB-G` = common
+  **C**athode, **B**lue, **G**rey surface. The common-anode `GS2022Ax` is
+  the wrong part here — see polarity below.
+
+  Confirmed figures, all four of which were previously open:
+
+  | | |
+  |---|---|
+  | Body | 12.00 × 10.00 × **3.20mm** |
+  | Digit height | 5.08mm (0.2") |
+  | Pins | 10, 2.54mm pitch, 10.16mm span |
+  | Polarity | common cathode (`GS2022Cx`) |
+  | Blue die | InGaN/GaN, λd 460nm |
+  | Vf @ 10mA | **typ 3.00V, max 3.80V** |
+  | Luminous intensity | 120–180 mcd @ 10mA |
+  | Abs max | IF 30mA, Pd 100mW, Ipeak 150mA (0.1ms, 1kHz) |
+  | Decimal point | present on both digits |
+  | Reflow | 245 ±5°C, 260°C max, ≤2 passes |
+
+  What each one settles:
+
+  - **3.20mm thickness** — near enough the OPS-D2010's 3mm that the
+    display daughterboard and its shallow standoff are unaffected. No
+    board-stack change.
+  - **Common cathode is what the AS1115 wants** (its segment drivers
+    source and its digit drivers sink), so picking the `C` variant closes
+    the polarity question that was open against the common-anode
+    OPS-D2010. Segment pinout: A=3, B=9, C=8, D=6, E=7, F=4, G=1, DP=2;
+    DIGIT1=10, DIGIT2=5.
+  - **Vf confirms the 5V rail is mandatory, and makes it tighter than
+    expected** — see the dedicated note below.
+  - **12.00 × 10.00mm** — two side by side is 24mm of a 40.64mm panel,
+    comfortable horizontally. 10mm of height for the pair, which the
+    vertical budget has to carry.
+  - **Decimal points exist**, so the focus indicator can use a DP rather
+    than blinking. The division encoding was deliberately designed not to
+    need them, so this is a convenience, not a dependency.
+
+### ⚠️ The 5V rail is tighter than "blue needs 5V" suggests
+
+The AS1115 sources segment current from its own V+, so V+ must clear the
+segment forward voltage plus the segment-driver and digit-driver drops in
+series. With a **worst-case Vf of 3.80V** and the AS1115's 5.5V absolute
+maximum, running it at 5V leaves only **1.2V** for both drivers at the
+worst-case part. Typical parts (3.00V) leave a comfortable 2.0V.
+
+**Verify the AS1115's driver drops at the intended segment current before
+committing the board.** If worst-case parts prove dim, the options are to
+run V+ nearer 5.5V, or to accept the typical case and bin.
+
+Two further consequences:
+
+- **I2C level shifting.** With the AS1115 at 5V and the MCU at 3.3V, the
+  bus cannot simply be tied together — pull-ups to 5V would over-voltage
+  the MCU pins, and the AS1115's input thresholds at V+=5V may sit above
+  what a 3.3V driver guarantees. Budget for a MOSFET level-shifter pair on
+  the local I2C, or confirm the AS1115's VIH allows 3.3V direct drive.
+- **LDO dissipation, and dimming as a thermal lever.** Multiplexed, one
+  digit lit at a time, all 8 segments at 10mA is ~80mA from the 5V rail —
+  7V × 80mA ≈ **560mW** in a linear LDO from +12V. That wants a SOT-223 or
+  DPAK part and a real thermal pad, and it goes on the PTC budget. At
+  120–180 mcd these are very bright and will almost certainly be run well
+  below full intensity, which cuts the dissipation proportionally — so the
+  AS1115's intensity setting is a power decision here, not only a visual
+  one. No switching regulator: MC-1 generates precision pitch CV, so the
+  range-wide linear-only rule applies to it as much as to VO-1.
   **Still to confirm**: AS1115 digit-drive polarity (common-anode vs.
   common-cathode) is compatible with this part before ordering.
 - **Encoder**: Bourns PEC16, THT, off-board per above.
@@ -302,18 +351,15 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
 - **Bus master firmware** — parameter addressing/encoding over I2C is
   unspecified and is now load-bearing in phase 1.
 - Exact USB-C connector part number for the daughterboard.
-- **GS2020CB-G datasheet** — thickness, drive polarity, forward voltage
-  and footprint are all unrecorded, and each feeds a decision already made
-  elsewhere in this file. Highest-value item on this list.
-- **A local 5V rail for the AS1115**, which blue segments force (see the
-  range doc). Adds an LDO and its dissipation to MC-1's PTC budget — the
-  10-pin power header carries no +5V.
-- AS1115 drive-polarity check against the GS2020CB-G (was an open item
-  against the OPS-D2010, which was common anode; the new part's polarity
-  is not yet known).
-- Whether the GS2020CB-G has decimal points — affects only the focus
-  indicator and the optional dotted-value marker, not the division
-  encoding itself, which was deliberately designed not to need them.
+- **AS1115 segment/digit driver dropout at 5V** against the GS2022CB-G's
+  3.80V worst-case Vf — the tightest electrical margin on the module.
+- **I2C level shifting** between the 3.3V MCU and the 5V AS1115.
+- **Reference surface: grey (`-G`) or black (`-B`)?** The part is
+  specified grey; black would make unlit segments vanish into a matte
+  black panel, which suits the cold palette better. Aesthetic call, no
+  electrical difference.
+- **A local 5V rail for the AS1115** is now confirmed necessary, not just
+  likely — sizing and thermals per the note above.
 - **Free-running internal clock** (MC-1 as master when no MIDI clock is
   present) — genuinely useful, genuinely separate: it needs a tempo
   control, a start/stop affordance and probably tap, none of which fit the
