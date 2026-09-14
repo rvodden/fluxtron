@@ -319,7 +319,9 @@ overkill at two channels.
 - **Sub divider**: 74HC74; pulse squaring 74HC14.
 - **Depth VCAs**: LM13700.
 - **Tune DAC**: 16-bit required; exact part not yet chosen.
-- **Parameter DAC**: 12-bit, 3+ channels; exact part not yet chosen.
+- **Parameter DAC**: **MCP4728** (12-bit, 4-channel, I2C) — pulse width,
+  FM depth and PWM CV depth on three channels, one spare. On VO-1's local
+  I2C port, which it has to itself since VO-1 carries no AS1115.
 - **MCU**: STM32G0B1CBT6, per the range-wide choice in `../CLAUDE.md`.
 
 ## Circuit protection (beyond the range-wide baseline)
@@ -344,17 +346,12 @@ additionally needs:
 
 ## Open items
 
-- **Internal vs external DAC for the 12-bit channels.** The chosen
-  STM32G0B1 has a 12-bit 2-channel DAC on-chip, and VO-1 has three 12-bit
-  parameter channels (pulse width, FM depth, PWM CV depth). Two of the
-  three may come off the internal DAC; check the channel count against the
-  requirement before committing the BOM. The 16-bit tune DAC stays
-  external either way.
 - **Encoder decode is in software**, not a hardware timer per encoder —
   four encoders at human speed is around 2,000 interrupts per second in
   total. The auto-tune frequency counter takes one timer in counter mode
   and one gating it.
-- Tune DAC and parameter DAC part numbers.
+- Tune DAC part number — 16-bit with a precision reference. Shared
+  requirement with MC-1's V/OCT output, so pick it once range-wide.
 - The bus protocol itself — parameter addressing/encoding over I2C is now
   load-bearing in phase 1 and isn't specified anywhere yet.
 - Whether VO-1 wants any parameter readout at all, or whether the DAW/host

@@ -382,6 +382,14 @@ Two further consequences:
   range-wide linear-only rule applies to it as much as to VO-1.
   **Still to confirm**: AS1115 digit-drive polarity (common-anode vs.
   common-cathode) is compatible with this part before ordering.
+- **Parameter DAC**: **MCP4728** (12-bit, 4-channel, I2C) — velocity CV
+  on one channel, three spare. On the local I2C port alongside the AS1115.
+  **Sit it on the 3.3V side of the AS1115 level shifter**, not the 5V
+  side: the AS1115 needs 5V only because blue segments demand it, and
+  there is no reason to drag the DAC up with it.
+- **Pitch DAC**: 16-bit with a precision reference, part not yet chosen —
+  the V/OCT output has the same requirement as VO-1's tune, and the range
+  doc calls for picking one part for both.
 - **Encoder**: Bourns **PEC11R-4015F-S0024** — switched, since the push
   toggles CH/DIV focus. THT, detentless, 15mm shaft, off-board on flying
   leads per above. See the range doc for the quadrature-counting rule.

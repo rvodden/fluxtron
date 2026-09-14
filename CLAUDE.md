@@ -227,6 +227,33 @@ the case vendor's own bus board.
     a 5V AS1115 talking to a 3.3V MCU needs the I2C level shift thought
     about. MC-1's spec works this through; any later module with a blue
     display inherits the same three problems.
+- **Parameter DAC**: **MCP4728** — 12-bit, 4-channel, I2C, MSOP-10, with
+  on-board EEPROM. The standard part for every module's parameter channels
+  (pulse width, modulation depths, velocity, and their equivalents
+  elsewhere).
+  - **It is I2C, not SPI**, so it sits on the module's *local* I2C port
+    alongside any AS1115 — never on the inter-module bus, per the two-port
+    rule above. Its default address (0x60) does not clash with the
+    AS1115's.
+  - **⚠️ Never use it for anything pitch-related.** Its internal reference
+    is not a precision part. Tune and V/OCT stay on a dedicated 16-bit DAC
+    with its own reference; the MCP4728 is for parameters only.
+  - **Output range is bounded by its own VDD**, so it does not produce
+    Eurorack-level CV directly — every channel goes through an op-amp
+    scaling and offset stage. At 3.3V VDD the internal 2.048V reference at
+    gain 1 is the usable full scale; gain 2 would clip against the rail.
+  - **Use the on-board EEPROM for a sane power-on state** (pulse width at
+    50%, depths at zero) so a module is neither silent nor screaming in
+    the moments before firmware initialises. It is *not* the store of
+    record — the authoritative settings live in MCU flash, and two sources
+    of truth is worse than one.
+  - **⚠️ Two on one bus needs address programming.** The three address LSBs
+    are set by an LDAC-assisted write sequence, not by pins. Fine at one
+    per module; plan for it if a module ever needs more than 4 channels.
+- **Pitch DAC**: 16-bit, precision reference, **part not yet chosen**.
+  Needed by both VO-1 (tune) and MC-1 (V/OCT out) to the same spec, so it
+  should be picked once for the range rather than per module — see VO-1's
+  tune-resolution note for where the 16-bit requirement comes from.
 - **MIDI I/O**: **3.5mm TRS, Type A** (MIDI Association-ratified standard,
   2018) — not 5-pin DIN (too big), not 2.5mm (non-standard minority format).
 - **Bus connector**: 4-pin (VCC, SDA, SCL, GND), separate from power header,
@@ -292,13 +319,14 @@ stays open, and is low-stakes precisely because it is the same family: same
 HAL, same registers, same debugger, same toolchain. **Decide it per module
 when that module's schematic is real, not now.**
 
-### Worth checking before VO-1's schematic
+### The G0B1's internal DAC is not needed
 
-The G0B1 carries a **12-bit, 2-channel DAC on-chip**. VO-1 needs a 16-bit
-external part for tune regardless, but pulse width, FM depth and PWM CV
-depth are all specified as 12-bit — some of those may come off the internal
-DAC and delete an external component. Check the channel count against the
-requirement before committing VO-1's BOM.
+An earlier draft of this decision flagged the G0B1's 12-bit 2-channel
+on-chip DAC as a possible way to delete an external part on VO-1. The
+MCP4728 settles it the other way: at four channels it covers any module's
+parameter needs in a single part, where internal-two-plus-external-one
+would still have been one external part *and* two different code paths for
+what is conceptually one thing. The internal DAC stays unused.
 
 ## Non-volatile settings storage
 
