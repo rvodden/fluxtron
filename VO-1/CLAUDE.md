@@ -344,14 +344,16 @@ additionally needs:
 
 ## Open items
 
-- **MCU choice — range-wide, not just VO-1.** MC-1's spec says "MCU"
-  without naming a part, and the I2C decision now puts one on every module,
-  so this should be settled once for the whole range. RP2040 is the
-  suggestion: its PIO handles four quadrature encoders and the frequency
-  counter without touching the CPU, it has two I2C ports (which the
-  bus/local-peripheral split above needs), and MC-1 needs a USB device
-  controller anyway. Against it: needs an external QSPI flash, where an
-  STM32G0 is single-chip.
+- **Internal vs external DAC for the 12-bit channels.** The chosen
+  STM32G0B1 has a 12-bit 2-channel DAC on-chip, and VO-1 has three 12-bit
+  parameter channels (pulse width, FM depth, PWM CV depth). Two of the
+  three may come off the internal DAC; check the channel count against the
+  requirement before committing the BOM. The 16-bit tune DAC stays
+  external either way.
+- **Encoder decode is in software**, not a hardware timer per encoder —
+  four encoders at human speed is around 2,000 interrupts per second in
+  total. The auto-tune frequency counter takes one timer in counter mode
+  and one gating it.
 - Tune DAC and parameter DAC part numbers.
 - The bus protocol itself — parameter addressing/encoding over I2C is now
   load-bearing in phase 1 and isn't specified anywhere yet.

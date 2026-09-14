@@ -234,10 +234,21 @@ one-handed.
 
 ## MIDI connectivity: USB-C + TRS, daisy-chainable
 
-- **USB-C**: MC-1's MCU implements a **USB MIDI class-compliant device** —
+- **USB-C**: MC-1's MCU — an **STM32G0B1CBT6**, per the range-wide choice
+  in `../CLAUDE.md` — implements a **USB MIDI class-compliant device** —
   plug-and-play on Windows/Mac/Linux, no drivers. Needs the CC1/CC2 5.1kΩ
   pull-down resistors near the connector for proper host enumeration (data
   only, no PD negotiation needed).
+  - **No crystal needed for USB.** The G0B1 does crystal-less USB from the
+    HSI48 with CRS trimming it against USB start-of-frame, which is well
+    inside the ±0.25%% full-speed device tolerance. The HSI is also fine
+    for 31250-baud MIDI UART, and MC-1 derives its CLK timing from the
+    incoming MIDI clock rather than from its own oscillator, so absolute
+    frequency accuracy is not load-bearing anywhere on this module. A
+    crystal remains cheap insurance if bring-up suggests otherwise.
+  - **USB is why MC-1 specifically needs the G0B1** rather than a smaller
+    G0 — the G031/G071 parts have no USB controller at all. This is the
+    module that sets the range-wide part choice; the others inherit it.
 - **TRS MIDI IN/THRU**: 3.5mm TRS Type A (see range-wide doc).
 - **No dual-input/merge logic**: a given unit is fed by *either* USB
   (if enumerated) *or* TRS IN, never both — simpler firmware, no merge
@@ -259,8 +270,8 @@ different panel-to-PCB depths and none of them match the 10mm jack-driven
 main board:
 
 - **Main PCB** (10mm standoff, set by the 6 Thonkiconn jacks): carries the
-  jacks, power header, bus connector, MCU, DAC(s). No spacer washers needed
-  since jacks reach their native depth directly.
+  jacks, power header, bus connector, STM32G0B1 MCU, DAC(s). No spacer
+  washers needed since jacks reach their native depth directly.
 - **Channel/division encoder**: off-board entirely, on flying leads (A, B,
   common, switch ×2 — 5 wires) back to the main PCB. Its own panel nut
   provides all the mechanical support. **No main-PCB keep-out is needed**:

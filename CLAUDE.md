@@ -232,6 +232,94 @@ the case vendor's own bus board.
 - **Bus connector**: 4-pin (VCC, SDA, SCL, GND), separate from power header,
   populated on every module regardless of phase.
 
+## MCU: STM32G0, range-wide
+
+**`STM32G0B1CBT6`** (LQFP-48, 128K flash, USB FS device) is the default on
+every module. Settled once for the range, per the bus decision that put an
+MCU on every board.
+
+### Why ST rather than RP2040
+
+RP2040 was the standing suggestion, on the strength of its PIO and the fact
+that MC-1 needs a USB device controller. It lost once the constraint was
+relaxed to *one vendor, not necessarily one part* — which removes the thing
+that was forcing a single USB-capable MCU onto all seven modules.
+
+The deciding factors, strongest first:
+
+- **I2C slave is the one peripheral every module depends on**, and ST's is
+  much the better of the two. Hardware address matching, proper clock
+  stretching, DMA. RP2040's is a Synopsys DesignWare block whose slave mode
+  is its roughest edge — a risk to manage on every board in the rack rather
+  than a feature.
+- **STM32G0's system bootloader speaks I2C.** There is already an I2C bus
+  with MC-1 as master and every module as a slave, so **MC-1 can reflash any
+  module in the rack over the existing 4-pin bus** — no per-module SWD
+  header, no pulling modules to update them. RP2040's bootrom is USB
+  mass-storage and cannot do this. A real architectural feature falling out
+  of a decision made for other reasons.
+- **Single-chip: no external QSPI flash.** Seven fewer parts and footprints
+  across the range, which matters most on VO-1, whose main board is already
+  down to roughly 40 × 80mm.
+- **LQFP at 0.5mm pitch** rather than QFN-56 at 0.4mm with a thermal pad —
+  relevant if any of this is hand-built.
+
+**⚠️ Layout constraint that comes with the I2C bootloader:** the
+inter-module bus must land on a **bootloader-capable I2C peripheral and pin
+set**, or the reflash-over-bus feature is lost. Check against AN2606 before
+routing any board — it is free if designed in and impossible to retrofit.
+
+### What this gives up
+
+- **No PIO.** An earlier draft of this decision leaned hard on it for
+  VO-1's four quadrature encoders, and that was an overestimate: four
+  encoders at human speed is on the order of 2,000 interrupts per second
+  in total, which a 64MHz M0+ does not notice. Software quadrature decode
+  is adequate and ordinary. VO-1's auto-tune frequency counter needs one
+  timer in counter mode and one gating it, available on any G0. Where PIO
+  would genuinely have been elegant is bit-banged waveform generation, if
+  a later module (LF-1) wants it; DMA plus timers covers most of that.
+- **Cost**: roughly £2 against RP2040's £1, so about £8 across the range.
+
+### Per-module substitution is deliberately a late decision
+
+One part number is the default because six of the modules are not yet
+specced, and committing to a cheaper part before knowing their peripheral
+needs is premature. The unused USB on those six costs well under £1 each.
+
+Dropping a specific module to a smaller part (e.g. `STM32G031` in LQFP-32)
+stays open, and is low-stakes precisely because it is the same family: same
+HAL, same registers, same debugger, same toolchain. **Decide it per module
+when that module's schematic is real, not now.**
+
+### Worth checking before VO-1's schematic
+
+The G0B1 carries a **12-bit, 2-channel DAC on-chip**. VO-1 needs a 16-bit
+external part for tune regardless, but pulse width, FM depth and PWM CV
+depth are all specified as 12-bit — some of those may come off the internal
+DAC and delete an external component. Check the channel count against the
+requirement before committing VO-1's BOM.
+
+## Non-volatile settings storage
+
+Not previously recorded anywhere, and several modules need it:
+
+| Module | Must survive power-off |
+|---|---|
+| MC-1 | MIDI channel, clock division |
+| VO-1 | auto-tune calibration constants |
+
+**Internal flash on the STM32G0**, not a separate EEPROM. This was an open
+question while RP2040 was the candidate — writing settings there means
+suspending XIP on the external flash the code is executing from, which is
+workable but fiddly, and a small I2C EEPROM would have been the cleaner
+answer. Single-chip removes the problem: in-application flash writes on a
+G0 are ordinary.
+
+Reserve a flash page for settings in the linker script from the start.
+Retrofitting a settings area after the code has grown into it is a much
+worse job than reserving it now.
+
 ## Circuit protection standard
 
 Applies to every module's schematic. Cheap to design in now, painful to
@@ -276,9 +364,6 @@ protection and MIDI opto-isolation) is noted in that module's own
 - Spare 20HP allocation (extra spacing vs. blind panel vs. new module).
 - **Bus parameter protocol** — how CC/NRPN values are addressed and encoded
   over I2C. Load-bearing in phase 1 now, and not yet specified.
-- **MCU choice, range-wide** — every module needs one under the bus
-  decision, so pick once rather than per module. RP2040 vs. STM32G0 is the
-  live question; see VO-1's open items for the trade-off.
 - EG-1's control set (fully continuous ADSR via 4 encoders vs. some fixed
   stages) — affects whether it needs a dedicated encoder sub-board.
 - PSU design for the (unpowered) KOMA case.
