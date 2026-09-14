@@ -164,21 +164,28 @@ the case vendor's own bus board.
   which was larger (M9 bushing, 16mm body) and whose behind-panel depth the
   range doc could never confirm. Datasheet:
   `datasheets/PEC11R_Bourns_encoder_revD_2026-04.pdf`.
-  - `PEC11R-4230F-N0024` — no switch
-  - `PEC11R-4230F-S0024` — with push momentary switch
-  - Decode: `4` = PC pin horizontal/rear-facing, `2` = 24 detents,
-    `30` = 30mm shaft, `F` = metal flatted (D) shaft, `N`/`S` = switch
+  - `PEC11R-4015F-N0024` — no switch
+  - `PEC11R-4015F-S0024` — with push momentary switch
+  - Decode: `4` = PC pin horizontal/rear-facing, `0` = **no detents**,
+    `15` = 15mm shaft, `F` = metal flatted (D) shaft, `N`/`S` = switch
     option, `0024` = 24 pulses per revolution.
-  - **⚠️ Firmware: 24 detents *and* 24 pulses per revolution means one full
-    quadrature cycle per click.** Firmware counting all four edges gets
-    four counts per detent — count whole cycles, or divide by four, or
-    every encoder on every module steps 4× too fast. Contact bounce is
-    2.0ms max at 15 RPM; debounce against that.
-  - **⚠️ The 30mm shaft is long for Eurorack.** It is measured from the
-    mounting surface, so roughly 28mm protrudes past a 2mm panel, against
-    the 14–20mm of a typical Eurorack knob. Check it against the chosen
-    knob before ordering — 15, 20 and 25mm shafts exist in the same series
-    with identical footprint, depth and pinout if a shorter one is wanted.
+  - **Detentless, deliberately.** Smooth travel suits the continuous
+    parameters that dominate the range — tune, fine, pulse width, filter
+    cutoff, envelope stages — where a click per step would fight the
+    control rather than help it. The trade falls on the discrete
+    enumerated controls, MC-1's channel and clock division, which lose
+    their tactile step and lean entirely on the display for feedback.
+    Note the datasheet's detent-torque figure no longer applies; running
+    torque (10–70 gf-cm) is the one that does.
+  - **⚠️ Firmware: "24 pulses per revolution" is 24 full quadrature cycles,
+    i.e. 96 edge transitions.** Count whole cycles, not edges. At 24 steps
+    per revolution MC-1's 15 divisions span about 225° and its 16 channels
+    about 240°, both comfortable one-handed sweeps. Counting all four
+    edges gives 96 steps per revolution and makes every control on every
+    module unusably twitchy. Contact bounce is 2.0ms max at 15 RPM;
+    debounce against that.
+  - **15mm shaft**, measured from the mounting surface, so roughly 13mm
+    proud of a 2mm panel — a good match for a standard Eurorack knob bore.
   - **Bourns states hand soldering is not recommended** (wave solder,
     260°C max for 3 ±1s). Worth knowing for a hand-built module; it is not
     a prohibition so much as a warranty boundary.

@@ -250,9 +250,11 @@ overkill at two channels.
 - **Jacks**: Thonkiconn PJ301M-12 ×8 (V/OCT, FM, PWM, SYNC in; SAW,
   PULSE, SUB, TRI out). The three-across rows are at 13.5mm centres; SYNC
   and PULSE sit beside the knobs.
-- **Encoders**: Bourns **PEC11R-4230F-N0024** ×4 (no switch), on a
-  dedicated sub-board at 6.5mm per above.
-  - **Worth reconsidering: should one of them be the `-S0024`?** The
+- **Encoders**: Bourns **PEC11R-4015F-N0024** ×4 (detentless, no switch,
+  15mm shaft), on a dedicated sub-board at 6.5mm per above. All four of
+  VO-1's parameters are continuous, which is exactly the case detentless
+  travel suits.
+  - **Worth reconsidering: should one of them be the `-4015F-S0024`?** The
     self-calibration sweep is specified as running "on command (or at
     power-on)", and no local control currently issues that command — it
     would have to arrive over MIDI or the bus. A switched encoder gives a

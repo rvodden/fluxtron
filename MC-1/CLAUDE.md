@@ -326,10 +326,12 @@ Two further consequences:
   range-wide linear-only rule applies to it as much as to VO-1.
   **Still to confirm**: AS1115 digit-drive polarity (common-anode vs.
   common-cathode) is compatible with this part before ordering.
-- **Encoder**: Bourns **PEC11R-4230F-S0024** — switched, since the push
-  toggles CH/DIV focus. THT, off-board on flying leads per above. 24
-  detents / 24 pulses; see the range doc for the quadrature-counting and
-  shaft-length cautions.
+- **Encoder**: Bourns **PEC11R-4015F-S0024** — switched, since the push
+  toggles CH/DIV focus. THT, detentless, 15mm shaft, off-board on flying
+  leads per above. See the range doc for the quadrature-counting rule.
+  Both of MC-1's encoder parameters are discrete lists, so with no detents
+  the CH and DIV displays carry all the step feedback — a reason to keep
+  them bright enough to read at a glance while turning.
 - **USB-C connector**: not yet finalised. 219320-0001 (Molex, 8.8mm) used
   as a reference depth point; still need to pick the actual part for the
   daughterboard.
