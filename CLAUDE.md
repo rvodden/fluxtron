@@ -20,9 +20,11 @@ Module-specific decisions live in each module's own folder
   lines and small asymmetric details (e.g. a scratch/crack mark) rather than
   clutter. **No footer wordmark** — an off-centre one was in the original
   brief, tried on VO-1 and rejected; don't re-propose it. The FLUXTRON
-  wordmark appears once, at the top. Sections use symbolic icons where
-  natural (e.g. a MIDI DIN end-view icon, a pulse-wave icon) rather than text
-  labels, except where a plain word is clearer (jack names, "CHANNEL").
+  wordmark appears once, at the top. **No symbolic icons** — a MIDI DIN
+  end-view icon and a pulse-wave icon were in the original brief and are
+  rejected; don't re-propose them. Everything is named in words: jack
+  names, control labels, and a plain word heading a section where one is
+  needed.
 - **Indicators are blue, range-wide — FluxTron is cold, not warm.** Every
   indicator LED, and every 7-segment display where a blue part can be
   sourced, is blue. No amber, no warm white, no stock red. This is a

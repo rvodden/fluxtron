@@ -30,8 +30,8 @@ Layout, top to bottom:
 5. Jagged divider
 6. USB-C bulkhead, centred on its own row
 7. **IN** / **THRU** jacks (the TRS MIDI pair)
-8. **VEL** / **CLK** jacks, with the **CLK indicator LED** and pulse-wave
-   icon in the centre gap, offset toward CLK
+8. **VEL** / **CLK** jacks, with the **CLK indicator LED** in the centre
+   gap, offset toward CLK
 9. **V/OCT** / **GATE** jacks
 10. Jagged divider
 
@@ -73,9 +73,8 @@ above: it sits in the centre gap on the existing VEL/CLK row rather than
 taking a row of its own. **Offset toward CLK, not centred** — an LED
 equidistant between VEL and CLK reads as belonging to both.
 
-This also restores the **pulse-wave icon**, which the original row-of-four
-layout specified ("pulse icon centered between the middle two") and which
-the 2×3 relayout silently dropped. The icon and the LED belong together.
+No icon accompanies it — icons are dropped range-wide. None is needed: the
+LED sits beside a jack already labelled CLK, and proximity says the rest.
 
 - **Driven from its own MCU GPIO, not the AS1115.** MC-1 has an AS1115 for
   the displays and it has spare capacity, but hanging the clock LED off it
@@ -113,9 +112,17 @@ All six jacks are identical Thonkiconns, and nothing on the current
 mockup marks IN/THRU as carrying TRS MIDI rather than CV. Patching a CV
 cable into MIDI IN fails silently and is an easy mistake to make.
 
-The range doc already calls for a MIDI DIN end-view icon. The jagged
-divider band directly above the IN/THRU row is the natural home for it
-and costs no vertical space, which matters given the budget above.
+**This was going to be solved by a MIDI DIN end-view icon, and icons are
+now dropped range-wide — so it is open again.** The icon-free fix is a
+plain word, which the aesthetic already sanctions: **MIDI** heading that
+jack row. Either as a small section label above IN/THRU, or by extending
+the labels themselves to `MIDI IN` / `MIDI THRU` if they fit the column
+width in Kode Mono.
+
+The section-label form is preferable if it can be fitted into the band
+already separating the USB-C row from the jacks, since MC-1's vertical
+budget has no room for a new row. Unresolved — it needs deciding against
+the real panel layout, not here.
 
 ## Outputs: CLK and velocity are both kept
 
@@ -397,10 +404,10 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
 - **Vertical panel budget** — the row-of-4 problem is resolved and MC-1
   closes at 8HP, but height is now the tight axis with only a few
   millimetres of slack, on estimated rather than measured footprints.
-- **Panel icons** — the MIDI DIN end-view icon for the IN/THRU row, so
-  those two jacks are distinguishable from the four CV jacks, and the
-  pulse-wave icon beside the CLK LED. Both were in the original spec and
-  neither is in the current mockup.
+- **Marking the MIDI jacks** — with icons dropped range-wide, IN/THRU
+  still need distinguishing from the four CV jacks by some plain-word
+  means. See the section above; it costs vertical space MC-1 does not
+  obviously have.
 - **Bus master firmware** — parameter addressing/encoding over I2C is
   unspecified and is now load-bearing in phase 1.
 - Exact USB-C connector part number for the daughterboard.
