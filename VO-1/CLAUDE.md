@@ -320,7 +320,7 @@ overkill at two channels.
 - **Depth VCAs**: LM13700.
 - **Tune DAC**: 16-bit required; exact part not yet chosen.
 - **Parameter DAC**: 12-bit, 3+ channels; exact part not yet chosen.
-- **MCU**: not yet chosen — see open items.
+- **MCU**: STM32G0B1CBT6, per the range-wide choice in `../CLAUDE.md`.
 
 ## Circuit protection (beyond the range-wide baseline)
 
