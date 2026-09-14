@@ -17,8 +17,10 @@ Module-specific decisions live in each module's own folder
   code with higher quantity, not a new number.
 - Panel aesthetic: aluminium panels, matte black, etched so graphics read as
   silver-on-black. Brief: "clean but psychotic" — jagged hand-drawn divider
-  lines and small asymmetric details (a scratch/crack mark, an off-center
-  footer wordmark) rather than clutter. Sections use symbolic icons where
+  lines and small asymmetric details (e.g. a scratch/crack mark) rather than
+  clutter. **No footer wordmark** — an off-centre one was in the original
+  brief, tried on VO-1 and rejected; don't re-propose it. The FLUXTRON
+  wordmark appears once, at the top. Sections use symbolic icons where
   natural (e.g. a MIDI DIN end-view icon, a pulse-wave icon) rather than text
   labels, except where a plain word is clearer (jack names, "CHANNEL").
 - Fonts: **Rubik Dirt** for the FLUXTRON wordmark, **Kode Mono** for
@@ -56,17 +58,20 @@ the case vendor's own bus board.
 
 ## Signal architecture: hybrid CV + digital bus
 
-- **Phase 1 modules are pure analogue CV/gate** — pitch, gate, velocity,
-  clock all travel as patch-cable voltages, same as traditional Eurorack.
-  Each module's MCU only handles its own MIDI-CC parameters (encoders), not
-  system-level note/gate data.
-- **A shared digital bus is designed into the connector/PCB footprint from
-  day one**, even though phase-1 modules don't use it — so later modules can
-  go digital without a backplane redesign.
+- **All audio and CV is analogue** — pitch, gate, velocity, clock and audio
+  all travel as patch-cable voltages, same as traditional Eurorack. Only
+  *parameter values* ride the digital bus. Each module's MCU handles its own
+  MIDI-CC parameters (encoders), not system-level note/gate data.
+- **The shared digital bus is used from phase 1**, and MC-1 is its master.
+  (This reverses the original plan of leaving the bus unpopulated in phase 1
+  — see VO-1's spec for the reasoning. MIDI arrives only at MC-1, so without
+  the bus there was no path for a CC to reach any other module's parameters,
+  and the range's whole premise depends on one existing. The alternative —
+  a TRS MIDI IN plus opto-isolator on every module — cost jack positions
+  that an 8HP panel does not have.)
   - Physical: a **separate 4-pin connector** (bus VCC, SDA, SCL, GND)
     alongside the standard Eurorack power header, its own ribbon, kept away
-    from analogue sections at layout time. Populated on every module even
-    when unused.
+    from analogue sections at layout time. Populated on every module.
   - Protocol: **I2C**, reusing the same physical layer as each module's
     local AS1115 (see below).
   - Addressing: **DIP/jumper-selectable** for phase 1. Auto-addressing
@@ -74,6 +79,15 @@ the case vendor's own bus board.
     required now.
   - Multi-case future: **buffered I2C** (e.g. PCA9615-style differential
     extender) when that's needed — no CAN/RS-485 headroom being designed in.
+  - **Consequence: every module carries an MCU and a 3.3V rail**, not just
+    the ones that wanted one. Accepted cost of the above.
+  - **Consequence: the inter-module bus and any local I2C peripheral (e.g.
+    an AS1115) must sit on separate MCU I2C ports.** A slave module's MCU is
+    a slave on the inter-module bus but master to its own peripherals;
+    sharing one port invites multi-master trouble and address clashes.
+  - **Analogue modules use a linear LDO for their 3.3V rail, not a buck** —
+    switching noise next to precision analogue (expo converters especially)
+    is not worth the efficiency. Budget the dissipation into the PTC rating.
 
 ## PCB / panel construction
 
@@ -110,8 +124,31 @@ the case vendor's own bus board.
   cheap, matches MC-1). **3+ encoders** → give that module a small dedicated
   encoder sub-board carrying all its encoders, with one multi-pin
   header/ribbon back to the main board, rather than a growing bundle of
-  loose flying leads. (Likely applies to LF-1 at minimum; check EG-1 once
-  its control set — fixed vs. continuous ADSR stages — is settled.)
+  loose flying leads. (Applies to VO-1; likely LF-1 too; check EG-1 once its
+  control set — fixed vs. continuous ADSR stages — is settled.)
+  - **A sub-board only helps when the encoders are clustered**, so lay the
+    panel out that way when a module has 3+. VO-1 went through a mockup with
+    its four encoders scattered diagonally and interleaved with jacks, which
+    would have forced 20 loose flying leads because a sub-board spanning
+    them was the main PCB's own footprint. Clustering them into one block
+    fixed it.
+  - **A clustered encoder block means the main PCB stops short of it**
+    rather than running the full panel height — no notch needed, but the
+    remaining board area gets tight on an 8HP module. See VO-1.
+- **⚠️ The 16.1mm PEC16 depth figure above is unverified and may be wrong.**
+  It is recorded as "body length behind the panel", but Bourns pairs it with
+  an M9 × 0.75 bushing in 8.3 / 9.3 / 12.5mm lengths, which suggests 16.1mm
+  is an *overall* length including the bushing — in which case the
+  behind-panel body is nearer 8mm and clears the 10mm main PCB with no
+  cutout at all. If instead it really is 16.1mm behind the panel, every
+  PEC16 on every module needs a ~14mm clearance hole through the main PCB.
+  **Resolve against the PEC16 dimensional drawing before laying out any
+  board** — it changes every module, MC-1 included. See VO-1's spec.
+- **Jack density: three across is the maximum on an 8HP panel.** 8HP is
+  40.64mm, so four across means 10.16mm centres — about 1mm of clearance
+  past the outer nuts to the panel edge, and no room to get a nut driver
+  onto them. Three across is 13.5mm centres and works; two across is
+  comfortable. Budget panel layouts against three, not four.
 - Mounting holes: use proper elongated/oval slots (not round), sized per
   standard Eurorack practice, not plain round corner holes.
 
@@ -177,6 +214,11 @@ protection and MIDI opto-isolation) is noted in that module's own
 ## Open items / not yet decided
 
 - Spare 20HP allocation (extra spacing vs. blind panel vs. new module).
+- **Bus parameter protocol** — how CC/NRPN values are addressed and encoded
+  over I2C. Load-bearing in phase 1 now, and not yet specified.
+- **MCU choice, range-wide** — every module needs one under the bus
+  decision, so pick once rather than per module. RP2040 vs. STM32G0 is the
+  live question; see VO-1's open items for the trade-off.
 - EG-1's control set (fully continuous ADSR via 4 encoders vs. some fixed
   stages) — affects whether it needs a dedicated encoder sub-board.
 - PSU design for the (unpowered) KOMA case.
