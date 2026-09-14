@@ -189,6 +189,11 @@ the case vendor's own bus board.
   - **Bourns states hand soldering is not recommended** (wave solder,
     260°C max for 3 ±1s). Worth knowing for a hand-built module; it is not
     a prohibition so much as a warranty boundary.
+  - **⚠️ A press will nudge a detentless shaft.** At 610 ±306gf the switch
+    is stiff, and with no detent to hold position the knob will sometimes
+    rotate as it is pressed. Suppress rotation for ~50ms after a press
+    edge, then resume so hold-and-turn gestures still work. Applies to
+    every switched encoder on every module.
   - Switch is SPST momentary, 0.5mm travel, 610 ±306gf. Rotational life
     30,000 cycles, switch life 20,000. Contacts rated 10mA @ 5VDC.
 - **LED/button driver**: **AS1115** (I2C) — drives up to 64 LEDs or 8 digits

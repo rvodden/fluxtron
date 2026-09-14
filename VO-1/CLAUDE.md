@@ -136,20 +136,80 @@ convention (see `../CLAUDE.md`).
 
 ## Controls and parameters
 
-| Parameter | Encoder | MIDI CC | How it reaches the analogue |
+| Parameter | Control | MIDI CC | How it reaches the analogue |
 |---|---|---|---|
 | Coarse tune | TUNE | yes | 16-bit DAC → expo summing node |
 | Fine tune | FINE | yes | same DAC channel as coarse |
 | Pulse width | WIDTH | yes | 12-bit DAC → AS3340 PW input |
 | FM depth | DEPTH | yes | 12-bit DAC → OTA in FM CV path |
-| PWM CV depth | — | yes | 12-bit DAC → OTA in PWM CV path |
-| Sub division (/2 or /4) | — | yes | MCU GPIO → mux |
-| Calibrate now | — | yes | firmware action |
+| PWM CV depth | **hold WIDTH + turn** | yes | 12-bit DAC → OTA in PWM CV path |
+| Sub division (/2 or /4) | **press TUNE** | yes | MCU GPIO → mux |
+| Calibrate now | **long-press FINE** | yes | firmware action |
 
 Four encoders, clustered as a 2×2 block at the top of the panel with every
 jack below them. Per the range rule (3+ encoders), they go on a **dedicated
 encoder sub-board** — 4×(A, B) + 4×(switch) + common = 13 lines, so a 14-way
 ribbon back to the main PCB.
+
+### All four encoders are switched
+
+**`PEC11R-4015F-S0024` ×4.** The reason is in the table above: three of
+VO-1's seven parameters had *no panel control whatsoever* and were
+reachable only over MIDI — which contradicts the range premise that every
+parameter has "panel encoders for direct hands-on control." Four switches
+cover all three with one gesture spare.
+
+The wiring was already specified for this: the 13-line count above has
+always included `4×(switch)`. Only the part number said otherwise.
+
+Fitting all four rather than a mix also keeps VO-1 to a single encoder BOM
+line, and leaves DEPTH's press unassigned but wired, for firmware to grow
+into.
+
+#### The scheme, and why it is not MC-1's
+
+**VO-1 has no display.** MC-1 can afford a latching push-to-toggle focus
+mode because its CH and DIV readouts show which parameter the encoder owns
+at all times. VO-1 has one status LED. Any latching mode here is invisible,
+and an invisible mode is one you get stuck in.
+
+So the rule for VO-1 is: **momentary, or audible, or indicated — never a
+silent latch.**
+
+- **PWM CV depth — hold WIDTH and turn.** Momentary: release and the
+  encoder is back to pulse width. Nothing to get lost in, no indicator
+  needed. It also keeps both pulse-shape parameters on one knob and leaves
+  DEPTH unambiguously the FM depth. (Putting the second depth on DEPTH was
+  considered and rejected: a knob whose two functions are both called
+  "depth" is exactly the one you would misremember.)
+- **Sub division — press TUNE.** A latching binary toggle, which the rule
+  above would normally forbid, except this one is *audible*: the sub drops
+  or rises an octave the instant it changes. Press, listen, press again.
+  Pitch-adjacent to TUNE, which is the point of putting it there.
+- **Calibrate now — long-press FINE.** Deliberately awkward, because
+  calibration grounds the V/OCT input and sweeps the oscillator; triggering
+  it mid-set would be unwelcome. The status LED already reports running /
+  finished / failed, so this is the one action with real feedback. FINE
+  rather than TUNE because calibration is a tuning operation and TUNE's
+  press is taken.
+- **DEPTH — unassigned.** Fitted and wired. Candidates if wanted later:
+  hold-and-turn for an octave-sized TUNE step (the 16-bit tune DAC's range
+  is large enough that coarse/fine/octave is a real question); long-press
+  to store the current tuning as the power-on default; FM polarity invert,
+  if the OTA path turns out to be bipolar. None are decided.
+
+#### ⚠️ Firmware: a press will nudge a detentless shaft
+
+Switch actuation force is **610 ±306 gf** — stiff, and variable enough that
+worst-case parts need nearly a kilogram. On a **detentless** encoder there
+is no detent to hold position against that, so pressing the knob will
+sometimes rotate it a step.
+
+**Suppress rotation for a short window (~50ms) after a press edge**, then
+resume counting so that hold-and-turn still works. Without it, every press
+of TUNE risks also changing the tune, and every grab of WIDTH risks moving
+the pulse width before the hold gesture is even recognised. Switch contact
+bounce is the same 2.0ms as the quadrature contacts.
 
 The clustering is what makes this work. A scattered layout (an earlier
 mockup put the four encoders diagonally down the panel, interleaved with
@@ -250,16 +310,12 @@ overkill at two channels.
 - **Jacks**: Thonkiconn PJ301M-12 ×8 (V/OCT, FM, PWM, SYNC in; SAW,
   PULSE, SUB, TRI out). The three-across rows are at 13.5mm centres; SYNC
   and PULSE sit beside the knobs.
-- **Encoders**: Bourns **PEC11R-4015F-N0024** ×4 (detentless, no switch,
-  15mm shaft), on a dedicated sub-board at 6.5mm per above. All four of
-  VO-1's parameters are continuous, which is exactly the case detentless
-  travel suits.
-  - **Worth reconsidering: should one of them be the `-4015F-S0024`?** The
-    self-calibration sweep is specified as running "on command (or at
-    power-on)", and no local control currently issues that command — it
-    would have to arrive over MIDI or the bus. A switched encoder gives a
-    manual recalibrate trigger at zero panel cost and near-zero BOM cost,
-    on a module whose calibration state already has a dedicated LED.
+- **Encoders**: Bourns **PEC11R-4015F-S0024** ×4 (detentless, push
+  momentary switch, 15mm shaft), on a dedicated sub-board at 6.5mm per
+  above. All four of VO-1's *rotary* parameters are continuous, which is
+  the case detentless travel suits; the switches carry the three
+  parameters that had no panel control at all. See the push-switch scheme
+  above.
 - **Sub divider**: 74HC74; pulse squaring 74HC14.
 - **Depth VCAs**: LM13700.
 - **Tune DAC**: 16-bit required; exact part not yet chosen.
