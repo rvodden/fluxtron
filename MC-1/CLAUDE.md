@@ -66,11 +66,8 @@ The pitch output is labelled **V/OCT**. "PITCH" was the earlier draft;
 plain "CV" was considered and rejected as ambiguous, since MC-1 emits two
 CVs and VEL is the jack immediately beside it.
 
-**Cross-module inconsistency to settle:** VO-1's matching pitch *input* is
-currently specified as `1V/O`, with its own note that V/OCT is more
-conventional and fits the same width. Patching reads best when both ends
-of the cable carry the same label — VO-1 should adopt **V/OCT** to match,
-unless there is a reason to prefer `1V/O` range-wide.
+VO-1's matching pitch *input* carries the same label, so both ends of the
+patch cable read alike. Settled range-wide — see `../CLAUDE.md`.
 
 ### ⚠️ IN and THRU are not visually distinct from the CV jacks
 
@@ -283,8 +280,6 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
   millimetres of slack, on estimated rather than measured footprints.
 - **MIDI DIN icon** for the IN/THRU row, so those two jacks are
   distinguishable from the four CV jacks.
-- **V/OCT vs `1V/O`** — MC-1 and VO-1 currently disagree on the pitch
-  label; pick one range-wide.
 - **Bus master firmware** — parameter addressing/encoding over I2C is
   unspecified and is now load-bearing in phase 1.
 - Exact USB-C connector part number for the daughterboard.

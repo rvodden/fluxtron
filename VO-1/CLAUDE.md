@@ -96,7 +96,7 @@ have fitted vertically.
 2. Jagged divider
 3. Encoder row A: **FINE** (left), **TUNE** (right)
 4. Encoder row B: **DEPTH** (left), **WIDTH** (right)
-5. Jack row (inputs, 3 across): **1V/O**, **FM**, **PWM**
+5. Jack row (inputs, 3 across): **V/OCT**, **FM**, **PWM**
 6. **SYNC** jack at left, **PULSE** jack at right, gap between them
 7. Jack row (outputs, 3 across): **SAW**, **SUB**, **TRI**
 8. Jagged divider
@@ -125,9 +125,11 @@ which was ruled out here on space and cost.
 
 ### Jack labelling
 
-The pitch input is labelled **1V/O**. Unambiguous against FM and PWM, which
-was the point, though **V/OCT** is the more conventional spelling and fits
-the same width if preferred.
+The pitch input is labelled **V/OCT** — the conventional spelling, settled
+in favour of the earlier `1V/O`. It stays unambiguous against FM and PWM,
+which was the original concern, and it matches the label on MC-1's pitch
+*output*, so both ends of the patch cable read the same. Now a range-wide
+convention (see `../CLAUDE.md`).
 
 ## Controls and parameters
 
@@ -158,15 +160,20 @@ LM13700, the 74HC74/74HC14 pair, the power section and all eight jacks into
 roughly the lower two-thirds — call it 40mm × 80mm. Workable, but expect to
 go 4-layer rather than 2.
 
-### Status LED: missing from the current mockup
+### Status LED: placed
 
-The auto-tune sweep needs an indicator and the latest mockup has dropped
-it. Without one there is no way to tell whether a calibration is running,
-finished, or failed — the module would just go quiet mid-sweep with no
-explanation.
+The auto-tune sweep needs an indicator — without one there is no way to
+tell whether a calibration is running, finished, or failed, and the module
+would just go quiet mid-sweep with no explanation. An earlier mockup had
+dropped it.
 
-**The gap between SYNC and PULSE in row 6 is the natural home for it** and
-is already empty. THT LED per the range-wide preference.
+**Now sited in the row-6 gap between SYNC and PULSE**, which was already
+empty. THT LED per the range-wide preference.
+
+Colour is not yet a deliberate choice: the mockup draws it blue, while
+MC-1's displays lean amber to suit the panel's warm-glow aesthetic. Worth
+settling range-wide rather than per module, since these sit side by side
+in one case.
 
 ### ⚠️ Unverified: does a PEC16 actually clash with the main PCB?
 
@@ -246,7 +253,7 @@ overkill at two channels.
 ## Confirmed parts
 
 - **VCO core**: Alfa Rpar AS3340.
-- **Jacks**: Thonkiconn PJ301M-12 ×8 (1V/OCT, FM, PWM, SYNC in; SAW,
+- **Jacks**: Thonkiconn PJ301M-12 ×8 (V/OCT, FM, PWM, SYNC in; SAW,
   PULSE, SUB, TRI out). The three-across rows are at 13.5mm centres; SYNC
   and PULSE sit beside the knobs.
 - **Encoders**: Bourns PEC16 ×4, on a dedicated sub-board per above.
@@ -291,5 +298,8 @@ additionally needs:
   load-bearing in phase 1 and isn't specified anywhere yet.
 - Whether VO-1 wants any parameter readout at all, or whether the DAW/host
   is the only place a MIDI-set value is visible.
+- **Indicator LED colour, range-wide** — VO-1's status LED is drawn blue;
+  MC-1's displays lean amber. These sit side by side in one case, so pick
+  a palette once rather than per module.
 - Exact Rt/Rz values for the AS3340 compensation circuit.
 - Exact mounting-hole, jack and encoder coordinates against real footprints.

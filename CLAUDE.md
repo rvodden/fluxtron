@@ -23,6 +23,9 @@ Module-specific decisions live in each module's own folder
   wordmark appears once, at the top. Sections use symbolic icons where
   natural (e.g. a MIDI DIN end-view icon, a pulse-wave icon) rather than text
   labels, except where a plain word is clearer (jack names, "CHANNEL").
+- Jack labelling: the 1V/octave pitch jack is labelled **V/OCT** on every
+  module, input and output alike, so both ends of a patch cable read the
+  same. (`1V/O` was tried on VO-1 and dropped as less conventional.)
 - Fonts: **Rubik Dirt** for the FLUXTRON wordmark, **Kode Mono** for
   everything else (module code, jack labels, control labels). Use an en-dash
   in module codes, e.g. "MC–1".
