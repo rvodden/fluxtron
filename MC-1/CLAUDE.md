@@ -245,9 +245,15 @@ Each daughterboard connects to the main PCB via a short header/jumper
   (5.08mm) dual-digit SMD 7-segment, Diamond seg., **3mm thick**,
   10mm × 14.4mm footprint. Four digits total, well inside the AS1115's
   8-digit capability — one driver, one I2C address, no extra silicon.
-  Common anode. Specific colour not yet chosen (8 available — amber/orange
-  suggested to suit the panel's warm-glow aesthetic over stock red).
-  Example part numbers: OPS-D2010LR (red), OPS-D2010SA (amber).
+  **Blue** per the range-wide indicator palette — the earlier amber/warm
+  suggestion is withdrawn. The series lists 8 colours (e.g. OPS-D2010LR
+  red, OPS-D2010SA amber) but **whether it is offered in blue is
+  unconfirmed and is the first thing to check.** The part is only in the
+  spec because it is 3mm thick, so a blue substitute must also be ~3mm and
+  ~0.2" dual-digit or the display daughterboard's standoff changes with it.
+  Currently common anode; if the part is being re-picked for colour anyway,
+  **pick a common-cathode blue part** and close the AS1115 polarity item
+  below at the same time.
   **Still to confirm**: AS1115 digit-drive polarity (common-anode vs.
   common-cathode) is compatible with this part before ordering.
 - **Encoder**: Bourns PEC16, THT, off-board per above.
@@ -283,7 +289,12 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
 - **Bus master firmware** — parameter addressing/encoding over I2C is
   unspecified and is now load-bearing in phase 1.
 - Exact USB-C connector part number for the daughterboard.
-- Display colour choice.
+- **Sourcing a blue display** — blue in the OPS-D2010 series is
+  unconfirmed, and any substitute is constrained to ~3mm thickness by the
+  daughterboard standoff, not just by colour.
+- **A local 5V rail for the AS1115**, which blue segments force (see the
+  range doc). Adds an LDO and its dissipation to MC-1's PTC budget — the
+  10-pin power header carries no +5V.
 - AS1115 polarity check against OPS-D2010 (common anode).
 - Whether the OPS-D2010 has decimal points — affects only the focus
   indicator and the optional dotted-value marker, not the division

@@ -55,8 +55,11 @@ Two consequences that now apply range-wide, not just here (see
   inter-module bus but would need to be *master* to a local AS1115.
   Same-port multi-master plus the address-clash risk isn't worth it.
 
-VO-1 has no AS1115 — one status LED off an MCU GPIO is all the indication
-it needs.
+VO-1 has no AS1115 — one status LED is all the indication it needs. Note
+that it is **not** driven straight off an MCU GPIO: it is blue per the
+range palette, and a blue LED's forward voltage leaves no headroom at 3.3V.
+It runs from +12V through a series resistor, switched by a small
+NPN/MOSFET off the GPIO. See `../CLAUDE.md`.
 
 ### Encoders are incremental, so MIDI and panel don't fight
 
@@ -170,10 +173,12 @@ dropped it.
 **Now sited in the row-6 gap between SYNC and PULSE**, which was already
 empty. THT LED per the range-wide preference.
 
-Colour is not yet a deliberate choice: the mockup draws it blue, while
-MC-1's displays lean amber to suit the panel's warm-glow aesthetic. Worth
-settling range-wide rather than per module, since these sit side by side
-in one case.
+**Blue**, per the range-wide indicator palette — FluxTron is cold, and the
+mockup already draws it that way. The one thing this changes electrically:
+a blue LED will not run off a 3.3V GPIO, so it is switched from +12V
+through a transistor (see the control-architecture section above and
+`../CLAUDE.md`). Size the series resistor for 2–3mA; a blue LED at full
+tilt on a matte black panel is a distraction, not an indicator.
 
 ### ⚠️ Unverified: does a PEC16 actually clash with the main PCB?
 
@@ -298,8 +303,5 @@ additionally needs:
   load-bearing in phase 1 and isn't specified anywhere yet.
 - Whether VO-1 wants any parameter readout at all, or whether the DAW/host
   is the only place a MIDI-set value is visible.
-- **Indicator LED colour, range-wide** — VO-1's status LED is drawn blue;
-  MC-1's displays lean amber. These sit side by side in one case, so pick
-  a palette once rather than per module.
 - Exact Rt/Rz values for the AS3340 compensation circuit.
 - Exact mounting-hole, jack and encoder coordinates against real footprints.

@@ -23,6 +23,13 @@ Module-specific decisions live in each module's own folder
   wordmark appears once, at the top. Sections use symbolic icons where
   natural (e.g. a MIDI DIN end-view icon, a pulse-wave icon) rather than text
   labels, except where a plain word is clearer (jack names, "CHANNEL").
+- **Indicators are blue, range-wide — FluxTron is cold, not warm.** Every
+  indicator LED, and every 7-segment display where a blue part can be
+  sourced, is blue. No amber, no warm white, no stock red. This is a
+  deliberate palette decision against the matte-black/silver panel, and it
+  overrides the earlier "warm glow" suggestion that had been floated for
+  MC-1's displays. See the drive consequence under Common components — blue
+  is not a drop-in substitution for red.
 - Jack labelling: the 1V/octave pitch jack is labelled **V/OCT** on every
   module, input and output alike, so both ends of a patch cable read the
   same. (`1V/O` was tried on VO-1 and dropped as less conventional.)
@@ -170,6 +177,23 @@ the case vendor's own bus board.
   small digit display. Confirm common-anode/common-cathode polarity against
   the specific display part before committing (AS1115 expects a specific
   drive polarity).
+- **⚠️ Blue LEDs do not run off the 3.3V rail.** A red or amber LED drops
+  roughly 1.8–2.2V; a blue one drops **2.7–3.4V**. Two consequences of the
+  blue-indicator decision, both of which have to be designed in rather than
+  discovered at bring-up:
+  - **A blue LED cannot be driven directly from a 3.3V MCU GPIO.** Allowing
+    for the GPIO's own drop there is around 2.9–3.1V available, which for a
+    3.2V part leaves nothing across the series resistor — dim, and wildly
+    variable part to part. Drive indicator LEDs from **+12V through a series
+    resistor, switched by a small NPN or MOSFET off the GPIO** instead.
+    +12V is guaranteed on the 10-pin header; a +5V rail is not. Size for
+    2–3mA, not 20 — blue LEDs are bright and the panel is matte black.
+  - **The AS1115 sources segment current from its own supply**, so its V+
+    must exceed the segment's forward voltage plus driver dropout. At 3.3V
+    it cannot drive blue segments at all. Any module with a blue display
+    needs a **local 5V rail** (another LDO from +12V) for the AS1115.
+    Budget that dissipation into the module's PTC rating, same as the 3.3V
+    LDO.
 - **MIDI I/O**: **3.5mm TRS, Type A** (MIDI Association-ratified standard,
   2018) — not 5-pin DIN (too big), not 2.5mm (non-standard minority format).
 - **Bus connector**: 4-pin (VCC, SDA, SCL, GND), separate from power header,
