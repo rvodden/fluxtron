@@ -81,10 +81,17 @@ main board:
 - **Main PCB** (10mm standoff, set by the 6 Thonkiconn jacks): carries the
   jacks, power header, bus connector, MCU, DAC(s). No spacer washers needed
   since jacks reach their native depth directly.
-- **Channel encoder**: off-board entirely, on flying leads (A, B, common,
-  switch ×2 — 5 wires) back to the main PCB. Its own panel nut provides all
-  the mechanical support; main-PCB keep-out zone behind it (16.1mm deep, per
-  Bourns PEC16 body length).
+- **Channel encoder**: **Bourns PEC11R** (M7 × 0.75 bushing, 12mm body —
+  this module's layout work is what moved the range off the 16mm PEC16, see
+  `../CLAUDE.md`). Off-board entirely, on flying leads (A, B, common, switch
+  ×2 — 5 wires) back to the main PCB; its own panel nut provides all the
+  mechanical support.
+  - **MC-1 is the module where the unresolved encoder depth actually
+    bites.** Its single encoder sits amid a full-height main PCB at 10mm, so
+    if the PEC11R body reaches past 10mm behind the panel the board needs a
+    clearance hole there, not merely a keep-out. Modules that cluster their
+    encoders onto a sub-board (VO-1) dodge this entirely. Confirm the depth
+    against the drawing before laying this board out.
 - **USB-C daughterboard**: separate small board, its own shallow standoff
   set by whichever connector is chosen (checked against 219320-0001 as a
   reference point — 8.8mm, i.e. deeper than the display, hence the separate
@@ -109,7 +116,7 @@ Each daughterboard connects to the main PCB via a short header/jumper
   Example part numbers: OPS-D2010LR (red), OPS-D2010SA (amber).
   **Still to confirm**: AS1115 digit-drive polarity (common-anode vs.
   common-cathode) is compatible with this part before ordering.
-- **Encoder**: Bourns PEC16, THT, off-board per above.
+- **Encoder**: Bourns PEC11R, THT, M7 × 0.75 bushing, off-board per above.
 - **USB-C connector**: not yet finalised. 219320-0001 (Molex, 8.8mm) used
   as a reference depth point; still need to pick the actual part for the
   daughterboard.
@@ -136,6 +143,8 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
 
 - **Panel re-layout** — the row-of-4 jack problem above, and whether MC-1
   closes at 8HP at all.
+- **PEC11R behind-panel depth** — decides whether the main PCB needs a
+  clearance hole behind the channel encoder. Blocks this board's layout.
 - **Bus master firmware** — parameter addressing/encoding over I2C is
   unspecified and is now load-bearing in phase 1.
 - Exact USB-C connector part number for the daughterboard.

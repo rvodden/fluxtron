@@ -61,7 +61,7 @@ it needs.
 ### Encoders are incremental, so MIDI and panel don't fight
 
 Worth recording because it falls out of the range's encoder choice for free:
-the Bourns PEC16 is a relative/incremental encoder, not a pot. When a CC
+the Bourns PEC11R is a relative/incremental encoder, not a pot. When a CC
 changes a parameter there is no stale knob position to reconcile and no
 value-pickup problem — the encoder just nudges from wherever the parameter
 currently is. A pot-based design would have needed pickup/catch logic.
@@ -96,8 +96,8 @@ have fitted vertically.
 2. Jagged divider
 3. Encoder row A: **FINE** (left), **TUNE** (right)
 4. Encoder row B: **DEPTH** (left), **WIDTH** (right)
-5. Jack row (inputs, 3 across): **1V/O**, **FM**, **PWM**
-6. **SYNC** jack at left, **PULSE** jack at right, gap between them
+5. Jack row (inputs, 3 across): **V/OCT**, **FM**, **PWM**
+6. **SYNC** jack at left, **status LED** centre, **PULSE** jack at right
 7. Jack row (outputs, 3 across): **SAW**, **SUB**, **TRI**
 8. Jagged divider
 
@@ -125,9 +125,9 @@ which was ruled out here on space and cost.
 
 ### Jack labelling
 
-The pitch input is labelled **1V/O**. Unambiguous against FM and PWM, which
-was the point, though **V/OCT** is the more conventional spelling and fits
-the same width if preferred.
+The pitch input is labelled **V/OCT** — unambiguous against FM and PWM,
+which are also CV inputs, and the conventional spelling every other
+Eurorack module uses.
 
 ## Controls and parameters
 
@@ -158,44 +158,43 @@ LM13700, the 74HC74/74HC14 pair, the power section and all eight jacks into
 roughly the lower two-thirds — call it 40mm × 80mm. Workable, but expect to
 go 4-layer rather than 2.
 
-### Status LED: missing from the current mockup
+### Status LED
 
-The auto-tune sweep needs an indicator and the latest mockup has dropped
-it. Without one there is no way to tell whether a calibration is running,
-finished, or failed — the module would just go quiet mid-sweep with no
-explanation.
+A **THT indicator LED sits between SYNC and PULSE** in row 6, per the
+range-wide preference for THT on any panel-facing indicator (leads bend to
+reach the panel at whatever standoff).
 
-**The gap between SYNC and PULSE in row 6 is the natural home for it** and
-is already empty. THT LED per the range-wide preference.
+It is not decoration: the auto-tune sweep drives the oscillator on its own
+for a few seconds, and without an indicator there is no way to tell a
+calibration in progress from a fault. Driven from an MCU GPIO — no AS1115
+needed for a single LED.
 
-### ⚠️ Unverified: does a PEC16 actually clash with the main PCB?
+### Encoder depth: no longer blocking for VO-1
 
-The previous draft of this file (and the range-wide rule it fed into)
-asserted that a PEC16 body extends 16.1mm behind the panel and therefore
-intersects the main PCB's 10mm plane, requiring a cutout. **That is not
-confirmed and may well be wrong.**
+The encoder is now the **Bourns PEC11R** (decided on MC-1, applies
+range-wide) — a 12mm-body part with an **M7 × 0.75 bushing**, replacing the
+16mm PEC16 with its M9 bushing. Tighter footprint and a smaller panel hole,
+which helps here: two encoders across a 40.64mm panel on ~20mm centres have
+noticeably more room around a 12mm body than a 16mm one.
 
-The range doc's 16.1mm figure is described as "body length behind the
-panel", but Bourns' own dimension list pairs it with an **M9 × 0.75 bushing
-in 8.3 / 9.3 / 12.5mm lengths** — which reads much more like 16.1mm being an
-*overall* length with the bushing included. If so, the behind-panel body is
-somewhere near 8mm and **clears the 10mm main PCB entirely**, with no cutout
-needed anywhere on any module.
+**Its exact behind-panel depth is still unconfirmed** — Bourns and every
+distributor mirror are blocked from this environment, and the secondhand
+figures conflict (one listing implies a body ~6.5mm behind the panel once
+the 15mm shaft is subtracted from a 21.5mm overall; another summary reports
+12.5mm, which looks like the 12mm body *width* being misread as depth).
+Confirm against the drawing.
 
-The two outcomes differ a lot:
+**But it no longer gates VO-1.** The encoders sit on their own sub-board,
+whose standoff is set by the encoder itself whatever that depth turns out
+to be, and the main PCB already stops below the encoder zone. So the two
+boards do not share that space in either reading, and no cutout is needed.
+The clustered-encoder decision de-risked this unknown as a side effect.
 
-- **Behind-panel body ≲ 9mm**: no cutouts, no clash. Encoders still can't be
-  main-PCB-mounted (they'd fall short of reaching the panel from 10mm), so
-  flying leads regardless — but the boards get much simpler.
-- **Behind-panel body ≈ 16.1mm**: every PEC16 on every module needs a
-  clearance hole (~14mm) through the main PCB, flying leads or not. On VO-1
-  that is four holes punched through the middle of the board that has to
-  carry the AS3340, MCU, DACs, LM13700 and power section.
-
-**Check the PEC16 dimensional drawing before laying out any module.** The
-distributor and Bourns domains are blocked from this environment, so it
-could not be resolved here. This also decides whether the range-wide
-encoder-depth rule in `../CLAUDE.md` is correct as written.
+Where it still matters is **MC-1**, whose single encoder sits amid a
+full-height main board — see `../MC-1/CLAUDE.md`. Worth also glancing at
+the rotational-life spec while the datasheet is open: 12mm encoder series
+generally spec lower life than 16mm ones, which is the trade for the
+smaller footprint.
 
 ### Tune resolution
 
@@ -249,7 +248,8 @@ overkill at two channels.
 - **Jacks**: Thonkiconn PJ301M-12 ×8 (1V/OCT, FM, PWM, SYNC in; SAW,
   PULSE, SUB, TRI out). The three-across rows are at 13.5mm centres; SYNC
   and PULSE sit beside the knobs.
-- **Encoders**: Bourns PEC16 ×4, on a dedicated sub-board per above.
+- **Encoders**: Bourns PEC11R ×4 (M7 × 0.75 bushing, 12mm body), on a
+  dedicated sub-board per above.
 - **Sub divider**: 74HC74; pulse squaring 74HC14.
 - **Depth VCAs**: LM13700.
 - **Tune DAC**: 16-bit required; exact part not yet chosen.

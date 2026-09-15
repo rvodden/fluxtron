@@ -102,13 +102,15 @@ the case vendor's own bus board.
     **10mm** panel-to-PCB. This is now the number that sets the main PCB's
     standoff distance on every module, since jacks are on every module and
     are the shallowest of the "needs real panel-mount depth" components.
-  - **THT encoders** (Bourns PEC16): **16.1mm** body length behind the
-    panel — too deep to let dictate the whole board. Resolved by **not
-    mounting the encoder on the main PCB at all** — it's wired to the main
-    board on flying leads (A, B, common, switch ×2 — 5 wires) and gets its
-    mechanical support entirely from its own panel nut, same as always.
-    Leaves a keep-out zone on the main PCB directly behind the encoder
-    (16.1mm deep) — don't route tall components there.
+  - **THT encoders** (Bourns PEC11R, M7 × 0.75 bushing, 12mm body):
+    deeper than the 10mm jack standoff, so not something to let dictate the
+    whole board. Resolved by **not mounting the encoder on the main PCB at
+    all** — it's wired to the main board on flying leads (A, B, common,
+    switch ×2 — 5 wires) and gets its mechanical support entirely from its
+    own panel nut, same as always; or, on modules with 3+ encoders, onto
+    their own sub-board at their own standoff. Either way the main PCB must
+    keep clear of the space the encoder body occupies — see the depth note
+    below, which is not yet settled.
   - **Small digit displays / USB-C**: too *shallow* to sit at the 10mm jack
     depth and still reach the panel (see MC-1 for the worked example) — each
     needs its **own small daughterboard** at its own shallower standoff,
@@ -135,15 +137,18 @@ the case vendor's own bus board.
   - **A clustered encoder block means the main PCB stops short of it**
     rather than running the full panel height — no notch needed, but the
     remaining board area gets tight on an 8HP module. See VO-1.
-- **⚠️ The 16.1mm PEC16 depth figure above is unverified and may be wrong.**
-  It is recorded as "body length behind the panel", but Bourns pairs it with
-  an M9 × 0.75 bushing in 8.3 / 9.3 / 12.5mm lengths, which suggests 16.1mm
-  is an *overall* length including the bushing — in which case the
-  behind-panel body is nearer 8mm and clears the 10mm main PCB with no
-  cutout at all. If instead it really is 16.1mm behind the panel, every
-  PEC16 on every module needs a ~14mm clearance hole through the main PCB.
-  **Resolve against the PEC16 dimensional drawing before laying out any
-  board** — it changes every module, MC-1 included. See VO-1's spec.
+- **⚠️ The PEC11R's behind-panel depth is not yet confirmed.** Bourns and
+  every distributor mirror are blocked from the agent environment, and the
+  secondhand figures conflict: one listing implies a body ~6.5mm behind the
+  panel (21.5mm overall less a 15mm shaft), another reports 12.5mm, which
+  looks like the 12mm body *width* misread as depth. If it clears 10mm there
+  is nothing to do; if it exceeds 10mm, any main PCB running behind an
+  encoder needs a clearance hole. **Resolve against the dimensional drawing
+  before laying out a board where an encoder sits over the main PCB.**
+  - This does **not** gate modules whose encoders are clustered onto a
+    sub-board with the main PCB stopping short of them — the two never share
+    that space. VO-1 is clear for this reason. It gates MC-1, whose single
+    encoder sits amid a full-height main board.
 - **Jack density: three across is the maximum on an 8HP panel.** 8HP is
   40.64mm, so four across means 10.16mm centres — about 1mm of clearance
   past the outer nuts to the panel edge, and no room to get a nut driver
@@ -156,11 +161,12 @@ the case vendor's own bus board.
 
 - **Jacks**: Thonkiconn PJ301M-12, 3.5mm mono, panel-mount — 10mm depth,
   sets main PCB standoff on every module.
-- **Encoders**: Bourns PEC16, THT, panel-mount bushing — mounted off-PCB on
-  flying leads per the depth rule above. (Bourns PEC11S, an SMD variant with
-  a real metal bushing/shaft and ~6-7mm body, is a known option if a
-  shallow, PCB-mounted encoder is ever wanted instead — lower mechanical
-  life spec, worth weighing against the flying-lead approach case by case.)
+- **Encoders**: **Bourns PEC11R**, THT, 12mm body, **M7 × 0.75** panel-mount
+  bushing — mounted off-PCB on flying leads, or on a sub-board where a
+  module has 3+, per the depth rule above. (Replaced the 16mm PEC16/M9 after
+  MC-1's layout work: tighter footprint and a smaller panel hole, which
+  matters on a 40.64mm-wide panel. The 12mm series generally specs lower
+  rotational life than the 16mm — the accepted trade for the footprint.)
 - **LED/button driver**: **AS1115** (I2C) — drives up to 64 LEDs or 8 digits
   of 7-segment, plus keyscan for up to 64 buttons. One per module is
   generally enough to cover an LED ring (where used), a pushbutton, and/or a
