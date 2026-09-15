@@ -53,9 +53,15 @@ Monophonic system. Modules:
 | EG-1 | Envelope generator (ADSR) | 2 | 8 each |
 | LF-1 | LFO | 1 | 8 |
 | MX-1 | Mixer | 1 | 8 |
+| PS-1 | Power supply + bus board | 1 | 8 |
 
-Total 64HP of 84HP (KOMA Case 3U/84HP) — 20HP spare, not yet allocated
+Total 72HP of 84HP (KOMA Case 3U/84HP) — 12HP spare, not yet allocated
 (candidates: extra spacing, blind panels, an output/headphone module).
+
+**PS-1 is a module in its own right, not a section of MC-1**, and may yet go
+to 16HP. It supplies **±12V and +5V** from an external 15V DC brick, and owns
+the bus board. Everything else about it — rail generation, regulator choice,
+current budget, thermals — is in `PS-1/CLAUDE.md` and does not belong here.
 
 Flagged for later, not in scope now: **LF-2**, a fuller multi-waveform
 crossfade LFO (separate sine/saw/square cores blended via a dual-VCA-style
@@ -65,8 +71,9 @@ crossfader), vs. LF-1's single continuous triangle↔saw/square skew control.
 
 **KOMA Case 3U/84HP** — unpowered (bring your own PSU), 70mm depth. Bought
 direct from koma-elektronik.com (not widely stocked via third-party
-retailers). PSU/power distribution to be designed separately, not tied to
-the case vendor's own bus board.
+retailers). PSU and power distribution are designed separately and are not
+tied to the case vendor's own bus board — they are **PS-1**, which owns both
+the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
 
 ## Signal architecture: hybrid CV + digital bus
 
@@ -100,6 +107,15 @@ the case vendor's own bus board.
   - **Analogue modules use a linear LDO for their 3.3V rail, not a buck** —
     switching noise next to precision analogue (expo converters especially)
     is not worth the efficiency. Budget the dissipation into the PTC rating.
+  - **3.3V stays per-module, but its LDO is fed from the bus +5V, not +12V** —
+    a 1.7V drop instead of 8.7V, which takes VO-1's regulator from 0.4W to
+    78mW beside its expo converter. A *shared* 3.3V rail stays rejected: no
+    rejection stage between modules, and it breaks the per-module PTC rule.
+    - **⚠️ This puts a 16-pin power header on every module**, where the
+      protection standard below still says 10-pin. Not yet confirmed. Keep
+      the portability fallback: a wide-Vin LDO with a **jumper selecting bus
+      +5V or bus +12V** as its input, so a module still runs in a case whose
+      PSU has no 5V rail.
 
 ## PCB / panel construction
 
@@ -159,6 +175,8 @@ the case vendor's own bus board.
 
 ## Common components (repeat across modules)
 
+- **MCU**: `STM32G0B1CBT6` on every module — see the MCU section below for
+  the reasoning and for what a per-module substitution costs.
 - **Jacks**: Thonkiconn PJ301M-12, 3.5mm mono, panel-mount — 10mm depth,
   sets main PCB standoff on every module.
 - **Encoders**: **Bourns PEC11R**, 12mm incremental, THT, M7 × 0.75 metal
@@ -217,12 +235,22 @@ the case vendor's own bus board.
     resistor, switched by a small NPN or MOSFET off the GPIO** instead.
     +12V is guaranteed on the 10-pin header; a +5V rail is not. Size for
     2–3mA, not 20 — blue LEDs are bright and the panel is matte black.
+    (**PS-1 changes this premise**: a FluxTron rack now has a guaranteed +5V
+    rail. The +12V-and-transistor approach stays the default because it costs
+    almost nothing and keeps modules portable to other people's cases — but
+    it is no longer forced.)
   - **The AS1115 sources segment current from its own supply**, so its V+
     must exceed the segment's forward voltage plus driver dropout. At 3.3V
     it cannot drive blue segments at all. Any module with a blue display
-    needs a **local 5V rail** (another LDO from +12V) for the AS1115.
-    Budget that dissipation into the module's PTC rating, same as the 3.3V
-    LDO. Note the margin is genuinely tight — a 3.8V worst-case segment
+    needs a **5V rail** for the AS1115. **Since PS-1, that rail should come
+    from the bus** on a 16-pin header rather than from a local LDO — the
+    local part burns ~560mW on MC-1, the range's worst thermal spot, on its
+    most crowded board. Modules needing 5V fit a 16-pin header; modules that
+    do not (VO-1 explicitly needs no 5V rail) keep 10-pin, and a 10-pin
+    socket plugs onto a 16-pin bus header perfectly well. Lay out the local
+    LDO anyway, unpopulated, with a jumper selecting the source — it is what
+    keeps the module working in a case whose PSU has no 5V rail. Budget that
+    dissipation into the module's PTC rating only if the LDO is populated. Note the margin is genuinely tight — a 3.8V worst-case segment
     against the AS1115's 5.5V maximum leaves little for the drivers — and
     a 5V AS1115 talking to a 3.3V MCU needs the I2C level shift thought
     about. MC-1's spec works this through; any later module with a blue
@@ -328,6 +356,14 @@ spend the BOM on tempco rather than on initial accuracy.
   2018) — not 5-pin DIN (too big), not 2.5mm (non-standard minority format).
 - **Bus connector**: 4-pin (VCC, SDA, SCL, GND), separate from power header,
   populated on every module regardless of phase.
+  - **VCC is DVCC, the bus's logic rail: 5V**, sourced by PS-1's bus board.
+    It is a pull-up reference, not a module power rail — modules must **not**
+    tie it to their local 3.3V, which would parallel every module's LDO
+    output against every other's.
+  - **The pull-ups live on the bus board, populated exactly once**, never
+    per-module. Sizing and the reasoning are in `PS-1/CLAUDE.md`.
+  - **⚠️ 5V DVCC against 3.3V MCUs is not free** — see the bus protocol's
+    electrical notes before laying out any module's bus connector.
 
 ## MCU: STM32G0, range-wide
 
@@ -388,6 +424,24 @@ Dropping a specific module to a smaller part (e.g. `STM32G031` in LQFP-32)
 stays open, and is low-stakes precisely because it is the same family: same
 HAL, same registers, same debugger, same toolchain. **Decide it per module
 when that module's schematic is real, not now.**
+
+**Two limits on that substitution**, verified against ST's CMSIS device
+headers (ST and distributor domains are blocked from this environment; the
+headers are definitive and reachable):
+
+- **MC-1 can never be substituted.** No STM32G0 below G0B1 has a USB data
+  peripheral at all. The trap is that the G071/G081 datasheets advertise a
+  "USB Type-C Power Delivery controller" — that is UCPD, a PD *negotiation*
+  block with no USB data path, and it cannot carry USB MIDI. Only G0B1/G0C1
+  define a `USB_DRD_FS` peripheral.
+- **A substitution gives up hardware encoder mode**, should a module ever
+  want it instead of the software decode chosen above. Encoder interface mode
+  exists only on TIM1/2/3/4, and TIM4 is present only on G0B1/G0C1 — a G031
+  offers three, a G030 two. Not a blocker while decode stays in software, but
+  it is the option that quietly disappears with the smaller part.
+
+The dual-I2C requirement does **not** constrain the substitution — every G0
+including the G030 has two I2C peripherals, and the G0B1 has three.
 
 ### The G0B1's internal DAC is not needed
 
@@ -459,10 +513,11 @@ protection and MIDI opto-isolation) is noted in that module's own
 
 ## Open items / not yet decided
 
-- Spare 20HP allocation (extra spacing vs. blind panel vs. new module).
+- Spare 12HP allocation (extra spacing vs. blind panel vs. new module).
 - **Bus parameter protocol** — how CC/NRPN values are addressed and encoded
   over I2C. Load-bearing in phase 1 now, and not yet specified.
 - EG-1's control set (fully continuous ADSR via 4 encoders vs. some fixed
   stages) — affects whether it needs a dedicated encoder sub-board.
-- PSU design for the (unpowered) KOMA case.
+- PS-1's own open items — external brick vs. internal mains above all, plus
+  8HP vs. 16HP and whether it carries an MCU. See `PS-1/CLAUDE.md`.
 - Auto-addressing scheme for the digital bus (deferred, not blocking).
