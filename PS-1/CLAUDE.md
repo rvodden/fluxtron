@@ -165,6 +165,11 @@ with decent copper and possibly a small heatsink on the positive regulator.
 ## Bus board
 
 - **Ten 16-pin power positions** (84HP ÷ 8HP), shrouded and keyed.
+  - **A bus segment tops out around 16 modules**, set by I2C's 400pF limit
+    rather than by the 4-bit slot field: ~16 modules is 210–290pF, ~26 is at
+    or over the limit. A larger case (6U, or 2×104HP) therefore wants **two
+    segments with a bridge between them**, which is what the addressing
+    scheme would have forced anyway. The two constraints agree.
 - **Ten 4-pin I2C positions** on the same PCB, with the I2C traces routed
   away from the power traces — the range doc already requires the bus be kept
   clear of analogue sections, and one board makes that a layout task rather
@@ -174,10 +179,27 @@ with decent copper and possibly a small heatsink on the positive regulator.
 - **The I2C pull-ups live here**, one pair only, never per-module. They have
   to be singular: one 4.7kΩ pair per module across eight modules is about
   590Ω in parallel, below the ~1kΩ floor the 3mA sink specification sets, and
-  nothing would pull the bus low. A single **~2.2kΩ** pair suits both 100kHz
-  and 400kHz against a realistic bus capacitance (~150–250pF for an 84HP
-  ribbon plus stubs), and stays correct however many modules are installed.
-  At 5V that pair draws ~2.3mA, comfortably inside the 3mA sink budget.
+  nothing would pull the bus low. A single **~2.2kΩ** pair, and the bus runs
+  at **100kHz**.
+  - **⚠️ At 5V DVCC, 400kHz is not available on a full segment.** The 3mA
+    sink spec (VOL 0.4V) puts a *floor* of 1.53kΩ on the pull-up at 5V, while
+    rise time puts a ceiling of `300ns / (0.8473 × Cb)`. Those cross at about
+    **230pF** — above that there is no valid passive pull-up value at all. A
+    realistic 84HP segment is ~150–250pF (10–15pF per module of pin,
+    connector and stub, plus ~50pF/m of ribbon), so it sits right on that
+    boundary. 3.3V DVCC would have a 0.97kΩ floor and keep 400kHz out to
+    ~370pF; this is a real cost of the 5V choice.
+  - **It does not bite, because of the bus ATTN line.** MC-1 reads a module
+    only when it signals, so there is no round-robin polling load to spend
+    bandwidth on. At 100kHz a parameter write is ~400µs, far below anything
+    perceptible, and 2.2kΩ is valid across the whole capacitance range
+    (floor 1.53kΩ, ceiling 4.7kΩ at 250pF).
+  - 400kHz stays available only on a segment kept under ~160pF, which is
+    roughly ten modules on a short ribbon. Worth knowing, not worth
+    designing around.
+  - **This corrects an earlier note here** claiming 2.2kΩ suited both speeds
+    against 150–250pF. It does not; at 250pF and 400kHz the rise time is
+    ~466ns against a 300ns limit.
 - Bulk decoupling distributed along the rails, not lumped at one end.
 
 ## Protection
