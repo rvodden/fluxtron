@@ -159,6 +159,8 @@ the case vendor's own bus board.
 
 ## Common components (repeat across modules)
 
+- **MCU**: `STM32G0B1CBT6` on every module — see the MCU section below for
+  the reasoning and for what a per-module substitution costs.
 - **Jacks**: Thonkiconn PJ301M-12, 3.5mm mono, panel-mount — 10mm depth,
   sets main PCB standoff on every module.
 - **Encoders**: **Bourns PEC11R**, 12mm incremental, THT, M7 × 0.75 metal
@@ -388,6 +390,24 @@ Dropping a specific module to a smaller part (e.g. `STM32G031` in LQFP-32)
 stays open, and is low-stakes precisely because it is the same family: same
 HAL, same registers, same debugger, same toolchain. **Decide it per module
 when that module's schematic is real, not now.**
+
+**Two limits on that substitution**, verified against ST's CMSIS device
+headers (ST and distributor domains are blocked from this environment; the
+headers are definitive and reachable):
+
+- **MC-1 can never be substituted.** No STM32G0 below G0B1 has a USB data
+  peripheral at all. The trap is that the G071/G081 datasheets advertise a
+  "USB Type-C Power Delivery controller" — that is UCPD, a PD *negotiation*
+  block with no USB data path, and it cannot carry USB MIDI. Only G0B1/G0C1
+  define a `USB_DRD_FS` peripheral.
+- **A substitution gives up hardware encoder mode**, should a module ever
+  want it instead of the software decode chosen above. Encoder interface mode
+  exists only on TIM1/2/3/4, and TIM4 is present only on G0B1/G0C1 — a G031
+  offers three, a G030 two. Not a blocker while decode stays in software, but
+  it is the option that quietly disappears with the smaller part.
+
+The dual-I2C requirement does **not** constrain the substitution — every G0
+including the G030 has two I2C peripherals, and the G0B1 has three.
 
 ### The G0B1's internal DAC is not needed
 

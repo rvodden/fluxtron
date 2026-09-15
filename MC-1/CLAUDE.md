@@ -266,8 +266,12 @@ one-handed, and the timeout above gives most of the same safety.
     frequency accuracy is not load-bearing anywhere on this module. A
     crystal remains cheap insurance if bring-up suggests otherwise.
   - **USB is why MC-1 specifically needs the G0B1** rather than a smaller
-    G0 — the G031/G071 parts have no USB controller at all. This is the
-    module that sets the range-wide part choice; the others inherit it.
+    G0 — the G031/G071 parts have no USB controller at all. Do not be
+    misled by the G071/G081 datasheets advertising a *USB Type-C Power
+    Delivery controller*: that is UCPD, a PD negotiation block with no USB
+    data path, and USB MIDI cannot run on it. Only G0B1/G0C1 define a
+    `USB_DRD_FS` peripheral. This is the module that sets the range-wide
+    part choice; the others inherit it.
 - **TRS MIDI IN/THRU**: 3.5mm TRS Type A (see range-wide doc).
 - **No dual-input/merge logic**: a given unit is fed by *either* USB
   (if enumerated) *or* TRS IN, never both — simpler firmware, no merge
