@@ -395,9 +395,18 @@ Two further consequences:
   the MCU pins, and the AS1115's input thresholds at V+=5V may sit above
   what a 3.3V driver guarantees. Budget for a MOSFET level-shifter pair on
   the local I2C, or confirm the AS1115's VIH allows 3.3V direct drive.
-- **LDO dissipation, and dimming as a thermal lever.** Multiplexed, one
-  digit lit at a time, all 8 segments at 10mA is ~80mA from the 5V rail —
-  7V × 80mA ≈ **560mW** in a linear LDO from +12V. That wants a SOT-223 or
+- **Where the 5V comes from — PS-1 changes this.** The rail should now be
+  taken **from the bus on a 16-pin power header**, not made locally. PS-1
+  provides a guaranteed +5V, and a 10-pin socket plugs onto a 16-pin bus
+  header perfectly well, so this costs MC-1 a connector change and nothing
+  else. **Lay out the local LDO anyway, unpopulated, with a jumper selecting
+  the source** — that is what keeps MC-1 working in a case whose PSU has no
+  5V rail. The dissipation figures below apply only if the LDO is populated.
+- **LDO dissipation, and dimming as a thermal lever** (local-LDO path only).
+  Multiplexed, one digit lit at a time, all 8 segments at 10mA is ~80mA from
+  the 5V rail — 7V × 80mA ≈ **560mW** in a linear LDO from +12V. That was the
+  worst thermal spot in the range, on its most crowded board, and taking the
+  rail from the bus deletes it. If populated, it wants a SOT-223 or
   DPAK part and a real thermal pad, and it goes on the PTC budget. At
   120–180 mcd these are very bright and will almost certainly be run well
   below full intensity, which cuts the dissipation proportionally — so the
@@ -465,8 +474,10 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
 - **AS1115 segment/digit driver dropout at 5V** against the GS2022CB-B's
   3.80V worst-case Vf — the tightest electrical margin on the module.
 - **I2C level shifting** between the 3.3V MCU and the 5V AS1115.
-- **A local 5V rail for the AS1115** is now confirmed necessary, not just
-  likely — sizing and thermals per the note above.
+- **The 5V rail for the AS1115** is confirmed necessary. Source is settled
+  in principle — from PS-1 over a 16-pin header, with an unpopulated local
+  LDO and a jumper as the portability fallback — but the connector change and
+  the jumper arrangement are not yet drawn.
 - **Free-running internal clock** (MC-1 as master when no MIDI clock is
   present) — genuinely useful, genuinely separate: it needs a tempo
   control, a start/stop affordance and probably tap, none of which fit the
