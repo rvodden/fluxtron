@@ -55,13 +55,16 @@ Two consequences that now apply range-wide, not just here (see
   inter-module bus but would need to be *master* to a local AS1115.
   Same-port multi-master plus the address-clash risk isn't worth it.
 
-VO-1 has no AS1115 — one status LED off an MCU GPIO is all the indication
-it needs.
+VO-1 has no AS1115 — one status LED is all the indication it needs. Note
+that it is **not** driven straight off an MCU GPIO: it is blue per the
+range palette, and a blue LED's forward voltage leaves no headroom at 3.3V.
+It runs from +12V through a series resistor, switched by a small
+NPN/MOSFET off the GPIO. See `../CLAUDE.md`.
 
 ### Encoders are incremental, so MIDI and panel don't fight
 
 Worth recording because it falls out of the range's encoder choice for free:
-the Bourns PEC16 is a relative/incremental encoder, not a pot. When a CC
+the Bourns PEC11R is a relative/incremental encoder, not a pot. When a CC
 changes a parameter there is no stale knob position to reconcile and no
 value-pickup problem — the encoder just nudges from wherever the parameter
 currently is. A pot-based design would have needed pickup/catch logic.
@@ -96,7 +99,7 @@ have fitted vertically.
 2. Jagged divider
 3. Encoder row A: **FINE** (left), **TUNE** (right)
 4. Encoder row B: **DEPTH** (left), **WIDTH** (right)
-5. Jack row (inputs, 3 across): **1V/O**, **FM**, **PWM**
+5. Jack row (inputs, 3 across): **V/OCT**, **FM**, **PWM**
 6. **SYNC** jack at left, **PULSE** jack at right, gap between them
 7. Jack row (outputs, 3 across): **SAW**, **SUB**, **TRI**
 8. Jagged divider
@@ -125,26 +128,88 @@ which was ruled out here on space and cost.
 
 ### Jack labelling
 
-The pitch input is labelled **1V/O**. Unambiguous against FM and PWM, which
-was the point, though **V/OCT** is the more conventional spelling and fits
-the same width if preferred.
+The pitch input is labelled **V/OCT** — the conventional spelling, settled
+in favour of the earlier `1V/O`. It stays unambiguous against FM and PWM,
+which was the original concern, and it matches the label on MC-1's pitch
+*output*, so both ends of the patch cable read the same. Now a range-wide
+convention (see `../CLAUDE.md`).
 
 ## Controls and parameters
 
-| Parameter | Encoder | MIDI CC | How it reaches the analogue |
+| Parameter | Control | MIDI CC | How it reaches the analogue |
 |---|---|---|---|
 | Coarse tune | TUNE | yes | 16-bit DAC → expo summing node |
 | Fine tune | FINE | yes | same DAC channel as coarse |
 | Pulse width | WIDTH | yes | 12-bit DAC → AS3340 PW input |
 | FM depth | DEPTH | yes | 12-bit DAC → OTA in FM CV path |
-| PWM CV depth | — | yes | 12-bit DAC → OTA in PWM CV path |
-| Sub division (/2 or /4) | — | yes | MCU GPIO → mux |
-| Calibrate now | — | yes | firmware action |
+| PWM CV depth | **hold WIDTH + turn** | yes | 12-bit DAC → OTA in PWM CV path |
+| Sub division (/2 or /4) | **press TUNE** | yes | MCU GPIO → mux |
+| Calibrate now | **long-press FINE** | yes | firmware action |
 
 Four encoders, clustered as a 2×2 block at the top of the panel with every
 jack below them. Per the range rule (3+ encoders), they go on a **dedicated
 encoder sub-board** — 4×(A, B) + 4×(switch) + common = 13 lines, so a 14-way
 ribbon back to the main PCB.
+
+### All four encoders are switched
+
+**`PEC11R-4015F-S0024` ×4.** The reason is in the table above: three of
+VO-1's seven parameters had *no panel control whatsoever* and were
+reachable only over MIDI — which contradicts the range premise that every
+parameter has "panel encoders for direct hands-on control." Four switches
+cover all three with one gesture spare.
+
+The wiring was already specified for this: the 13-line count above has
+always included `4×(switch)`. Only the part number said otherwise.
+
+Fitting all four rather than a mix also keeps VO-1 to a single encoder BOM
+line, and leaves DEPTH's press unassigned but wired, for firmware to grow
+into.
+
+#### The scheme, and why it is not MC-1's
+
+**VO-1 has no display.** MC-1 can afford a latching push-to-toggle focus
+mode because its CH and DIV readouts show which parameter the encoder owns
+at all times. VO-1 has one status LED. Any latching mode here is invisible,
+and an invisible mode is one you get stuck in.
+
+So the rule for VO-1 is: **momentary, or audible, or indicated — never a
+silent latch.**
+
+- **PWM CV depth — hold WIDTH and turn.** Momentary: release and the
+  encoder is back to pulse width. Nothing to get lost in, no indicator
+  needed. It also keeps both pulse-shape parameters on one knob and leaves
+  DEPTH unambiguously the FM depth. (Putting the second depth on DEPTH was
+  considered and rejected: a knob whose two functions are both called
+  "depth" is exactly the one you would misremember.)
+- **Sub division — press TUNE.** A latching binary toggle, which the rule
+  above would normally forbid, except this one is *audible*: the sub drops
+  or rises an octave the instant it changes. Press, listen, press again.
+  Pitch-adjacent to TUNE, which is the point of putting it there.
+- **Calibrate now — long-press FINE.** Deliberately awkward, because
+  calibration grounds the V/OCT input and sweeps the oscillator; triggering
+  it mid-set would be unwelcome. The status LED already reports running /
+  finished / failed, so this is the one action with real feedback. FINE
+  rather than TUNE because calibration is a tuning operation and TUNE's
+  press is taken.
+- **DEPTH — unassigned.** Fitted and wired. Candidates if wanted later:
+  hold-and-turn for an octave-sized TUNE step (the 16-bit tune DAC's range
+  is large enough that coarse/fine/octave is a real question); long-press
+  to store the current tuning as the power-on default; FM polarity invert,
+  if the OTA path turns out to be bipolar. None are decided.
+
+#### ⚠️ Firmware: a press will nudge a detentless shaft
+
+Switch actuation force is **610 ±306 gf** — stiff, and variable enough that
+worst-case parts need nearly a kilogram. On a **detentless** encoder there
+is no detent to hold position against that, so pressing the knob will
+sometimes rotate it a step.
+
+**Suppress rotation for a short window (~50ms) after a press edge**, then
+resume counting so that hold-and-turn still works. Without it, every press
+of TUNE risks also changing the tune, and every grab of WIDTH risks moving
+the pulse width before the hold gesture is even recognised. Switch contact
+bounce is the same 2.0ms as the quadrature contacts.
 
 The clustering is what makes this work. A scattered layout (an earlier
 mockup put the four encoders diagonally down the panel, interleaved with
@@ -158,44 +223,40 @@ LM13700, the 74HC74/74HC14 pair, the power section and all eight jacks into
 roughly the lower two-thirds — call it 40mm × 80mm. Workable, but expect to
 go 4-layer rather than 2.
 
-### Status LED: missing from the current mockup
+### Status LED: placed
 
-The auto-tune sweep needs an indicator and the latest mockup has dropped
-it. Without one there is no way to tell whether a calibration is running,
-finished, or failed — the module would just go quiet mid-sweep with no
-explanation.
+The auto-tune sweep needs an indicator — without one there is no way to
+tell whether a calibration is running, finished, or failed, and the module
+would just go quiet mid-sweep with no explanation. An earlier mockup had
+dropped it.
 
-**The gap between SYNC and PULSE in row 6 is the natural home for it** and
-is already empty. THT LED per the range-wide preference.
+**Now sited in the row-6 gap between SYNC and PULSE**, which was already
+empty. THT LED per the range-wide preference.
 
-### ⚠️ Unverified: does a PEC16 actually clash with the main PCB?
+**Blue**, per the range-wide indicator palette — FluxTron is cold, and the
+mockup already draws it that way. The one thing this changes electrically:
+a blue LED will not run off a 3.3V GPIO, so it is switched from +12V
+through a transistor (see the control-architecture section above and
+`../CLAUDE.md`). Size the series resistor for 2–3mA; a blue LED at full
+tilt on a matte black panel is a distraction, not an indicator.
 
-The previous draft of this file (and the range-wide rule it fed into)
-asserted that a PEC16 body extends 16.1mm behind the panel and therefore
-intersects the main PCB's 10mm plane, requiring a cutout. **That is not
-confirmed and may well be wrong.**
+### Encoder vs main PCB: resolved, and the board is unpunctured
 
-The range doc's 16.1mm figure is described as "body length behind the
-panel", but Bourns' own dimension list pairs it with an **M9 × 0.75 bushing
-in 8.3 / 9.3 / 12.5mm lengths** — which reads much more like 16.1mm being an
-*overall* length with the bushing included. If so, the behind-panel body is
-somewhere near 8mm and **clears the 10mm main PCB entirely**, with no cutout
-needed anywhere on any module.
+An earlier draft of this file flagged that a PEC16 might extend 16.1mm
+behind the panel, intersecting the main PCB's 10mm plane and forcing four
+~14mm clearance holes through the middle of the board that carries the
+AS3340, MCU, DACs, LM13700 and power section. It could not be resolved at
+the time.
 
-The two outcomes differ a lot:
+**Moot — the range moved to the Bourns PEC11R**, whose body is **6.5mm**
+behind the mounting surface. That is the benign outcome the earlier draft
+hoped for: no cutout, no clash, no keep-out, on any module. VO-1's main
+PCB stays whole.
 
-- **Behind-panel body ≲ 9mm**: no cutouts, no clash. Encoders still can't be
-  main-PCB-mounted (they'd fall short of reaching the panel from 10mm), so
-  flying leads regardless — but the boards get much simpler.
-- **Behind-panel body ≈ 16.1mm**: every PEC16 on every module needs a
-  clearance hole (~14mm) through the main PCB, flying leads or not. On VO-1
-  that is four holes punched through the middle of the board that has to
-  carry the AS3340, MCU, DACs, LM13700 and power section.
-
-**Check the PEC16 dimensional drawing before laying out any module.** The
-distributor and Bourns domains are blocked from this environment, so it
-could not be resolved here. This also decides whether the range-wide
-encoder-depth rule in `../CLAUDE.md` is correct as written.
+What does not change is the sub-board. 6.5mm is *shallower* than the main
+PCB's 10mm, so the encoders still cannot sit on it — they would fall short
+of the panel. The four-encoder sub-board stands, now at its own 6.5mm
+standoff.
 
 ### Tune resolution
 
@@ -246,15 +307,27 @@ overkill at two channels.
 ## Confirmed parts
 
 - **VCO core**: Alfa Rpar AS3340.
-- **Jacks**: Thonkiconn PJ301M-12 ×8 (1V/OCT, FM, PWM, SYNC in; SAW,
+- **Jacks**: Thonkiconn PJ301M-12 ×8 (V/OCT, FM, PWM, SYNC in; SAW,
   PULSE, SUB, TRI out). The three-across rows are at 13.5mm centres; SYNC
   and PULSE sit beside the knobs.
-- **Encoders**: Bourns PEC16 ×4, on a dedicated sub-board per above.
+- **Encoders**: Bourns **PEC11R-4015F-S0024** ×4 (detentless, push
+  momentary switch, 15mm shaft), on a dedicated sub-board at 6.5mm per
+  above. All four of VO-1's *rotary* parameters are continuous, which is
+  the case detentless travel suits; the switches carry the three
+  parameters that had no panel control at all. See the push-switch scheme
+  above.
 - **Sub divider**: 74HC74; pulse squaring 74HC14.
 - **Depth VCAs**: LM13700.
-- **Tune DAC**: 16-bit required; exact part not yet chosen.
-- **Parameter DAC**: 12-bit, 3+ channels; exact part not yet chosen.
-- **MCU**: not yet chosen — see open items.
+- **Tune DAC**: **AD5662** (16-bit, SPI, midscale power-on reset) with a
+  **REF5025** 2.5V reference, 3ppm/°C grade. See `../CLAUDE.md` for the
+  error budget and the output-stage rules — the matched resistor network
+  matters more than the DAC. **Check the REF5025's dropout against VO-1's
+  3.3V rail**: with no AS1115 there is no 5V here, and if the headroom is
+  short VO-1 gains a rail it does not otherwise need.
+- **Parameter DAC**: **MCP4728** (12-bit, 4-channel, I2C) — pulse width,
+  FM depth and PWM CV depth on three channels, one spare. On VO-1's local
+  I2C port, which it has to itself since VO-1 carries no AS1115.
+- **MCU**: STM32G0B1CBT6, per the range-wide choice in `../CLAUDE.md`.
 
 ## Circuit protection (beyond the range-wide baseline)
 
@@ -278,15 +351,14 @@ additionally needs:
 
 ## Open items
 
-- **MCU choice — range-wide, not just VO-1.** MC-1's spec says "MCU"
-  without naming a part, and the I2C decision now puts one on every module,
-  so this should be settled once for the whole range. RP2040 is the
-  suggestion: its PIO handles four quadrature encoders and the frequency
-  counter without touching the CPU, it has two I2C ports (which the
-  bus/local-peripheral split above needs), and MC-1 needs a USB device
-  controller anyway. Against it: needs an external QSPI flash, where an
-  STM32G0 is single-chip.
-- Tune DAC and parameter DAC part numbers.
+- **Encoder decode is in software**, not a hardware timer per encoder —
+  four encoders at human speed is around 2,000 interrupts per second in
+  total. The auto-tune frequency counter takes one timer in counter mode
+  and one gating it.
+- **REF5025 headroom on the 3.3V rail** — decides whether VO-1 needs a
+  5V rail purely for the pitch reference.
+- **Matched resistor network part** for the tune scaling stage, and the
+  precision op-amp to go with it.
 - The bus protocol itself — parameter addressing/encoding over I2C is now
   load-bearing in phase 1 and isn't specified anywhere yet.
 - Whether VO-1 wants any parameter readout at all, or whether the DAW/host

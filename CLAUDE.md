@@ -20,9 +20,21 @@ Module-specific decisions live in each module's own folder
   lines and small asymmetric details (e.g. a scratch/crack mark) rather than
   clutter. **No footer wordmark** — an off-centre one was in the original
   brief, tried on VO-1 and rejected; don't re-propose it. The FLUXTRON
-  wordmark appears once, at the top. Sections use symbolic icons where
-  natural (e.g. a MIDI DIN end-view icon, a pulse-wave icon) rather than text
-  labels, except where a plain word is clearer (jack names, "CHANNEL").
+  wordmark appears once, at the top. **No symbolic icons** — a MIDI DIN
+  end-view icon and a pulse-wave icon were in the original brief and are
+  rejected; don't re-propose them. Everything is named in words: jack
+  names, control labels, and a plain word heading a section where one is
+  needed.
+- **Indicators are blue, range-wide — FluxTron is cold, not warm.** Every
+  indicator LED, and every 7-segment display where a blue part can be
+  sourced, is blue. No amber, no warm white, no stock red. This is a
+  deliberate palette decision against the matte-black/silver panel, and it
+  overrides the earlier "warm glow" suggestion that had been floated for
+  MC-1's displays. See the drive consequence under Common components — blue
+  is not a drop-in substitution for red.
+- Jack labelling: the 1V/octave pitch jack is labelled **V/OCT** on every
+  module, input and output alike, so both ends of a patch cable read the
+  same. (`1V/O` was tried on VO-1 and dropped as less conventional.)
 - Fonts: **Rubik Dirt** for the FLUXTRON wordmark, **Kode Mono** for
   everything else (module code, jack labels, control labels). Use an en-dash
   in module codes, e.g. "MC–1".
@@ -102,13 +114,15 @@ the case vendor's own bus board.
     **10mm** panel-to-PCB. This is now the number that sets the main PCB's
     standoff distance on every module, since jacks are on every module and
     are the shallowest of the "needs real panel-mount depth" components.
-  - **THT encoders** (Bourns PEC16): **16.1mm** body length behind the
-    panel — too deep to let dictate the whole board. Resolved by **not
-    mounting the encoder on the main PCB at all** — it's wired to the main
-    board on flying leads (A, B, common, switch ×2 — 5 wires) and gets its
-    mechanical support entirely from its own panel nut, same as always.
-    Leaves a keep-out zone on the main PCB directly behind the encoder
-    (16.1mm deep) — don't route tall components there.
+  - **THT encoders** (Bourns PEC11R): **6.5mm** behind the panel's rear
+    face, switched and unswitched variants alike. That is *shallower* than
+    the 10mm jack plane, not deeper, so there is no clash, no cutout and
+    no keep-out — the body sits wholly in front of the main PCB with about
+    3.5mm to spare, and nothing on the board has to route around it.
+    The constraint runs the other way instead: an encoder soldered to a
+    PCB puts that PCB at 6.5mm, so it still cannot share the main board at
+    10mm. Flying leads or a dedicated sub-board at its own 6.5mm standoff,
+    per the split rule below.
   - **Small digit displays / USB-C**: too *shallow* to sit at the 10mm jack
     depth and still reach the panel (see MC-1 for the worked example) — each
     needs its **own small daughterboard** at its own shallower standoff,
@@ -135,15 +149,6 @@ the case vendor's own bus board.
   - **A clustered encoder block means the main PCB stops short of it**
     rather than running the full panel height — no notch needed, but the
     remaining board area gets tight on an 8HP module. See VO-1.
-- **⚠️ The 16.1mm PEC16 depth figure above is unverified and may be wrong.**
-  It is recorded as "body length behind the panel", but Bourns pairs it with
-  an M9 × 0.75 bushing in 8.3 / 9.3 / 12.5mm lengths, which suggests 16.1mm
-  is an *overall* length including the bushing — in which case the
-  behind-panel body is nearer 8mm and clears the 10mm main PCB with no
-  cutout at all. If instead it really is 16.1mm behind the panel, every
-  PEC16 on every module needs a ~14mm clearance hole through the main PCB.
-  **Resolve against the PEC16 dimensional drawing before laying out any
-  board** — it changes every module, MC-1 included. See VO-1's spec.
 - **Jack density: three across is the maximum on an 8HP panel.** 8HP is
   40.64mm, so four across means 10.16mm centres — about 1mm of clearance
   past the outer nuts to the panel edge, and no room to get a nut driver
@@ -156,21 +161,266 @@ the case vendor's own bus board.
 
 - **Jacks**: Thonkiconn PJ301M-12, 3.5mm mono, panel-mount — 10mm depth,
   sets main PCB standoff on every module.
-- **Encoders**: Bourns PEC16, THT, panel-mount bushing — mounted off-PCB on
-  flying leads per the depth rule above. (Bourns PEC11S, an SMD variant with
-  a real metal bushing/shaft and ~6-7mm body, is a known option if a
-  shallow, PCB-mounted encoder is ever wanted instead — lower mechanical
-  life spec, worth weighing against the flying-lead approach case by case.)
+- **Encoders**: **Bourns PEC11R**, 12mm incremental, THT, M7 × 0.75 metal
+  bushing and metal shaft, 6.5mm behind the panel. Replaces the PEC16,
+  which was larger (M9 bushing, 16mm body) and whose behind-panel depth the
+  range doc could never confirm. Datasheet:
+  `datasheets/PEC11R_Bourns_encoder_revD_2026-04.pdf`.
+  - `PEC11R-4015F-N0024` — no switch
+  - `PEC11R-4015F-S0024` — with push momentary switch
+  - Decode: `4` = PC pin horizontal/rear-facing, `0` = **no detents**,
+    `15` = 15mm shaft, `F` = metal flatted (D) shaft, `N`/`S` = switch
+    option, `0024` = 24 pulses per revolution.
+  - **Detentless, deliberately.** Smooth travel suits the continuous
+    parameters that dominate the range — tune, fine, pulse width, filter
+    cutoff, envelope stages — where a click per step would fight the
+    control rather than help it. The trade falls on the discrete
+    enumerated controls, MC-1's channel and clock division, which lose
+    their tactile step and lean entirely on the display for feedback.
+    Note the datasheet's detent-torque figure no longer applies; running
+    torque (10–70 gf-cm) is the one that does.
+  - **⚠️ Firmware: "24 pulses per revolution" is 24 full quadrature cycles,
+    i.e. 96 edge transitions.** Count whole cycles, not edges. At 24 steps
+    per revolution MC-1's 15 divisions span about 225° and its 16 channels
+    about 240°, both comfortable one-handed sweeps. Counting all four
+    edges gives 96 steps per revolution and makes every control on every
+    module unusably twitchy. Contact bounce is 2.0ms max at 15 RPM;
+    debounce against that.
+  - **15mm shaft**, measured from the mounting surface, so roughly 13mm
+    proud of a 2mm panel — a good match for a standard Eurorack knob bore.
+  - **Bourns states hand soldering is not recommended** (wave solder,
+    260°C max for 3 ±1s). Worth knowing for a hand-built module; it is not
+    a prohibition so much as a warranty boundary.
+  - **⚠️ A press will nudge a detentless shaft.** At 610 ±306gf the switch
+    is stiff, and with no detent to hold position the knob will sometimes
+    rotate as it is pressed. Suppress rotation for ~50ms after a press
+    edge, then resume so hold-and-turn gestures still work. Applies to
+    every switched encoder on every module.
+  - Switch is SPST momentary, 0.5mm travel, 610 ±306gf. Rotational life
+    30,000 cycles, switch life 20,000. Contacts rated 10mA @ 5VDC.
 - **LED/button driver**: **AS1115** (I2C) — drives up to 64 LEDs or 8 digits
   of 7-segment, plus keyscan for up to 64 buttons. One per module is
   generally enough to cover an LED ring (where used), a pushbutton, and/or a
   small digit display. Confirm common-anode/common-cathode polarity against
   the specific display part before committing (AS1115 expects a specific
   drive polarity).
+- **⚠️ Blue LEDs do not run off the 3.3V rail.** Red and amber AlGaInP dice
+  drop about 2.0V typical / 2.5V max; blue InGaN/GaN drops **3.0V typical
+  and 3.8V maximum** (figures from the Guangcai GS2022 datasheet, MC-1's
+  display, and representative of blue dice generally). Two consequences of
+  the blue-indicator decision, both of which have to be designed in rather
+  than discovered at bring-up:
+  - **A blue LED cannot be driven directly from a 3.3V MCU GPIO.** Allowing
+    for the GPIO's own drop there is around 2.9–3.1V available, which for a
+    3.2V part leaves nothing across the series resistor — dim, and wildly
+    variable part to part. Drive indicator LEDs from **+12V through a series
+    resistor, switched by a small NPN or MOSFET off the GPIO** instead.
+    +12V is guaranteed on the 10-pin header; a +5V rail is not. Size for
+    2–3mA, not 20 — blue LEDs are bright and the panel is matte black.
+  - **The AS1115 sources segment current from its own supply**, so its V+
+    must exceed the segment's forward voltage plus driver dropout. At 3.3V
+    it cannot drive blue segments at all. Any module with a blue display
+    needs a **local 5V rail** (another LDO from +12V) for the AS1115.
+    Budget that dissipation into the module's PTC rating, same as the 3.3V
+    LDO. Note the margin is genuinely tight — a 3.8V worst-case segment
+    against the AS1115's 5.5V maximum leaves little for the drivers — and
+    a 5V AS1115 talking to a 3.3V MCU needs the I2C level shift thought
+    about. MC-1's spec works this through; any later module with a blue
+    display inherits the same three problems.
+- **Parameter DAC**: **MCP4728** — 12-bit, 4-channel, I2C, MSOP-10, with
+  on-board EEPROM. The standard part for every module's parameter channels
+  (pulse width, modulation depths, velocity, and their equivalents
+  elsewhere).
+  - **It is I2C, not SPI**, so it sits on the module's *local* I2C port
+    alongside any AS1115 — never on the inter-module bus, per the two-port
+    rule above. Its default address (0x60) does not clash with the
+    AS1115's.
+  - **⚠️ Never use it for anything pitch-related.** Its internal reference
+    is not a precision part. Tune and V/OCT stay on a dedicated 16-bit DAC
+    with its own reference; the MCP4728 is for parameters only.
+  - **Output range is bounded by its own VDD**, so it does not produce
+    Eurorack-level CV directly — every channel goes through an op-amp
+    scaling and offset stage. At 3.3V VDD the internal 2.048V reference at
+    gain 1 is the usable full scale; gain 2 would clip against the rail.
+  - **Use the on-board EEPROM for a sane power-on state** (pulse width at
+    50%, depths at zero) so a module is neither silent nor screaming in
+    the moments before firmware initialises. It is *not* the store of
+    record — the authoritative settings live in MCU flash, and two sources
+    of truth is worse than one.
+  - **⚠️ Two on one bus needs address programming.** The three address LSBs
+    are set by an LDAC-assisted write sequence, not by pins. Fine at one
+    per module; plan for it if a module ever needs more than 4 channels.
+- **Pitch DAC**: **AD5662** (16-bit, single-channel, SPI, buffered
+  rail-to-rail output, guaranteed monotonic, MSOP-8 or SOT-23-8) with a
+  **REF5025** 2.5V precision reference. One of each on VO-1 (tune) and on
+  MC-1 (V/OCT out). An AD5683R with an on-chip 2ppm reference would have
+  saved the second part but is hard to source.
+  - **⚠️ Specify the 3ppm/°C REF5025 grade, not the 8ppm.** Reference drift
+    lands directly on tuning: 3ppm/°C is 0.72 cent over a 20°C warm-up,
+    8ppm/°C is 1.92 cents, which is perceptible on a sustained note. This
+    is the single most consequential line in the pitch BOM.
+  - **⚠️ Check REF5025 dropout against a 3.3V supply before committing
+    VO-1's power design.** VO-1 has no AS1115 and therefore no 5V rail, so
+    its reference would run from 3.3V to produce 2.5V. If the headroom is
+    not there, VO-1 needs a 5V rail it does not otherwise want. MC-1
+    already has 5V for the AS1115, so only VO-1 is exposed.
+  - **⚠️ Pick the power-on reset variant deliberately.** The AD5662 ships
+    in reset-to-zero-scale and reset-to-midscale versions (the `-1`/`-2`
+    suffix — confirm against the datasheet when ordering). **Midscale** is
+    the right default: VO-1's oscillator free-runs and makes sound
+    immediately at power-up, so a zero-scale tune offset would drop it to
+    the bottom of its range until firmware initialises. Same part on both
+    modules.
+  - **SPI rather than I2C is a minor benefit, not the reason.** Keeping
+    pitch off the bus that carries parameter and display traffic does mean
+    a note-on cannot queue behind a CC update — but the worst-case delay
+    is about 95us at 400kHz, against 320us for a single MIDI byte, and it
+    vanishes entirely if firmware writes pitch before raising gate. The
+    real driver for this part was sourcing. Recorded so the next person
+    does not treat the bus split as load-bearing when it is not.
+  - **The I2C sibling (AD5693R) remains a live alternative**: same family,
+    2ppm on-chip reference rather than the REF5025's 3ppm, one part rather
+    than two, and it would make the 3.3V headroom question below moot
+    since it generates its own reference. It lost on sourcing, not merit.
+
+### ⚠️ The pitch DAC is the easy part — the output stage is not
+
+One cent at 1V/oct is **833µV**, which over a 10V span is **83ppm**. That
+number governs the whole chain, and the DAC contributes almost none of it:
+
+| Source | Drift over 20°C | Cents |
+|---|---|---|
+| 16-bit LSB over 10V | — | 0.18 |
+| REF5025 at 3ppm/°C | 60 ppm | 0.72 |
+| REF5025 at 8ppm/°C | 160 ppm | 1.92 |
+| **Discrete 1% resistors, 25ppm/°C** | **500 ppm** | **6.00** |
+| Matched thin-film array, 1ppm/°C tracking | 20 ppm | 0.24 |
+| Precision op-amp, 3µV/°C at gain 4 | — | 0.29 |
+| Jellybean op-amp, 10µV/°C at gain 4 | — | 0.96 |
+
+Two rules follow, and they matter more than the DAC part number:
+
+1. **Use a matched thin-film resistor network in the scaling stage, never
+   two discretes.** It is *tracking* tempco that counts, not absolute —
+   which is why an array specified at 25ppm absolute can still track to
+   1ppm. Discretes throw away six cents over a warm-up and would waste
+   every penny spent on the reference.
+2. **Use a precision op-amp, not a TL072.** Offset voltage can be
+   calibrated out; offset *drift* cannot. Note the 2.5V reference means a
+   gain of about 4 to reach a 10V span, which multiplies the op-amp's
+   input-referred drift by 4 rather than 2 — so this matters more here
+   than it would with a 5V reference.
+
+### Precision lands on MC-1, not VO-1
+
+Counterintuitive, and worth stating plainly because the instinct is the
+other way round:
+
+- **VO-1 auto-tunes.** Its closed loop measures real oscillator frequency
+  and corrects, absorbing DAC gain error, reference tolerance and slow
+  drift. It needs monotonicity and short-term stability, little else.
+- **MC-1 has no feedback at all.** Its V/OCT goes into someone else's VCO
+  and whatever comes out is what you hear. The precision requirement lands
+  on the interface module.
+
+MC-1 should therefore carry a **user calibration routine** — output a known
+code, measure with a meter, store gain and offset in the flash page already
+reserved for settings. That removes the absolute-accuracy burden entirely
+and leaves only drift, which calibration cannot fix. It is the reason to
+spend the BOM on tempco rather than on initial accuracy.
 - **MIDI I/O**: **3.5mm TRS, Type A** (MIDI Association-ratified standard,
   2018) — not 5-pin DIN (too big), not 2.5mm (non-standard minority format).
 - **Bus connector**: 4-pin (VCC, SDA, SCL, GND), separate from power header,
   populated on every module regardless of phase.
+
+## MCU: STM32G0, range-wide
+
+**`STM32G0B1CBT6`** (LQFP-48, 128K flash, USB FS device) is the default on
+every module. Settled once for the range, per the bus decision that put an
+MCU on every board.
+
+### Why ST rather than RP2040
+
+RP2040 was the standing suggestion, on the strength of its PIO and the fact
+that MC-1 needs a USB device controller. It lost once the constraint was
+relaxed to *one vendor, not necessarily one part* — which removes the thing
+that was forcing a single USB-capable MCU onto all seven modules.
+
+The deciding factors, strongest first:
+
+- **I2C slave is the one peripheral every module depends on**, and ST's is
+  much the better of the two. Hardware address matching, proper clock
+  stretching, DMA. RP2040's is a Synopsys DesignWare block whose slave mode
+  is its roughest edge — a risk to manage on every board in the rack rather
+  than a feature.
+- **STM32G0's system bootloader speaks I2C.** There is already an I2C bus
+  with MC-1 as master and every module as a slave, so **MC-1 can reflash any
+  module in the rack over the existing 4-pin bus** — no per-module SWD
+  header, no pulling modules to update them. RP2040's bootrom is USB
+  mass-storage and cannot do this. A real architectural feature falling out
+  of a decision made for other reasons.
+- **Single-chip: no external QSPI flash.** Seven fewer parts and footprints
+  across the range, which matters most on VO-1, whose main board is already
+  down to roughly 40 × 80mm.
+- **LQFP at 0.5mm pitch** rather than QFN-56 at 0.4mm with a thermal pad —
+  relevant if any of this is hand-built.
+
+**⚠️ Layout constraint that comes with the I2C bootloader:** the
+inter-module bus must land on a **bootloader-capable I2C peripheral and pin
+set**, or the reflash-over-bus feature is lost. Check against AN2606 before
+routing any board — it is free if designed in and impossible to retrofit.
+
+### What this gives up
+
+- **No PIO.** An earlier draft of this decision leaned hard on it for
+  VO-1's four quadrature encoders, and that was an overestimate: four
+  encoders at human speed is on the order of 2,000 interrupts per second
+  in total, which a 64MHz M0+ does not notice. Software quadrature decode
+  is adequate and ordinary. VO-1's auto-tune frequency counter needs one
+  timer in counter mode and one gating it, available on any G0. Where PIO
+  would genuinely have been elegant is bit-banged waveform generation, if
+  a later module (LF-1) wants it; DMA plus timers covers most of that.
+- **Cost**: roughly £2 against RP2040's £1, so about £8 across the range.
+
+### Per-module substitution is deliberately a late decision
+
+One part number is the default because six of the modules are not yet
+specced, and committing to a cheaper part before knowing their peripheral
+needs is premature. The unused USB on those six costs well under £1 each.
+
+Dropping a specific module to a smaller part (e.g. `STM32G031` in LQFP-32)
+stays open, and is low-stakes precisely because it is the same family: same
+HAL, same registers, same debugger, same toolchain. **Decide it per module
+when that module's schematic is real, not now.**
+
+### The G0B1's internal DAC is not needed
+
+An earlier draft of this decision flagged the G0B1's 12-bit 2-channel
+on-chip DAC as a possible way to delete an external part on VO-1. The
+MCP4728 settles it the other way: at four channels it covers any module's
+parameter needs in a single part, where internal-two-plus-external-one
+would still have been one external part *and* two different code paths for
+what is conceptually one thing. The internal DAC stays unused.
+
+## Non-volatile settings storage
+
+Not previously recorded anywhere, and several modules need it:
+
+| Module | Must survive power-off |
+|---|---|
+| MC-1 | MIDI channel, clock division |
+| VO-1 | auto-tune calibration constants |
+
+**Internal flash on the STM32G0**, not a separate EEPROM. This was an open
+question while RP2040 was the candidate — writing settings there means
+suspending XIP on the external flash the code is executing from, which is
+workable but fiddly, and a small I2C EEPROM would have been the cleaner
+answer. Single-chip removes the problem: in-application flash writes on a
+G0 are ordinary.
+
+Reserve a flash page for settings in the linker script from the start.
+Retrofitting a settings area after the code has grown into it is a much
+worse job than reserving it now.
 
 ## Circuit protection standard
 
@@ -216,9 +466,6 @@ protection and MIDI opto-isolation) is noted in that module's own
 - Spare 20HP allocation (extra spacing vs. blind panel vs. new module).
 - **Bus parameter protocol** — how CC/NRPN values are addressed and encoded
   over I2C. Load-bearing in phase 1 now, and not yet specified.
-- **MCU choice, range-wide** — every module needs one under the bus
-  decision, so pick once rather than per module. RP2040 vs. STM32G0 is the
-  live question; see VO-1's open items for the trade-off.
 - EG-1's control set (fully continuous ADSR via 4 encoders vs. some fixed
   stages) — affects whether it needs a dedicated encoder sub-board.
 - PSU design for the (unpowered) KOMA case.
