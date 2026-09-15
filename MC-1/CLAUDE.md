@@ -23,8 +23,8 @@ Layout, top to bottom:
 
 1. FLUXTRON wordmark + "MC–1"
 2. Jagged divider
-3. Encoder (no LED ring — just the knob; sets channel *and* clock
-   division, see below)
+3. Encoder (no LED ring — just the knob; turns to set clock division,
+   push to reach channel — see below)
 4. Two 2-digit 7-segment displays side by side — **CH** (left, MIDI
    channel 1–16) and **DIV** (right, clock division)
 5. Jagged divider
@@ -196,20 +196,39 @@ would be inconsistent about its own family and misread every time. Adding
 it would make the table 16 entries and the CC map a clean `cc >> 3`; that
 was judged not worth the ambiguity.
 
-### Control: the encoder push switch
+### Control: division on the knob, channel behind the push
 
-One encoder serves two parameters. **Push toggles which one it edits**;
-both values stay visible on their own display throughout, so there is no
-hidden mode. Focus is shown by blinking the active pair (or by its decimal
-point, if the part has one).
+One encoder serves two parameters, and they are **not** peers:
+
+- **Turning the knob sets clock division.** This is the resting state.
+- **Pushing gives access to MIDI channel**, which then **times out back to
+  division** after a few seconds without rotation.
+
+Both values stay visible on their own display throughout, so there is no
+hidden mode — only a hidden *focus*, which is shown by blinking the active
+pair (or by its decimal point, which the GS2022CB-B does have).
+
+**Division is the default because it is the parameter that actually gets
+used.** Channel is set once when the rack is patched and then left alone;
+division is a performance control, changed whenever the synced LFO should
+move at a different rate. Putting the frequent operation on the bare turn
+and the rare one behind a deliberate press is the right way round.
+
+It is also the right way round on blast radius, which is the argument that
+makes the timeout worth having. **A stray knock on the knob is survivable
+if it lands on division and disastrous if it lands on channel** — a wrong
+division shifts a modulation rate, a wrong channel silences the voice
+entirely, and the second failure looks like broken hardware rather than a
+misturned knob. Returning to division automatically means the module is
+never left resting on the dangerous parameter.
 
 This uses hardware already specified and otherwise idle — the encoder is
 wired with 5 leads including "switch ×2" and nothing previously used the
 switch. A second encoder was never an option given the vertical budget.
 
-The rejected alternative was push-and-hold + turn for division, plain turn
-for channel. It needs no focus indicator at all, but is more awkward
-one-handed.
+The rejected alternative was push-and-hold + turn for the secondary
+parameter. It needs no focus indicator at all, but is more awkward
+one-handed, and the timeout above gives most of the same safety.
 
 ### Firmware notes
 
@@ -277,7 +296,8 @@ main board:
   provides all the mechanical support. **No main-PCB keep-out is needed**:
   the PEC11R sits 6.5mm behind the panel, wholly in front of the 10mm main
   PCB, which retires the cutout worry the PEC16 carried. The switch pair is
-  now used, for the channel/division focus toggle.
+  now used: push reaches the MIDI channel, which the knob otherwise
+  does not touch.
 - **USB-C daughterboard**: separate small board, its own shallow standoff
   set by whichever connector is chosen (checked against 219320-0001 as a
   reference point — 8.8mm, i.e. deeper than the display, hence the separate
@@ -395,11 +415,13 @@ Two further consequences:
   feedback loop, unlike VO-1's auto-tune. It needs a **user calibration
   routine** storing gain and offset in the reserved settings flash page.
 - **Encoder**: Bourns **PEC11R-4015F-S0024** — switched, since the push
-  toggles CH/DIV focus. THT, detentless, 15mm shaft, off-board on flying
-  leads per above. See the range doc for the quadrature-counting rule.
-  Both of MC-1's encoder parameters are discrete lists, so with no detents
-  the CH and DIV displays carry all the step feedback — a reason to keep
-  them bright enough to read at a glance while turning.
+  reaches the MIDI channel, which the knob otherwise does not touch. THT,
+  detentless, 15mm shaft, off-board on flying leads per above. See the
+  range doc for the quadrature-counting rule. Both of MC-1's encoder
+  parameters are discrete lists, so with no detents the CH and DIV
+  displays carry all the step feedback — a reason to keep them bright
+  enough to read at a glance while turning, and DIV especially, since
+  that is the one being turned.
 - **USB-C connector**: not yet finalised. 219320-0001 (Molex, 8.8mm) used
   as a reference depth point; still need to pick the actual part for the
   daughterboard.
