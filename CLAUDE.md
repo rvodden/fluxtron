@@ -108,6 +108,23 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   - **Analogue modules use a linear LDO for their 3.3V rail, not a buck** —
     switching noise next to precision analogue (expo converters especially)
     is not worth the efficiency. Budget the dissipation into the PTC rating.
+  - **3.3V stays per-module, but its input becomes the bus +5V, not +12V.**
+    PS-1 supplies ±12V and +5V (see `PS-1/CLAUDE.md`), and the same LDO fed
+    from 5V drops 1.7V instead of 8.7V — VO-1's regulator goes from **0.4W to
+    78mW**, right beside the precision expo converter its own spec demands
+    thermal separation from. Across eight modules this moves ~2.8W of
+    scattered heat out of the rack and into one buck in PS-1.
+    A *shared* 3.3V rail is still rejected: it would put every module's
+    digital noise onto every other module's DAC supply with no rejection
+    stage anywhere, and would break the per-module PTC rule.
+    - **⚠️ Consequence not yet confirmed: this puts a 16-pin power header on
+      every module**, where the protection standard below still says 10-pin.
+      A 10-pin socket plugs onto a 16-pin bus header fine, so the change is
+      per-module and reversible — but a module wired for bus 5V will not run
+      in a case whose PSU lacks that rail. Keep the portability fallback
+      already specified for MC-1: a wide-Vin LDO with a **jumper selecting
+      bus +5V or bus +12V** as its input. One jumper, one part, no second
+      footprint. Confirm the header change before any board is laid out.
 
 ## PCB / panel construction
 

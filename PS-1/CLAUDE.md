@@ -58,56 +58,109 @@ local LDO from +12V, with a **jumper selecting between them** and the LDO left
 unpopulated by default. One jumper and one unpopulated footprint buys the
 thermal win at home and portability elsewhere.
 
-## Proposed architecture — NOT yet settled
+## Architecture
 
-Recorded as a recommendation so the shape is on paper. Every item here needs
-confirming before anything is laid out.
+### Mains stays outside the case — settled
 
-### Mains stays outside the case
-
-**Recommend an external DC brick**, not an internal mains supply. An IEC
-inlet, fuse, earth bonding and mains creepage/clearance inside a 70mm-deep
-Eurorack case is a meaningful safety and compliance burden, and it is the one
-part of this project where getting it wrong is dangerous rather than merely
-annoying. A certified external brick moves all of that outside the enclosure
-and off our PCB. This is also what most current Eurorack PSUs do.
-
-Suggested input: **24V DC**, 2A or better (~48W, against an estimated ~10W
-actual draw — see below).
+**External DC brick**, not an internal mains supply. An IEC inlet, fuse,
+earth bonding and mains creepage/clearance inside a 70mm-deep Eurorack case is
+a meaningful safety and compliance burden, and it is the one part of this
+project where getting it wrong is dangerous rather than merely annoying. A
+certified external brick moves all of that outside the enclosure and off our
+PCB. It is also what most current Eurorack PSUs do.
 
 **Use a locking DC connector**, not a bare barrel jack. A power connector that
 can be knocked out mid-patch is a genuine annoyance.
 
-### Rail generation: switch, then linearly post-regulate
+### Brick voltage: 15V — and 12V does not work
 
-Consistent with the range's own rule that precision analogue does not sit
-downstream of a switcher:
+**⚠️ A 12V brick cannot supply this rack.** There is no headroom to regulate
++12V from a 12V input, so the +12V rail would be the brick's raw output —
+unregulated by us, carrying its ripple and its ±5% tolerance, and sagging
+under load. It also leaves nothing to post-regulate the inverted rail with.
+For a range that mandates linear LDOs on every module specifically to keep
+switching noise away from the expo converter, that would undo the whole
+policy at the source.
 
-- 24V in → buck to roughly **±13.5V** → **linear post-regulators** to ±12V.
-  The linears reject the switcher's ripple; candidates are LT3045/LT3094
-  (very low noise, ~£4 each) or TPS7A47/TPS7A33, with LM317/LM337 as the
-  cheap fallback.
-- **+5V** comes straight off a buck with no linear stage — it feeds digital
-  only (AS1115 segment current), so switcher ripple on it is harmless.
+**15V is the sweet spot**, because the constraint pulls both ways: enough
+headroom to post-regulate linearly, not so much that the linear stages cook.
+
+| Brick | +12V rail | Linear loss at ~400mA |
+|---|---|---|
+| 12V | impossible | — |
+| **15V** | **~2.5V headroom** | **~1.25W** |
+| 18V | 5.5V headroom | ~2.75W |
+| 24V | needs a buck stage first | two stages |
+
+**⚠️ Dropout is tighter than 3V of nominal headroom suggests.** A −5% brick
+is 14.25V, and reverse-polarity protection plus inrush limiting can take
+another ~1V, leaving roughly **13.2V at the regulator input**. An LM317 needs
+about 3V of dropout and would fall out of regulation. This wants a genuinely
+low-dropout precision part — see below.
+
+### The negative rail is the actual problem
+
+Worth stating plainly, because the intuitive framing is "derive the lower
+voltages", and −12V is not a lower voltage. It cannot be stepped down to from
+anything; it has to be **inverted**. That is the whole difficulty of a
+Eurorack PSU, and it is what sets the brick voltage above.
+
+Proposed: an **inverting buck-boost** from +15V, set to about **−13.5V**
+rather than −15V, so the negative LDO drops only ~1.5V and the negative rail's
+linear loss roughly halves. The positive rail cannot get the same treatment
+without adding its own buck, which is not worth it at 1.25W.
+
+The inverting stage is a switcher, so linear post-regulation on the −12V rail
+is **mandatory**, not optional.
+
+### Rail generation
+
+- **+12V**: 15V → low-dropout linear → +12V.
+- **−12V**: 15V → inverting buck-boost → ~−13.5V → low-dropout linear → −12V.
+- **+5V**: buck straight off the brick, no linear stage. It feeds digital
+  only, so switcher ripple on it is harmless.
+
+Regulator candidates, to verify rather than adopt: **LT3045 / LT3094**
+(very low noise, ~0.4V dropout, but **500mA ceiling — check against the +12V
+budget below, the margin is thin**), or **TPS7A47 / TPS7A33** (1A, more
+current headroom). LM317/LM337 are ruled out by the dropout note above.
 
 **Rail sequencing matters**: ±12V should come up together. Op-amps across the
 rack can latch up if one rail appears well before the other.
 
+### Where each voltage is derived
+
+| Rail | Made in | Why |
+|---|---|---|
+| ±12V | PS-1 | Only place it can be — the inversion lives here |
+| +5V | PS-1 | Centralising it deletes MC-1's 560mW local LDO |
+| 3.3V | Each module | Keeps per-module isolation and local PSRR |
+
+**3.3V stays on the modules** — a shared 3.3V rail would put every module's
+digital noise onto every other module's DAC supply with no rejection stage
+anywhere, and would break the per-module PTC rule. But **its input should
+change from +12V to the bus +5V**: the same LDO then drops 1.7V instead of
+8.7V. See the range doc for the range-wide consequence; it is what turns
+VO-1's 0.4W regulator — sitting beside the precision expo converter its own
+spec demands thermal separation for — into 78mW.
+
 ### Current budget (estimate, not measured)
 
-Eight modules at 64HP. Rough per-module figures: ~25mA on +12V for the MCU and
-its 3.3V LDO, plus 20–40mA/+12V and 15–30mA/−12V of analogue, plus MC-1's
-~80mA on 5V.
+Assumes every module takes 3.3V from the bus 5V rail, which moves the MCU
+domain's current off +12V and onto +5V.
 
 | Rail | Estimated draw | Design for |
 |---|---|---|
-| +12V | ~500mA | 1.5A |
-| −12V | ~250mA | 1.0A |
-| +5V | ~100mA | 0.5A |
+| +12V (analogue only) | ~240mA | 600mA |
+| −12V | ~200mA | 500mA |
+| +5V (all 3.3V domains + MC-1's AS1115) | ~280mA | 750mA |
 
-About 10W actual against ~25W of capability, which leaves real headroom for
-phase 2 rather than for its own sake. **Revise once modules are measured, not
-estimated.**
+About **10W actual**. A **15V 2A** brick (30W) is ample; 1.5A would do, and
+the headroom is for phase 2 rather than for its own sake. **Revise once
+modules are measured, not estimated.**
+
+Total linear dissipation in PS-1 is roughly 2W, which an 8HP board can shed
+with decent copper and possibly a small heatsink on the positive regulator.
 
 ## Bus board
 
@@ -135,8 +188,9 @@ The range-wide protection standard in `../CLAUDE.md` is written for modules
 
 ## Open items
 
-- **Confirm external brick vs. internal mains.** Everything above assumes the
-  brick. This is the decision that shapes the rest of the module.
+- **Verify the +12V regulator's current ceiling.** An LT3045 stops at 500mA
+  against a ~600mA design target; either parallel two (they are designed for
+  it) or take the TPS7A47 at 1A.
 - **Panel width: 8HP or 16HP.** 8HP leaves 12HP spare and is probably enough
   given a brick does the AC-DC conversion; 16HP leaves 4HP and is comfortable
   for heatsinking. Decide once the thermal design is real.
