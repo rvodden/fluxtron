@@ -169,8 +169,15 @@ with decent copper and possibly a small heatsink on the positive regulator.
   away from the power traces — the range doc already requires the bus be kept
   clear of analogue sections, and one board makes that a layout task rather
   than a cable-dressing hope.
-- **The I2C pull-ups live here**, one pair only. ~2.2kΩ suits both 100kHz and
-  400kHz against a realistic bus capacitance.
+- **DVCC — the bus logic rail — is 5V**, generated here and carried on the
+  bus connector's VCC pin. It is a pull-up reference, not a module supply.
+- **The I2C pull-ups live here**, one pair only, never per-module. They have
+  to be singular: one 4.7kΩ pair per module across eight modules is about
+  590Ω in parallel, below the ~1kΩ floor the 3mA sink specification sets, and
+  nothing would pull the bus low. A single **~2.2kΩ** pair suits both 100kHz
+  and 400kHz against a realistic bus capacitance (~150–250pF for an 84HP
+  ribbon plus stubs), and stays correct however many modules are installed.
+  At 5V that pair draws ~2.3mA, comfortably inside the 3mA sink budget.
 - Bulk decoupling distributed along the rails, not lumped at one end.
 
 ## Protection

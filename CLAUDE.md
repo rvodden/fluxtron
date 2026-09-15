@@ -58,11 +58,10 @@ Monophonic system. Modules:
 Total 72HP of 84HP (KOMA Case 3U/84HP) — 12HP spare, not yet allocated
 (candidates: extra spacing, blind panels, an output/headphone module).
 
-**PS-1 is a module in its own right, not a section of MC-1.** MC-1 is already
-the most crowded board in the range and carries the precision pitch DAC, which
-is the last thing wanting a switching converter and a hot regulator beside it.
-Its width may yet go to 16HP if the thermal design needs it — see
-`PS-1/CLAUDE.md`.
+**PS-1 is a module in its own right, not a section of MC-1**, and may yet go
+to 16HP. It supplies **±12V and +5V** from an external 15V DC brick, and owns
+the bus board. Everything else about it — rail generation, regulator choice,
+current budget, thermals — is in `PS-1/CLAUDE.md` and does not belong here.
 
 Flagged for later, not in scope now: **LF-2**, a fuller multi-waveform
 crossfade LFO (separate sine/saw/square cores blended via a dual-VCA-style
@@ -108,23 +107,15 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   - **Analogue modules use a linear LDO for their 3.3V rail, not a buck** —
     switching noise next to precision analogue (expo converters especially)
     is not worth the efficiency. Budget the dissipation into the PTC rating.
-  - **3.3V stays per-module, but its input becomes the bus +5V, not +12V.**
-    PS-1 supplies ±12V and +5V (see `PS-1/CLAUDE.md`), and the same LDO fed
-    from 5V drops 1.7V instead of 8.7V — VO-1's regulator goes from **0.4W to
-    78mW**, right beside the precision expo converter its own spec demands
-    thermal separation from. Across eight modules this moves ~2.8W of
-    scattered heat out of the rack and into one buck in PS-1.
-    A *shared* 3.3V rail is still rejected: it would put every module's
-    digital noise onto every other module's DAC supply with no rejection
-    stage anywhere, and would break the per-module PTC rule.
-    - **⚠️ Consequence not yet confirmed: this puts a 16-pin power header on
-      every module**, where the protection standard below still says 10-pin.
-      A 10-pin socket plugs onto a 16-pin bus header fine, so the change is
-      per-module and reversible — but a module wired for bus 5V will not run
-      in a case whose PSU lacks that rail. Keep the portability fallback
-      already specified for MC-1: a wide-Vin LDO with a **jumper selecting
-      bus +5V or bus +12V** as its input. One jumper, one part, no second
-      footprint. Confirm the header change before any board is laid out.
+  - **3.3V stays per-module, but its LDO is fed from the bus +5V, not +12V** —
+    a 1.7V drop instead of 8.7V, which takes VO-1's regulator from 0.4W to
+    78mW beside its expo converter. A *shared* 3.3V rail stays rejected: no
+    rejection stage between modules, and it breaks the per-module PTC rule.
+    - **⚠️ This puts a 16-pin power header on every module**, where the
+      protection standard below still says 10-pin. Not yet confirmed. Keep
+      the portability fallback: a wide-Vin LDO with a **jumper selecting bus
+      +5V or bus +12V** as its input, so a module still runs in a case whose
+      PSU has no 5V rail.
 
 ## PCB / panel construction
 
@@ -365,15 +356,14 @@ spend the BOM on tempco rather than on initial accuracy.
   2018) — not 5-pin DIN (too big), not 2.5mm (non-standard minority format).
 - **Bus connector**: 4-pin (VCC, SDA, SCL, GND), separate from power header,
   populated on every module regardless of phase.
-  - **VCC is the I2C pull-up reference, sourced by PS-1's bus board** — not a
-    power rail. Modules must **not** tie it to their local 3.3V, which would
-    parallel every module's LDO output against every other's.
-  - **The pull-ups live on the bus board, populated exactly once.** They have
-    to be singular — one 4.7kΩ pair per module across eight modules is about
-    590Ω in parallel, below the ~1kΩ floor the 3mA sink specification sets,
-    and nothing would pull the bus low. A single ~2.2kΩ pair on the bus board
-    suits both 100kHz and 400kHz, and stays correct however many modules are
-    installed.
+  - **VCC is DVCC, the bus's logic rail: 5V**, sourced by PS-1's bus board.
+    It is a pull-up reference, not a module power rail — modules must **not**
+    tie it to their local 3.3V, which would parallel every module's LDO
+    output against every other's.
+  - **The pull-ups live on the bus board, populated exactly once**, never
+    per-module. Sizing and the reasoning are in `PS-1/CLAUDE.md`.
+  - **⚠️ 5V DVCC against 3.3V MCUs is not free** — see the bus protocol's
+    electrical notes before laying out any module's bus connector.
 
 ## MCU: STM32G0, range-wide
 
