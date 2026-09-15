@@ -103,14 +103,15 @@ the case vendor's own bus board.
     standoff distance on every module, since jacks are on every module and
     are the shallowest of the "needs real panel-mount depth" components.
   - **THT encoders** (Bourns PEC11R, M7 × 0.75 bushing, 12mm body):
-    deeper than the 10mm jack standoff, so not something to let dictate the
-    whole board. Resolved by **not mounting the encoder on the main PCB at
-    all** — it's wired to the main board on flying leads (A, B, common,
-    switch ×2 — 5 wires) and gets its mechanical support entirely from its
-    own panel nut, same as always; or, on modules with 3+ encoders, onto
-    their own sub-board at their own standoff. Either way the main PCB must
-    keep clear of the space the encoder body occupies — see the depth note
-    below, which is not yet settled.
+    **6.5mm behind the panel — confirmed.** That is *shallower* than the
+    10mm jack standoff, so the encoder body sits entirely in front of the
+    main PCB and **never intersects it. No clearance holes anywhere in the
+    range.** The main PCB just needs a keep-out for tall components in the
+    footprint behind each encoder.
+    It is too shallow to mount *on* the main PCB, though — its pins land at
+    6.5mm, 3.5mm short of the board — so it still goes on flying leads
+    (A, B, common, switch ×2 — 5 wires), or onto its own sub-board where a
+    module has 3+, taking all its mechanical support from its panel nut.
   - **Small digit displays / USB-C**: too *shallow* to sit at the 10mm jack
     depth and still reach the panel (see MC-1 for the worked example) — each
     needs its **own small daughterboard** at its own shallower standoff,
@@ -134,21 +135,14 @@ the case vendor's own bus board.
     would have forced 20 loose flying leads because a sub-board spanning
     them was the main PCB's own footprint. Clustering them into one block
     fixed it.
-  - **A clustered encoder block means the main PCB stops short of it**
-    rather than running the full panel height — no notch needed, but the
-    remaining board area gets tight on an 8HP module. See VO-1.
-- **⚠️ The PEC11R's behind-panel depth is not yet confirmed.** Bourns and
-  every distributor mirror are blocked from the agent environment, and the
-  secondhand figures conflict: one listing implies a body ~6.5mm behind the
-  panel (21.5mm overall less a 15mm shaft), another reports 12.5mm, which
-  looks like the 12mm body *width* misread as depth. If it clears 10mm there
-  is nothing to do; if it exceeds 10mm, any main PCB running behind an
-  encoder needs a clearance hole. **Resolve against the dimensional drawing
-  before laying out a board where an encoder sits over the main PCB.**
-  - This does **not** gate modules whose encoders are clustered onto a
-    sub-board with the main PCB stopping short of them — the two never share
-    that space. VO-1 is clear for this reason. It gates MC-1, whose single
-    encoder sits amid a full-height main board.
+  - **A clustered encoder block still means the main PCB stops short of it**
+    rather than running the full panel height — not because the two collide
+    (they don't), but because what's left between them is unusable. An
+    encoder sub-board sits at 6.5mm; add ~1.6mm of board and the solder
+    fillets on its back and it reaches ~9mm, against the main PCB's front
+    face at 10mm. Roughly 1mm is not a gap you can put anything in, so
+    treat the encoder block's footprint as main-PCB-free. The cost is board
+    area, which gets tight on an 8HP module. See VO-1.
 - **Jack density: three across is the maximum on an 8HP panel.** 8HP is
   40.64mm, so four across means 10.16mm centres — about 1mm of clearance
   past the outer nuts to the panel edge, and no room to get a nut driver

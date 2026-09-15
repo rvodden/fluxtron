@@ -169,32 +169,33 @@ for a few seconds, and without an indicator there is no way to tell a
 calibration in progress from a fault. Driven from an MCU GPIO — no AS1115
 needed for a single LED.
 
-### Encoder depth: no longer blocking for VO-1
+### Encoder depth: resolved
 
-The encoder is now the **Bourns PEC11R** (decided on MC-1, applies
-range-wide) — a 12mm-body part with an **M7 × 0.75 bushing**, replacing the
+The encoder is the **Bourns PEC11R** (decided on MC-1, applies range-wide) —
+12mm body, **M7 × 0.75 bushing**, **6.5mm behind the panel**, replacing the
 16mm PEC16 with its M9 bushing. Tighter footprint and a smaller panel hole,
 which helps here: two encoders across a 40.64mm panel on ~20mm centres have
 noticeably more room around a 12mm body than a 16mm one.
 
-**Its exact behind-panel depth is still unconfirmed** — Bourns and every
-distributor mirror are blocked from this environment, and the secondhand
-figures conflict (one listing implies a body ~6.5mm behind the panel once
-the 15mm shaft is subtracted from a 21.5mm overall; another summary reports
-12.5mm, which looks like the 12mm body *width* being misread as depth).
-Confirm against the drawing.
+At 6.5mm the encoder is *shallower* than the 10mm jack standoff, so **it
+never collides with the main PCB** — no clearance holes, on this module or
+any other. It is also too shallow to mount on the main PCB directly (its
+pins land 3.5mm short), which is why the sub-board exists.
 
-**But it no longer gates VO-1.** The encoders sit on their own sub-board,
-whose standoff is set by the encoder itself whatever that depth turns out
-to be, and the main PCB already stops below the encoder zone. So the two
-boards do not share that space in either reading, and no cutout is needed.
-The clustered-encoder decision de-risked this unknown as a side effect.
+**The main PCB still stops below the encoder zone, but for a different
+reason than previously recorded.** Not a collision — what's left between
+the two boards is simply unusable. The stack from the panel's rear face:
 
-Where it still matters is **MC-1**, whose single encoder sits amid a
-full-height main board — see `../MC-1/CLAUDE.md`. Worth also glancing at
-the rotational-life spec while the datasheet is open: 12mm encoder series
-generally spec lower life than 16mm ones, which is the trade for the
-smaller footprint.
+| | Depth |
+|---|---|
+| Encoder sub-board, front face | 6.5mm |
+| …its thickness + solder fillets | ~9mm |
+| Main PCB, front face | 10mm |
+
+Roughly 1mm is not a gap you can route or place into, so the encoder
+block's footprint stays main-PCB-free. The consequence is unchanged: the
+AS3340, MCU, both DACs, the LM13700, the 74HC74/74HC14 pair, the power
+section and all eight jacks live in roughly the lower two-thirds.
 
 ### Tune resolution
 

@@ -86,12 +86,12 @@ main board:
   `../CLAUDE.md`). Off-board entirely, on flying leads (A, B, common, switch
   ×2 — 5 wires) back to the main PCB; its own panel nut provides all the
   mechanical support.
-  - **MC-1 is the module where the unresolved encoder depth actually
-    bites.** Its single encoder sits amid a full-height main PCB at 10mm, so
-    if the PEC11R body reaches past 10mm behind the panel the board needs a
-    clearance hole there, not merely a keep-out. Modules that cluster their
-    encoders onto a sub-board (VO-1) dodge this entirely. Confirm the depth
-    against the drawing before laying this board out.
+  - **Encoder depth is resolved and costs MC-1 nothing.** The PEC11R is
+    6.5mm behind the panel, against the main PCB's 10mm standoff — so the
+    body sits entirely in front of the board with 3.5mm to spare. The main
+    PCB runs full height behind it and needs only a **keep-out for tall
+    components** in that footprint, not a clearance hole. Keep the flying-
+    lead solder joints insulated so they can't touch the board.
 - **USB-C daughterboard**: separate small board, its own shallow standoff
   set by whichever connector is chosen (checked against 219320-0001 as a
   reference point — 8.8mm, i.e. deeper than the display, hence the separate
@@ -143,8 +143,6 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
 
 - **Panel re-layout** — the row-of-4 jack problem above, and whether MC-1
   closes at 8HP at all.
-- **PEC11R behind-panel depth** — decides whether the main PCB needs a
-  clearance hole behind the channel encoder. Blocks this board's layout.
 - **Bus master firmware** — parameter addressing/encoding over I2C is
   unspecified and is now load-bearing in phase 1.
 - Exact USB-C connector part number for the daughterboard.
