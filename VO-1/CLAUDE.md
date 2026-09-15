@@ -318,12 +318,12 @@ overkill at two channels.
   above.
 - **Sub divider**: 74HC74; pulse squaring 74HC14.
 - **Depth VCAs**: LM13700.
-- **Tune DAC**: **AD5662** (16-bit, SPI, midscale power-on reset) with a
-  **REF5025** 2.5V reference, 3ppm/°C grade. See `../CLAUDE.md` for the
-  error budget and the output-stage rules — the matched resistor network
-  matters more than the DAC. **Check the REF5025's dropout against VO-1's
-  3.3V rail**: with no AS1115 there is no 5V here, and if the headroom is
-  short VO-1 gains a rail it does not otherwise need.
+- **Tune DAC**: **AD5693R** (16-bit, I2C, 2.5V on-chip reference at
+  2ppm/°C), sharing VO-1's local I2C bus with the MCP4728. See
+  `../CLAUDE.md` for the error budget and the output-stage rules — the
+  matched resistor network matters more than the DAC does. Because it
+  generates its own reference from the 3.3V rail, **VO-1 needs no 5V rail**
+  — which a discrete reference might have forced.
 - **Parameter DAC**: **MCP4728** (12-bit, 4-channel, I2C) — pulse width,
   FM depth and PWM CV depth on three channels, one spare. On VO-1's local
   I2C port, which it has to itself since VO-1 carries no AS1115.
@@ -355,8 +355,6 @@ additionally needs:
   four encoders at human speed is around 2,000 interrupts per second in
   total. The auto-tune frequency counter takes one timer in counter mode
   and one gating it.
-- **REF5025 headroom on the 3.3V rail** — decides whether VO-1 needs a
-  5V rail purely for the pitch reference.
 - **Matched resistor network part** for the tune scaling stage, and the
   precision op-amp to go with it.
 - The bus protocol itself — parameter addressing/encoding over I2C is now

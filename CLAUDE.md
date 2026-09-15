@@ -250,38 +250,35 @@ the case vendor's own bus board.
   - **⚠️ Two on one bus needs address programming.** The three address LSBs
     are set by an LDAC-assisted write sequence, not by pins. Fine at one
     per module; plan for it if a module ever needs more than 4 channels.
-- **Pitch DAC**: **AD5662** (16-bit, single-channel, SPI, buffered
-  rail-to-rail output, guaranteed monotonic, MSOP-8 or SOT-23-8) with a
-  **REF5025** 2.5V precision reference. One of each on VO-1 (tune) and on
-  MC-1 (V/OCT out). An AD5683R with an on-chip 2ppm reference would have
-  saved the second part but is hard to source.
-  - **⚠️ Specify the 3ppm/°C REF5025 grade, not the 8ppm.** Reference drift
-    lands directly on tuning: 3ppm/°C is 0.72 cent over a 20°C warm-up,
-    8ppm/°C is 1.92 cents, which is perceptible on a sustained note. This
-    is the single most consequential line in the pitch BOM.
-  - **⚠️ Check REF5025 dropout against a 3.3V supply before committing
-    VO-1's power design.** VO-1 has no AS1115 and therefore no 5V rail, so
-    its reference would run from 3.3V to produce 2.5V. If the headroom is
-    not there, VO-1 needs a 5V rail it does not otherwise want. MC-1
-    already has 5V for the AS1115, so only VO-1 is exposed.
-  - **⚠️ Pick the power-on reset variant deliberately.** The AD5662 ships
-    in reset-to-zero-scale and reset-to-midscale versions (the `-1`/`-2`
-    suffix — confirm against the datasheet when ordering). **Midscale** is
-    the right default: VO-1's oscillator free-runs and makes sound
-    immediately at power-up, so a zero-scale tune offset would drop it to
-    the bottom of its range until firmware initialises. Same part on both
-    modules.
-  - **SPI rather than I2C is a minor benefit, not the reason.** Keeping
-    pitch off the bus that carries parameter and display traffic does mean
-    a note-on cannot queue behind a CC update — but the worst-case delay
-    is about 95us at 400kHz, against 320us for a single MIDI byte, and it
-    vanishes entirely if firmware writes pitch before raising gate. The
-    real driver for this part was sourcing. Recorded so the next person
-    does not treat the bus split as load-bearing when it is not.
-  - **The I2C sibling (AD5693R) remains a live alternative**: same family,
-    2ppm on-chip reference rather than the REF5025's 3ppm, one part rather
-    than two, and it would make the 3.3V headroom question below moot
-    since it generates its own reference. It lost on sourcing, not merit.
+- **Pitch DAC**: **AD5693R** (nanoDAC+, 16-bit, single-channel, I2C,
+  buffered rail-to-rail output, **2.5V on-chip reference at 2ppm/°C**).
+  One on VO-1 (tune) and one on MC-1 (V/OCT out).
+  - **The on-chip reference is the point.** It beats a discrete REF5025 at
+    its 3ppm grade (0.48 cent of warm-up drift against 0.72), deletes a
+    part and its capacitors from two modules, and removes a whole class of
+    mistake — there is no wrong reference grade to order by accident.
+  - **It also removes VO-1's rail risk.** An AD5662 + REF5025 pairing would
+    have had the reference generating 2.5V from VO-1's 3.3V rail, since
+    VO-1 has no AS1115 and therefore no 5V. Whether the dropout allowed it
+    was an open question that could have forced a rail VO-1 does not
+    otherwise want. The AD5693R runs from 2.7–5.5V and makes its own
+    reference, so the question never arises.
+  - **⚠️ Firmware must write pitch before raising gate.** The pitch DAC now
+    shares the local I2C bus with the MCP4728 and any AS1115, so a note-on
+    can in principle queue behind a parameter update. The magnitude is
+    small — about 95µs at 400kHz, against 320µs for a *single MIDI byte* —
+    but ordering the writes removes it entirely and makes any residual
+    delay apply to the whole note rather than skewing pitch against gate.
+    **This is now a firmware requirement rather than an optimisation**,
+    which it would not have been on a separate SPI bus. It is the one real
+    cost of the choice.
+  - Addresses do not clash: the AD5693R sits around 0x4C (A0-selectable),
+    the MCP4728 at 0x60, the AS1115 low. On MC-1 it belongs on the **3.3V
+    side of the AS1115 level shifter**, alongside the MCP4728.
+  - **Supersedes an earlier AD5662 + REF5025 pairing**, which was chosen on
+    sourcing grounds when the AD5683R (the SPI sibling of this part) proved
+    hard to find. The AD5693R is the same silicon over I2C and is
+    available, so the reason for the discrete pairing went away.
 
 ### ⚠️ The pitch DAC is the easy part — the output stage is not
 
@@ -291,8 +288,7 @@ number governs the whole chain, and the DAC contributes almost none of it:
 | Source | Drift over 20°C | Cents |
 |---|---|---|
 | 16-bit LSB over 10V | — | 0.18 |
-| REF5025 at 3ppm/°C | 60 ppm | 0.72 |
-| REF5025 at 8ppm/°C | 160 ppm | 1.92 |
+| AD5693R on-chip reference, 2ppm/°C | 40 ppm | 0.48 |
 | **Discrete 1% resistors, 25ppm/°C** | **500 ppm** | **6.00** |
 | Matched thin-film array, 1ppm/°C tracking | 20 ppm | 0.24 |
 | Precision op-amp, 3µV/°C at gain 4 | — | 0.29 |
