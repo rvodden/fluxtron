@@ -88,16 +88,35 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   and the range's whole premise depends on one existing. The alternative —
   a TRS MIDI IN plus opto-isolator on every module — cost jack positions
   that an 8HP panel does not have.)
-  - Physical: a **separate 4-pin connector** (bus VCC, SDA, SCL, GND)
-    alongside the standard Eurorack power header, its own ribbon, kept away
-    from analogue sections at layout time. Populated on every module.
+  - **The protocol is specified in `BUS.md`** — addressing, register map,
+    transactions, presets, firmware update and the MIDI mapping. What follows
+    here is only what a module author must obey.
+  - Physical: a **separate 2×6 (12-pin) connector** (DVCC, GND, SDA, SCL,
+    nRESET, ATTN, A0–A3, 2 spare) alongside the standard Eurorack power
+    header, its own ribbon, kept away from analogue sections at layout time.
+    Populated on every module. **⚠️ Never a 10-pin connector** — beside the
+    10-pin power header it invites plugging ±12V into the bus, which destroys
+    every MCU on the backplane.
   - Protocol: **I2C**, reusing the same physical layer as each module's
     local AS1115 (see below).
-  - Addressing: **DIP/jumper-selectable** for phase 1. Auto-addressing
-    (daisy-chained enable line) is a flagged future enhancement, not
-    required now.
-  - Multi-case future: **buffered I2C** (e.g. PCA9615-style differential
-    extender) when that's needed — no CAN/RS-485 headroom being designed in.
+  - Addressing: **geographic — the backplane holds the address.** Each bus
+    board position ties `A0–A3` to a different pattern; the module reads them
+    as GPIOs at boot. Two levels, chassis and slot, with only the CX-1 bridge
+    needing configuration. **Supersedes the earlier DIP/jumper scheme and the
+    daisy-chained auto-addressing enhancement** — geographic needs no
+    enumeration protocol at all, and makes duplicate addresses physically
+    impossible. See `BUS.md` §3.
+  - Multi-case: a **CX-1 bridge module** — slave on the upstream chassis's
+    bus, master on its own, over a PCA9615-style differential link. Not a
+    transparent buffer; each chassis keeps a private address space. No
+    CAN/RS-485 headroom is being designed in. See `BUS.md` §4.
+  - **⚠️ The invariant the whole design rests on: the bus carries only what
+    can tolerate tens of milliseconds of worst-case latency.** Pitch, gate,
+    velocity, clock and audio stay on patch cables — and so do note events,
+    which fail the test twice over: a slave stalls the bus for tens of
+    milliseconds during a flash erase, and a dropped note-off is a note that
+    sustains forever, where a wire simply cannot lose its state. Note *number*
+    as information is fine; the triggering role is not. See `BUS.md` §1.
   - **Consequence: every module carries an MCU and a 3.3V rail**, not just
     the ones that wanted one. Accepted cost of the above.
   - **Consequence: the inter-module bus and any local I2C peripheral (e.g.
@@ -354,8 +373,10 @@ and leaves only drift, which calibration cannot fix. It is the reason to
 spend the BOM on tempco rather than on initial accuracy.
 - **MIDI I/O**: **3.5mm TRS, Type A** (MIDI Association-ratified standard,
   2018) — not 5-pin DIN (too big), not 2.5mm (non-standard minority format).
-- **Bus connector**: 4-pin (VCC, SDA, SCL, GND), separate from power header,
-  populated on every module regardless of phase.
+- **Bus connector**: **2×6 (12-pin)**, separate from the power header,
+  populated on every module regardless of phase. Pinout and the module-side
+  requirements (~220Ω series resistors on SDA/SCL, ESD, the 5V-tolerance
+  check) are in `BUS.md` §2.
   - **VCC is DVCC, the bus's logic rail: 5V**, sourced by PS-1's bus board.
     It is a pull-up reference, not a module power rail — modules must **not**
     tie it to their local 3.3V, which would parallel every module's LDO
@@ -387,8 +408,9 @@ The deciding factors, strongest first:
   than a feature.
 - **STM32G0's system bootloader speaks I2C.** There is already an I2C bus
   with MC-1 as master and every module as a slave, so **MC-1 can reflash any
-  module in the rack over the existing 4-pin bus** — no per-module SWD
-  header, no pulling modules to update them. RP2040's bootrom is USB
+  module in the rack over the existing bus** — no per-module SWD header, no
+  pulling modules to update them. The bus's nRESET line is what makes this
+  survive a bad flash; see `BUS.md` §8. RP2040's bootrom is USB
   mass-storage and cannot do this. A real architectural feature falling out
   of a decision made for other reasons.
 - **Single-chip: no external QSPI flash.** Seven fewer parts and footprints
@@ -514,10 +536,9 @@ protection and MIDI opto-isolation) is noted in that module's own
 ## Open items / not yet decided
 
 - Spare 12HP allocation (extra spacing vs. blind panel vs. new module).
-- **Bus parameter protocol** — how CC/NRPN values are addressed and encoded
-  over I2C. Load-bearing in phase 1 now, and not yet specified.
 - EG-1's control set (fully continuous ADSR via 4 encoders vs. some fixed
   stages) — affects whether it needs a dedicated encoder sub-board.
 - PS-1's own open items — external brick vs. internal mains above all, plus
   8HP vs. 16HP and whether it carries an MCU. See `PS-1/CLAUDE.md`.
-- Auto-addressing scheme for the digital bus (deferred, not blocking).
+- `BUS.md`'s own open items — G0B1 I2C pin 5V tolerance, the AN2606
+  bootloader address and pin set, and the CAPABILITIES/STATUS bitfields.

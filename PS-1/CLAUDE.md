@@ -170,10 +170,22 @@ with decent copper and possibly a small heatsink on the positive regulator.
     or over the limit. A larger case (6U, or 2×104HP) therefore wants **two
     segments with a bridge between them**, which is what the addressing
     scheme would have forced anyway. The two constraints agree.
-- **Ten 4-pin I2C positions** on the same PCB, with the I2C traces routed
-  away from the power traces — the range doc already requires the bus be kept
-  clear of analogue sections, and one board makes that a layout task rather
-  than a cable-dressing hope.
+- **Ten 2×6 I2C positions** on the same PCB, with the I2C traces routed away
+  from the power traces — the range doc already requires the bus be kept clear
+  of analogue sections, and one board makes that a layout task rather than a
+  cable-dressing hope. See `../BUS.md` for the pinout.
+- **⚠️ The bus board holds the slot addresses.** Each of the ten positions
+  ties `A0–A3` to a different pattern of grounds — that is the whole of the
+  geographic addressing scheme, and it is this board's job. Number them from
+  the left, so a slot number and a physical position are the same thing.
+  Modules pull these up internally, so the board only ever pulls down.
+- **Route the Eurorack bus CV and Gate lines.** The standard 16-pin header
+  carries them and we are going 16-pin for the +5V anyway, so this is two
+  traces on a board already being fabbed. If a cable-free global gate is ever
+  wanted, the mechanism exists and is analogue and deterministic — which
+  putting note events on I2C would not be (see `../BUS.md` §1). Module-side
+  connection stays unpopulated or jumpered. A single global pair, so mono
+  only. **Free now, a respin later.**
 - **DVCC — the bus logic rail — is 5V**, generated here and carried on the
   bus connector's VCC pin. It is a pull-up reference, not a module supply.
 - **The I2C pull-ups live here**, one pair only, never per-module. They have
