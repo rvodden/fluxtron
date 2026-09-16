@@ -179,12 +179,23 @@ with decent copper and possibly a small heatsink on the positive regulator.
   geographic addressing scheme, and it is this board's job. Number them from
   the left, so a slot number and a physical position are the same thing.
   Modules pull these up internally, so the board only ever pulls down.
-- **A downstream link port** — PCA9615 plus an RJ45 — for chaining to another
-  chassis. Footprint on every board; populate only when this chassis actually
-  chains further. The far end of that cable is a **CX-1 module living in the
-  downstream chassis**, not on this board: see `../BUS.md` §4. Note this board
-  carries no *upstream* port, since a chassis is brought onto the bus by its
-  own CX-1, not by its bus board.
+- **A dedicated master port at the left-hand end**, physically distinct from
+  the numbered slots so a slave module cannot be plugged into it by mistake.
+  MC-1 uses it in chassis 0; CX-1 uses it in every chassis below. Because the
+  master is not a numbered slot, **all 16 slot addresses stay available to
+  slaves** — see `../BUS.md` §3.
+- **A dedicated CX port** — PCA9615 plus an RJ45 — for chaining *down* to
+  another chassis. Footprint on every board; populate only when this chassis
+  actually chains further. A buffered link needs a transceiver at both ends,
+  so this hardware is unavoidable; putting it on the bus board means the link
+  costs no backplane position. The far end of the cable is a CX-1 module in
+  the downstream chassis, reached at `0x30` on this segment.
+  - **⚠️ Check the PCA9615's supply and bus-side voltage range against 5V
+    DVCC** before committing this footprint. It is a 3.3V-class part and this
+    bus runs a 5V logic rail; level translation or a different extender may be
+    needed.
+  - This board carries no *upstream* port: a chassis is brought onto the bus
+    by its own CX-1, not by its bus board.
 - **Route the Eurorack bus CV and Gate lines.** The standard 16-pin header
   carries them and we are going 16-pin for the +5V anyway, so this is two
   traces on a board already being fabbed. If a cable-free global gate is ever
