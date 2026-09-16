@@ -544,5 +544,8 @@ protection and MIDI opto-isolation) is noted in that module's own
   stages) — affects whether it needs a dedicated encoder sub-board.
 - PS-1's own open items — external brick vs. internal mains above all, plus
   8HP vs. 16HP and whether it carries an MCU. See `PS-1/CLAUDE.md`.
-- `BUS.md`'s own open items — G0B1 I2C pin 5V tolerance, the AN2606
-  bootloader address and pin set, and the CAPABILITIES/STATUS bitfields.
+- `BUS.md`'s own open items — **DVCC at 3.3V vs 5V** above all, since no bus
+  connector should be laid out until it is settled; plus the bootloader
+  address, whether PC6/PC7 are bonded out on LQFP-48, and the
+  CAPABILITIES/STATUS bitfields. (I2C pin 5V tolerance is resolved: every
+  G0B1 I2C pin is marked FT.)

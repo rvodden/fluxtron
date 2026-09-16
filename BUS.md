@@ -417,8 +417,61 @@ system bootloader. That pulls three things into the protocol:
   bootloader-capable, so spending it on locals leaves both qualifying ports
   free for the bus — the bus then takes whichever of I2C1/I2C2 routes better,
   rather than being pinned to one peripheral before layout starts.
+- **Bootloader pins, from the same table:**
+
+  | Peripheral | SCL / SDA |
+  |---|---|
+  | I2C1 | **PC6 / PC7** |
+  | I2C2 | **PB10 / PB11** |
+
+  **⚠️ Check PC6/PC7 are bonded out on LQFP-48** before treating I2C1 as a
+  real option — port C is thinly populated on G0 48-pin packages. If they are
+  not, I2C2 is the only choice and the decision is moot.
+  **Pick one and use it on every module**: uniform firmware and layout are
+  worth more than per-module optimisation.
 - Bootloader address to confirm; the community figure of `0xA2` 8-bit
   (`0x51` 7-bit) would be clear of the `0x20–0x2F` slot range.
+
+### ⚠️ AN2606 bootloader limitations that shape the update flow
+
+Four are documented against this bootloader. Three change what we do:
+
+- **The `Go` command disables the debug access port** — it writes a wrong
+  value to `FLASH_ACR`'s `DBG_SWEN` bit when jumping to the application.
+  **So never use `Go`. Start the application with nRESET instead.** Cleaner
+  regardless, since the module starts from a known peripheral state, and it
+  sidesteps the bug entirely. This is the second independent reason nRESET
+  earns its pin.
+- **Multi-sector erase is broken on Bank2** — a wrong BUSY-bit check raises a
+  FLITF error after the first sector. **Workaround: erase one sector at a
+  time when targeting Bank2.** Conditional: at 128KB (`CB`) there is probably
+  no Bank2, since dual-bank is a feature of the larger G0B1 flash variants.
+  **Confirm before any module moves to a bigger part — MC-1 is the likely
+  candidate, since it stores the presets.**
+- **⚠️ The Empty-check flag is cleared during bootloader startup.** The
+  bootloader's own deinitialization writes the default to `FLASH_ACR`, zeroing
+  the Empty-check bit. So a module that booted to the bootloader *because* its
+  flash was empty will, **on a subsequent reset, try to boot the empty flash
+  and crash.**
+
+  This interacts badly with a shared nRESET. A module interrupted mid-reflash
+  — erased but not yet programmed — boots to the bootloader via empty check,
+  which is what we want; but asserting the backplane's nRESET for any reason
+  then crashes it, because nRESET resets *every* module.
+
+  Two rules:
+  - **Never assert nRESET while any module is mid-update.** The reset that
+    exits the bootloader comes strictly after programming completes.
+  - **Do not rely on empty check as the recovery path.** The BOOT0 jumper is
+    deterministic regardless of flash state, which makes it more important,
+    not less.
+
+  Recovery is not catastrophic: `FLASH_ACR` is volatile, so a **power cycle**
+  re-evaluates the empty check where a reset does not. Documented here so the
+  behaviour is recognised rather than debugged from scratch.
+- A fourth caveat exists in the application note and has not been captured —
+  the excerpt to hand was truncated mid-sentence at "*if the system crashes,
+  an…*". **To be transcribed.**
 - **⚠️ Reported erratum: the I2C bootloader hangs if PA3 stays low**, needing a
   pull-up on PA3. If PA3 is used for anything that idles low, reflash-over-bus
   fails silently. Reported against bootloader v5.2 on a G030, so **check
