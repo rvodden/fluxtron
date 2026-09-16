@@ -421,14 +421,12 @@ system bootloader. That pulls three things into the protocol:
 
   | Peripheral | SCL / SDA |
   |---|---|
-  | I2C1 | **PC6 / PC7** |
+  | I2C1 | **PB6 / PB7** |
   | I2C2 | **PB10 / PB11** |
 
-  **⚠️ Check PC6/PC7 are bonded out on LQFP-48** before treating I2C1 as a
-  real option — port C is thinly populated on G0 48-pin packages. If they are
-  not, I2C2 is the only choice and the decision is moot.
-  **Pick one and use it on every module**: uniform firmware and layout are
-  worth more than per-module optimisation.
+  Both are on port B and both are bonded out on LQFP-48, so the choice is
+  genuinely free. **Pick one and use it on every module**: uniform firmware
+  and layout are worth more than per-module optimisation.
 - Bootloader address to confirm; the community figure of `0xA2` 8-bit
   (`0x51` 7-bit) would be clear of the `0x20–0x2F` slot range.
 
