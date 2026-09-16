@@ -288,6 +288,44 @@ downstream. Recursion, no special routing.
   updates. Bootloader traffic uses a fixed address that protocol-aware
   forwarding will not recognise.
 
+### Where CX-1 physically lives
+
+**One CX-1 per link, seated in the upstream chassis.** It is not plugged into
+both — it cannot be, and geographic addressing is why: CX-1 takes its slot
+from the `A0–A3` pins of whatever bus board it is seated in. Were it in
+chassis 1, its address *on chassis 0's bus* could not come from a backplane it
+is not plugged into, and it would need configuring by jumper — the thing
+geographic addressing exists to eliminate.
+
+So, for a chassis 0 → chassis 1 link:
+
+| | |
+|---|---|
+| **CX-1** | An ordinary 8HP module in **chassis 0**, powered by chassis 0's PS-1. Upstream side is its normal 12-pin bus connector, slave like any module. Downstream port goes through a PCA9615 to a panel connector. |
+| **Chassis 1's bus board** | Terminates the cable: PCA9615 back to single-ended, plus chassis 1's own pull-ups. A **PS-1 bus board footprint populated only in a downstream chassis**, unpopulated in chassis 0. |
+
+CX-1 therefore masters chassis 1's bus *remotely*, through the transparent
+differential pair. Three chassis means CX-1 #1 in chassis 0 and CX-1 #2 in
+chassis 1: **N chassis needs N × PS-1 and (N−1) × CX-1**, so each chassis
+after the first costs 8HP for its own PS-1 *plus* 8HP in its parent for the
+bridge.
+
+*Rejected: two CX-1s per link, back to back.* It would make every bus board
+identical, but costs 16HP per link instead of 8HP, and the bus board is a PCB
+being fabbed anyway.
+
+Two questions to settle when CX-1 is actually specced, neither blocking:
+
+- **The panel connector wants to be RJ45/Cat5**, so the two differential pairs
+  get real twisted pairs. Electrically right, aesthetically industrial against
+  a matte-black etched panel — a genuine tension at panel design.
+- **⚠️ The inter-chassis ground is a parallel path.** Two cases with separate
+  bricks are already bonded through the shields of any patch cables running
+  between them, so the link's ground reference adds a loop — and audio *will*
+  run between those cases. Galvanic isolation on the link would break it but
+  needs an isolated supply on one side. Think about it before the link is
+  designed, not after.
+
 ### How a parameter update crosses a bridge
 
 ```mermaid
