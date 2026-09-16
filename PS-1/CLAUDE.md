@@ -179,6 +179,12 @@ with decent copper and possibly a small heatsink on the positive regulator.
   geographic addressing scheme, and it is this board's job. Number them from
   the left, so a slot number and a physical position are the same thing.
   Modules pull these up internally, so the board only ever pulls down.
+- **A downstream link port** — PCA9615 plus an RJ45 — for chaining to another
+  chassis. Footprint on every board; populate only when this chassis actually
+  chains further. The far end of that cable is a **CX-1 module living in the
+  downstream chassis**, not on this board: see `../BUS.md` §4. Note this board
+  carries no *upstream* port, since a chassis is brought onto the bus by its
+  own CX-1, not by its bus board.
 - **Route the Eurorack bus CV and Gate lines.** The standard 16-pin header
   carries them and we are going 16-pin for the +5V anyway, so this is two
   traces on a board already being fabbed. If a cable-free global gate is ever

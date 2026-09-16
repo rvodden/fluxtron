@@ -243,6 +243,14 @@ unchanged.
 (0x00–0x07, 0x78–0x7F). Because each chassis has a private address space, only
 16 addresses are ever consumed, leaving most of the I2C space free.
 
+**A bridge's uplink sits at a reserved `0x30`, outside the slot range.** It
+arrives on its parent's bus by cable rather than by backplane position, so it
+has no `A0–A3` to read there and no slot to occupy. A fixed address works
+because the topology is daisy chain only (§4), so there is never more than one
+bridge per segment — and because segments have private address spaces, **the
+bridge is always at `0x30` on the segment above it**, whichever chassis that
+is. Still no configuration: the address is fixed by this document, not set.
+
 ### Why 16 slots is enough
 
 Not arbitrary — **I2C's own 400pF bus capacitance limit caps a segment at
@@ -270,9 +278,15 @@ space — around 80 modules across 672HP.
 
 ## 4. Multi-chassis: bridge, not buffer
 
-The chassis extension module (**CX-1**) is an I2C **slave** on the upstream
-chassis's bus and a **master** on its own, with a PCA9615-style differential
-pair for the physical link.
+The chassis extension module (**CX-1**) has **two bus ports**:
+
+| Port | Connects to | Role |
+|---|---|---|
+| **Local port** | Its own chassis's backplane, ordinary 12-pin bus connector | **Master** of that segment |
+| **Uplink port** | The parent chassis, by cable, PCA9615 differential pair | **Slave** on the parent's bus |
+
+**CX-1 lives in the chassis it brings onto the bus** — the downstream one, not
+the parent.
 
 **Rejected: a transparent buffer** making one logical bus across all chassis.
 It leaves a single flat address space — every module in the system needing a
@@ -359,11 +373,11 @@ MC-1 must report that as an error rather than half-work.
 sequenceDiagram
     autonumber
     participant MC1 as MC-1<br/>chassis 0 master
-    participant CX1 as CX-1<br/>chassis 0 slot 5
+    participant CX1 as CX-1<br/>in chassis 1,<br/>uplinked to chassis 0 at 0x30
     participant VO1 as VO-1<br/>chassis 1 slot 3
 
     Note over MC1,VO1: Power-on. Addressing is local — no bus traffic at all.
-    CX1->>CX1: DVCC present, A0-A3 = 5, address 0x25<br/>CHASSIS_ID unassigned
+    CX1->>CX1: uplink is the reserved 0x30 — no A0-A3 there<br/>CHASSIS_ID unassigned
     VO1->>VO1: DVCC present, A0-A3 = 3, address 0x23
 
     Note over CX1,VO1: A bridge masters its own segment before it is numbered
@@ -371,8 +385,8 @@ sequenceDiagram
     VO1-->>CX1: MODULE_TYPE "VO", PARAM_COUNT 7
 
     Note over MC1,VO1: MC-1 discovers chassis 0
-    MC1->>CX1: scan 0x20-0x2F, read MODULE_TYPE
-    CX1-->>MC1: "CX" at 0x25 — this slot is a bridge
+    MC1->>CX1: scan 0x20-0x2F for modules, then probe 0x30
+    CX1-->>MC1: "CX" at 0x30 — a bridge is uplinked here
     Note over MC1,CX1: An unassigned bridge NAKs FORWARD,<br/>so nothing can route yet
 
     Note over MC1,VO1: Chassis numbers assigned top-down
@@ -395,29 +409,32 @@ A bridge accepts reassignment of `CHASSIS_ID` on every pass.
 
 ### Where CX-1 physically lives
 
-**One CX-1 per link, seated in the upstream chassis.** It is not plugged into
-both — it cannot be, and geographic addressing is why: CX-1 takes its slot
-from the `A0–A3` pins of whatever bus board it is seated in. Were it in
-chassis 1, its address *on chassis 0's bus* could not come from a backplane it
-is not plugged into, and it would need configuring by jumper — the thing
-geographic addressing exists to eliminate.
+**CX-1 lives in the chassis it brings onto the bus.** An 8HP module in
+chassis 1, powered by chassis 1's PS-1, with its local port plugged into
+chassis 1's backplane and its uplink cabled to chassis 0.
 
-So, for a chassis 0 → chassis 1 link:
+So it *is* connected to both chassis — through two different ports, which is
+the point of having two. Earlier drafts of this section said CX-1 "is not
+plugged into both", which was true only of backplanes and obscured the
+topology rather than describing it.
 
 | | |
 |---|---|
-| **CX-1** | An ordinary 8HP module in **chassis 0**, powered by chassis 0's PS-1. Upstream side is its normal 12-pin bus connector, slave like any module. Downstream port goes through a PCA9615 to a panel connector. |
-| **Chassis 1's bus board** | Terminates the cable: PCA9615 back to single-ended, plus chassis 1's own pull-ups. A **PS-1 bus board footprint populated only in a downstream chassis**, unpopulated in chassis 0. |
+| **CX-1, in chassis 1** | Local port: standard 12-pin bus connector into chassis 1's backplane, mastering that segment. Uplink port: panel RJ45 through a PCA9615, cabled to chassis 0. Slave at `0x30` on chassis 0's bus. |
+| **Chassis 0's bus board** | A **downstream link port** — PCA9615 plus connector — terminating that cable. Every PS-1 bus board carries the footprint; populate it only when the chassis chains further. |
 
-CX-1 therefore masters chassis 1's bus *remotely*, through the transparent
-differential pair. Three chassis means CX-1 #1 in chassis 0 and CX-1 #2 in
-chassis 1: **N chassis needs N × PS-1 and (N−1) × CX-1**, so each chassis
-after the first costs 8HP for its own PS-1 *plus* 8HP in its parent for the
-bridge.
+**The bridge cost lands in the new chassis, not the existing one.** Adding a
+case should not consume a slot in a case that is already full. N chassis needs
+N × PS-1 and (N−1) × CX-1, with each CX-1 in its own chassis: chassis 0 holds
+MC-1 and PS-1, every chassis after it holds PS-1 and CX-1.
+
+*Rejected: seating the bridge in the parent chassis.* It forces the bridge to
+take a geographic slot in a case that may have none free, and charges the cost
+of expansion to the wrong box. The reserved `0x30` uplink address removes the
+only reason to have preferred it.
 
 *Rejected: two CX-1s per link, back to back.* It would make every bus board
-identical, but costs 16HP per link instead of 8HP, and the bus board is a PCB
-being fabbed anyway.
+identical, but costs 16HP per link instead of 8HP.
 
 Two questions to settle when CX-1 is actually specced, neither blocking:
 
@@ -437,12 +454,12 @@ Two questions to settle when CX-1 is actually specced, neither blocking:
 sequenceDiagram
     autonumber
     participant MC1 as MC-1<br/>master of chassis 0
-    participant CX1 as CX-1<br/>slot 5 on chassis 0,<br/>master of chassis 1
+    participant CX1 as CX-1<br/>in chassis 1, master there,<br/>uplinked to chassis 0 at 0x30
     participant VO1 as VO-1<br/>slot 3 on chassis 1
 
     Note over MC1,VO1: Phase 1 — addressing. Entirely local, no bus traffic.
     MC1->>MC1: DVCC present, so a backplane is attached
-    CX1->>CX1: read A0-A3 = 5, address = 0x20+5 = 0x25
+    CX1->>CX1: uplink at reserved 0x30, master of chassis 1
     VO1->>VO1: read A0-A3 = 3, address = 0x20+3 = 0x23
 
     Note over MC1,VO1: Phase 2 — discovery. Once at boot, per segment.
@@ -455,7 +472,7 @@ sequenceDiagram
 
     Note over MC1,VO1: Phase 3 — runtime. One parameter update.
     MC1->>MC1: NRPN assembled: MSB 0x13, LSB 0x02,<br/>14-bit value widened to uint16
-    MC1->>CX1: write 0x25: [FORWARD, 0x13, 0x02, hi, lo]
+    MC1->>CX1: write 0x30: [FORWARD, 0x13, 0x02, hi, lo]
     CX1-->>MC1: ACK — store and forward, not yet delivered
     CX1->>CX1: chassis = 0x13 >> 4 = 1, mine<br/>slot = 0x13 & 0x0F = 3 → 0x23
     CX1->>VO1: write 0x23: [0x02, hi, lo]
@@ -602,7 +619,7 @@ sequenceDiagram
     autonumber
     participant MC1 as MC-1
     participant VO1 as VO-1<br/>chassis 0 slot 2
-    participant CX1 as CX-1<br/>chassis 0 slot 5
+    participant CX1 as CX-1<br/>in chassis 1,<br/>uplinked to chassis 0 at 0x30
     participant VF1 as VF-1<br/>chassis 1 slot 4
 
     Note over MC1,VF1: Program Change arrives. MC-1 loads the preset from flash.
