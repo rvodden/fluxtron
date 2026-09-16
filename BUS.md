@@ -525,7 +525,7 @@ off-the-shelf tools.
 | `0x9F` | `ENTER_BOOTLOADER` | W | Magic value only, §8 |
 | `0xA0` | `FORWARD` | W | **Bridge only.** Tunnelled write, §4 |
 | `0xA1` | `INVENTORY` | R | **Bridge only.** What the downstream segment holds |
-| `0xA2` | `FWD_STATUS` | R | **Bridge only.** Asynchronous delivery errors |
+| `0xA2` | `FWD_STATUS` | R | **Bridge only.** Queue depth *and* delivery errors, §10 |
 | `0xA3` | `CHASSIS_ID` | R/W | **Bridge only.** Assigned at discovery, §4. Volatile |
 
 **`FORWARD` is the one write that is not `[reg, hi, lo]`** — its payload is
@@ -654,8 +654,12 @@ per-segment guarantee, not a system-wide one.
 - `STAGE = 0x0000` **aborts** and discards the shadow.
 - **Staging auto-aborts after ~1 second** with no commit, so a master that dies
   mid-recall cannot leave modules staged forever.
-- **MC-1 verifies every staged write ACKed before committing.** If any failed,
-  abort rather than commit a partially-updated rack.
+- **MC-1 verifies staging before committing, in two parts.** Locally, every
+  write must have ACKed. **Across a bridge that is not sufficient** — the ACK
+  came from the bridge, not the module (§4) — so MC-1 must also wait for each
+  bridge in the path to drain and then confirm `FWD_STATUS` reports no
+  delivery errors. If either check fails, write `STAGE = 0` and abort rather
+  than commit a partially-updated rack.
 - Panel encoders keep working during staging; the commit simply wins. Staging
   windows are short enough that freezing the panel would be worse.
 
@@ -845,6 +849,31 @@ than 14 bits must split the same way.
   rediscovery runs on a slow timer rather than once at startup.
 - **A missing module NAKs.** MC-1 marks the slot absent and retries on the
   rediscovery timer, not on every transaction.
+
+### Acknowledgement model
+
+An ACK means different things in three places, and conflating them is how a
+rack ends up half-updated. Collected here because the rules otherwise sit in
+§4, §5 and §7.
+
+| Transaction | What an ACK proves |
+|---|---|
+| Write to a module on the master's own segment | The module received it |
+| Write tunnelled through a bridge (`FORWARD`) | **Only that the bridge accepted it.** Bridges are store-and-forward and ACK before delivery, so this says nothing about the module |
+| General call (broadcast) | **Nothing useful.** I2C wired-ANDs the ACK, so the master cannot tell which devices responded — and across a bridge there is no ACK path at all |
+
+Consequences:
+
+- **Delivery across a bridge is confirmed asynchronously or not at all.**
+  `FWD_STATUS` carries both a queue-depth/busy indication and an error flag.
+  Both are needed: without the queue depth, a caller cannot distinguish
+  "nothing has failed" from "nothing has been attempted yet".
+- **A broadcast is inherently unverifiable**, which is exactly why the
+  pre-commit verification in §7 carries the weight. The commit itself cannot
+  be checked, so everything must be known-good before it is issued.
+- Clock-stretching the bridge to make a tunnelled write synchronous was
+  rejected: at 100kHz one hop is ~400µs and each further hop adds as much,
+  against the ~1ms stretch ceiling above.
 - **Bus recovery**: if SDA is stuck low, the master issues 9 clock pulses to
   free it. Each module runs an I2C watchdog that resets its own peripheral if
   the bus has been stuck beyond a few hundred milliseconds.
