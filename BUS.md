@@ -427,8 +427,12 @@ system bootloader. That pulls three things into the protocol:
   Both are on port B and both are bonded out on LQFP-48, so the choice is
   genuinely free. **Pick one and use it on every module**: uniform firmware
   and layout are worth more than per-module optimisation.
-- Bootloader address to confirm; the community figure of `0xA2` 8-bit
-  (`0x51` 7-bit) would be clear of the `0x20–0x2F` slot range.
+- **Bootloader address: 7-bit `0x5D`** (`0b1011101x` — `0xBA` write, `0xBB`
+  read). Clear of the `0x20–0x2F` slot range. **Both I2C1 and I2C2 use the
+  same address**, so the one-module-at-a-time constraint holds whichever
+  peripheral the bus takes. Bootloader config is target mode, 7-bit
+  addressing, analog filter on, up to 1MHz — the bootloader itself is not a
+  speed constraint.
 
 ### ⚠️ AN2606 bootloader limitations that shape the update flow
 
@@ -464,12 +468,12 @@ Four are documented against this bootloader. Three change what we do:
     deterministic regardless of flash state, which makes it more important,
     not less.
 
-  Recovery is not catastrophic: `FLASH_ACR` is volatile, so a **power cycle**
-  re-evaluates the empty check where a reset does not. Documented here so the
-  behaviour is recognised rather than debugged from scratch.
-- A fourth caveat exists in the application note and has not been captured —
-  the excerpt to hand was truncated mid-sentence at "*if the system crashes,
-  an…*". **To be transcribed.**
+  The application note's own wording closes this off: *"Avoid using reset on
+  this case. If the system crashes, an option byte change or POR is needed to
+  reboot."* **An nRESET pulse is not a POR**, so the backplane's reset line
+  cannot recover a module crashed this way — only actually removing power can.
+  That is survivable in a rack you can switch off, but it is the reason the
+  BOOT0 jumper exists rather than a cleverer bus-driven mechanism.
 - **⚠️ Reported erratum: the I2C bootloader hangs if PA3 stays low**, needing a
   pull-up on PA3. If PA3 is used for anything that idles low, reflash-over-bus
   fails silently. Reported against bootloader v5.2 on a G030, so **check
