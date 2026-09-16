@@ -221,6 +221,19 @@ onto its local bus. Modules are genuinely chassis-agnostic.
 **Only the CX-1 bridge is configured** — one per chassis, set once, where a
 jumper is entirely reasonable.
 
+**Two modules in different chassis share an I2C address, and that is
+intended.** Chassis 1 slot 3 and chassis 0 slot 3 both listen on `0x23`, each
+having computed it from its own backplane's `A0–A3`. It is not a collision
+because they sit on physically separate buses with separate masters — that
+separation is the whole point of the bridge. From a module's point of view a
+write from CX-1 is indistinguishable from a write from MC-1: it is simply its
+master talking to it.
+
+**Chassis identity is held by the bridge, never by the module.** MC-1 knows an
+upstream event came from chassis 1 because it arrived via CX-1, not because
+the module said so. That is what lets a module move between cases and work
+unchanged.
+
 ### I2C addresses
 
 `I2C address = 0x20 + slot`, so **0x20–0x2F**. Clear of the reserved ranges
@@ -284,6 +297,15 @@ downstream. Recursion, no special routing.
 - **The bridge aggregates a summary dirty bitmap** — which slots below it have
   pending events — so MC-1 does one read per *chassis*, not per module.
   Without this, upstream cost grows with system size.
+- **Writes are store-and-forward; reads are served from a cache.** A
+  synchronous read through a store-and-forward bridge would need it to
+  clock-stretch for the whole downstream transaction — tolerable at one hop,
+  not at two, against the ~1ms ceiling in §10. Since the bridge already polls
+  downstream dirty bitmaps to build its summary, it **shadows the downstream
+  parameter values** and serves reads from that synchronously, in one
+  transaction. Worst case 16 slots × 128 params × 2 bytes = 4KB, realistically
+  ~512 bytes, against the G0B1's 144KB of RAM. A read across a bridge then
+  costs the same as a local one.
 - **⚠️ The bridge needs a transparent pass-through mode** for firmware
   updates. Bootloader traffic uses a fixed address that protocol-aware
   forwarding will not recognise.
