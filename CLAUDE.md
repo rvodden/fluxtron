@@ -383,8 +383,11 @@ spend the BOM on tempco rather than on initial accuracy.
     output against every other's.
   - **The pull-ups live on the bus board, populated exactly once**, never
     per-module. Sizing and the reasoning are in `PS-1/CLAUDE.md`.
-  - **⚠️ 5V DVCC against 3.3V MCUs is not free** — see the bus protocol's
-    electrical notes before laying out any module's bus connector.
+  - **⚠️ The module 3.3V LDO must track its input** — no long enable delay or
+    soft-start. Every G0B1 I2C pin is FT, so 5V tolerance holds in operation,
+    but absolute-max VIN is `VDD + 4.0V`; a delayed-start regulator is the
+    only thing that would hold VDD near zero while DVCC is already at 5V.
+    See `BUS.md` §2.
 
 ## MCU: STM32G0, range-wide
 
@@ -544,8 +547,6 @@ protection and MIDI opto-isolation) is noted in that module's own
   stages) — affects whether it needs a dedicated encoder sub-board.
 - PS-1's own open items — external brick vs. internal mains above all, plus
   8HP vs. 16HP and whether it carries an MCU. See `PS-1/CLAUDE.md`.
-- `BUS.md`'s own open items — **DVCC at 3.3V vs 5V** above all, since no bus
-  connector should be laid out until it is settled; plus the bootloader
-  address, which of I2C1/I2C2 the bus takes, and the
-  CAPABILITIES/STATUS bitfields. (I2C pin 5V tolerance is resolved: every
-  G0B1 I2C pin is marked FT.)
+- `BUS.md`'s own open items — which of I2C1/I2C2 the bus takes, and the
+  CAPABILITIES/STATUS bitfields. (DVCC is settled at 5V; I2C pin tolerance,
+  the bootloader address and its pin sets are all resolved.)

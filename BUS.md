@@ -78,44 +78,69 @@ One 4.7kΩ pair per module across eight modules is ~590Ω in parallel, below the
 Putting them on the bus board makes the count fixed regardless of how many
 modules are installed, and leaves MC-1 electrically just another module.
 
-### Open: 3.3V vs 5V DVCC
+### DVCC is 5V — settled
 
-**Confirmed: every I2C pin on the G0B1 is marked FT in the datasheet**, so 5V
-tolerance holds in normal operation with VDD present. That settles the routine
-case.
+Chosen for **noise margin**, on a ribbon running the length of a case full of
+switching supplies: VIL is 1.5V at 5V against 0.99V at 3.3V, roughly 50% more
+margin in volts, and keeping 2.2kΩ rather than the 4.7kΩ that 100kHz would
+also allow holds the bus impedance down, which helps again. Lower impedance is
+the point, so **2.2kΩ is deliberate, not a current compromise**.
 
-**The residual concern is a different row.** Absolute-max VIN on an FT pin is
+**Not chosen for lower current** — that intuition runs backwards. The
+rise-time ceiling is voltage-independent (`tr` is measured 0.3·Vcc to 0.7·Vcc),
+so both options face the same maximum pull-up; only the sink-current floor
+moves. At any given resistor `I = V/R`, so 3.3V would draw *less*. At 250pF:
+
+| | Valid pull-up range | Weakest legal Rp | Current when low |
+|---|---|---|---|
+| 5V @ 100kHz | 1.53k – 4.72k | 4.7k | 1.06mA |
+| 3.3V @ 100kHz | 0.97k – 4.72k | 4.7k | 0.70mA |
+| 3.3V @ 400kHz | 0.97k – 1.42k | 1.4k | 2.36mA |
+
+Cost of 5V is 400kHz (see below — it does not matter) and an absolute-maximum
+question when a module is unpowered, worked through next.
+
+#### The unpowered-module case, assessed
+
+Every I2C pin on the G0B1 is marked **FT**, so 5V tolerance holds in normal
+operation. The residual is a different row: absolute-max VIN on an FT pin is
 `VDD + 4.0V`, not a flat 5.5V, and ST lists positive injection on FT pins as
-**0mA** — it is not a characterised condition. The FT marking and the
-absolute-maximum ratings answer different questions.
+**0mA** — it is not a characterised condition.
 
-Our topology puts a module's VDD at 0 while the bus is live, because every
-module's 3.3V rail derives *from* the 5V rail:
+**There is no power-up window.** An earlier revision of this file claimed one
+on every power cycle, reasoning that 5V is necessarily up before any module's
+VDD. That is wrong. DVCC and each module's LDO *input* are the same rail,
+rising together, and the output follows the input during the ramp:
 
-| Condition | VDD | Status |
+- While `V < 3.3 + dropout`: `VDD ≈ V − dropout`, so `VDD + 4 ≥ V` needs only
+  `dropout ≤ 4V`. Always true.
+- Once `V ≥ 3.3 + dropout`: `VDD = 3.3`, so the ceiling is 7.3V, above 5V.
+
+`VDD + 4.0` therefore stays above DVCC throughout power-up.
+
+**⚠️ Design rule that follows: the module 3.3V LDO must track its input** — no
+long enable delay, no slow soft-start. A violation needs VDD held near zero
+while the input is *already* at 5V, which only a delayed-start regulator
+creates.
+
+What remains is not a power-cycle property:
+
+| Case | Sustained? | Note |
 |---|---|---|
-| Normal operation | 3.3V | In spec — `VDD+4` = 7.3V |
-| Power-up window | rising | Out of abs-max only while VDD < 1.0V — tens of µs |
-| **PTC trip / LDO failure** | **0V** | **Continuously out of abs-max** |
+| Hot-swap | No | Eurorack convention is to power down first |
+| 5V PTC trip / LDO failure | Yes | Module is already faulty |
+| Bus ribbon on, power ribbon forgotten | Yes | Real bench scenario during bring-up |
 
-**Current is not the problem.** The only path from DVCC to SDA/SCL is through
-the bus board's 2.2kΩ pull-up — every other device is open-drain and can only
-pull *low*. So injection into an unpowered pin is capped at
-`5V / (2200 + 220) ≈ 2.1mA`, inside a typical ±5mA per-pin limit. *(An earlier
-revision of this file claimed ~19.5mA and concluded 5V was unviable. That
-treated the 5V as a stiff source at the pin, which it is not.)*
+All are capped at `5V / (2200 + 220) ≈ 2.1mA` by the pull-up — the only path
+from DVCC to SDA/SCL, since every other device is open-drain and can pull only
+*low*. **Latch-up cannot sustain on 2.1mA**, needing far more than a 2.2kΩ
+resistor can deliver, so the failure mode self-limits. *(An earlier revision
+put this at ~19.5mA, treating 5V as a stiff source at the pin. It is not.)*
 
-It is the **voltage** that is out of specification, and only in the fault case.
+Accepted knowingly: an out-of-absolute-max condition exists in fault and
+bench-error cases, bounded and non-destructive.
 
-**Recommendation: 3.3V DVCC**, from a small LDO on PS-1's bus board feeding
-only the pull-ups (a few mA). At 3.3V an unpowered module's pin sees 3.3V
-against a 4.0V absolute max **even at VDD = 0** — the problem does not need
-mitigating or accepting, it stops existing. 400kHz also comes back (below).
-
-5V remains workable if the out-of-spec fault condition at ~2mA is acceptable.
-The case for it was ribbon noise margin alone.
-
-**Not yet decided — do not lay out a bus connector until it is.**
+### ⚠️ 5V DVCC costs 400kHz
 
 ### ⚠️ 5V DVCC costs 400kHz
 
@@ -125,9 +150,18 @@ cross at about **230pF**, above which no valid passive value exists. A
 realistic 84HP segment is 150–250pF. 3.3V DVCC would have a 0.97kΩ floor and
 keep 400kHz out to ~370pF.
 
-**It does not bite, because of ATTN.** With slaves signalling, there is no
-round-robin polling load to spend bandwidth on, and 2.2kΩ at 100kHz is valid
-across the whole capacitance range.
+**It does not bite.** With ATTN there is no round-robin polling load to spend
+bandwidth on, and nothing else needs the headroom:
+
+| Load at 100kHz | Cost | Verdict |
+|---|---|---|
+| One parameter write | ~400µs | Imperceptible |
+| DIN MIDI at full rate (~347 CC/s) | ~14% duty | Comfortable |
+| Preset recall, 8 modules | ~15ms | Invisible — it is all *staging*; the audible switch is the ~100µs broadcast commit |
+| Firmware update, ~48KB | ~10s | Fine for a rare maintenance operation |
+
+Firmware update is the only place 400kHz would help — roughly 10s against 3s —
+and that is not worth designing around.
 
 ### Module-side requirements
 
