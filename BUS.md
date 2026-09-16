@@ -457,12 +457,17 @@ uniformity for the price of one transceiver.
 
 Three questions to settle when CX-1 is actually specced, none blocking:
 
-- **⚠️ Verify the PCA9615's supply range against 5V DVCC.** The part is a
-  3.3V-class differential I2C transceiver, and this bus runs a 5V logic rail
-  (§2). If its supply or its bus-side levels will not take 5V, the CX port
-  needs level translation, or a 5V-capable extender in its place. This is
-  another cost of the 5V DVCC choice and was not counted when that was
-  settled.
+- **The PCA9615 needs no level translation — verified.** It carries *two*
+  supply pins, `VDD(A)` for the single-ended side and `VDD(B)` for the
+  differential side. `VDD(B)` runs 3.0–5.5V, is 5.5V tolerant, and the
+  datasheet gives **best operation at 5V** — so it prefers this bus's logic
+  rail rather than merely tolerating it. The split supply also makes the part
+  an inherent level translator, so **the CX port is independent of whatever
+  DVCC ends up being**: at 3.3V DVCC, `VDD(A)` would sit at 3.3V while
+  `VDD(B)` still ran at 5V for the best differential performance.
+  *(An earlier revision flagged this part as "3.3V-class" and counted level
+  translation as a cost of the 5V decision. That was asserted from memory and
+  is wrong.)*
 - **The panel connector wants to be RJ45/Cat5**, so the two differential pairs
   get real twisted pairs. Electrically right, aesthetically industrial against
   a matte-black etched panel — a genuine tension at panel design.

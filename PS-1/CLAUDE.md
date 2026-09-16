@@ -190,10 +190,10 @@ with decent copper and possibly a small heatsink on the positive regulator.
   so this hardware is unavoidable; putting it on the bus board means the link
   costs no backplane position. The far end of the cable is a CX-1 module in
   the downstream chassis, reached at `0x30` on this segment.
-  - **⚠️ Check the PCA9615's supply and bus-side voltage range against 5V
-    DVCC** before committing this footprint. It is a 3.3V-class part and this
-    bus runs a 5V logic rail; level translation or a different extender may be
-    needed.
+  - **The PCA9615 suits 5V DVCC directly.** Its differential-side supply
+    `VDD(B)` runs 3.0–5.5V with best operation at 5V, and its separate
+    single-ended supply `VDD(A)` makes it an inherent level translator — so no
+    translation is needed at this port whatever DVCC is set to.
   - This board carries no *upstream* port: a chassis is brought onto the bus
     by its own CX-1, not by its bus board.
 - **Route the Eurorack bus CV and Gate lines.** The standard 16-pin header
