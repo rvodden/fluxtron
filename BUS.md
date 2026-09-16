@@ -288,6 +288,63 @@ downstream. Recursion, no special routing.
   updates. Bootloader traffic uses a fixed address that protocol-aware
   forwarding will not recognise.
 
+### How a parameter update crosses a bridge
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant MC1 as MC-1<br/>master of chassis 0
+    participant CX1 as CX-1<br/>slot 5 on chassis 0,<br/>master of chassis 1
+    participant VO1 as VO-1<br/>slot 3 on chassis 1
+
+    Note over MC1,VO1: Phase 1 — addressing. Entirely local, no bus traffic.
+    MC1->>MC1: DVCC present, so a backplane is attached
+    CX1->>CX1: read A0-A3 = 5, address = 0x20+5 = 0x25
+    VO1->>VO1: read A0-A3 = 3, address = 0x20+3 = 0x23
+
+    Note over MC1,VO1: Phase 2 — discovery. Once at boot, per segment.
+    CX1->>VO1: scans its own segment independently
+    VO1-->>CX1: MODULE_TYPE "VO", PARAM_COUNT 7
+    MC1->>CX1: scan 0x20-0x2F, read MODULE_TYPE
+    CX1-->>MC1: "CX" — this slot is a bridge
+    MC1->>CX1: read INVENTORY
+    CX1-->>MC1: chassis 1: slot 3 = VO-1, ...
+
+    Note over MC1,VO1: Phase 3 — runtime. One parameter update.
+    MC1->>MC1: NRPN assembled: MSB 0x13, LSB 0x02,<br/>14-bit value widened to uint16
+    MC1->>CX1: write 0x25: [FORWARD, 0x13, 0x02, hi, lo]
+    CX1-->>MC1: ACK — store and forward, not yet delivered
+    CX1->>CX1: chassis = 0x13 >> 4 = 1, mine<br/>slot = 0x13 & 0x0F = 3 → 0x23
+    CX1->>VO1: write 0x23: [0x02, hi, lo]
+    VO1-->>CX1: ACK
+    VO1->>VO1: pulse width DAC updated
+```
+
+**The addressing phase never reappears.** By the time any parameter moves,
+every module already knows its address, and nothing on the wire carries slot
+assignment. The bridge's translation is pure arithmetic on the chassis field —
+it never needs to know how slots got their numbers. That decoupling is the
+main practical argument for geographic addressing over any enumeration scheme:
+there is no addressing state to keep coherent across a bridge.
+
+**The tunnelled payload is the NRPN address verbatim.** Because chassis and
+slot are packed into the NRPN MSB byte, MC-1 forwards `[MSB, LSB, hi, lo]`
+without re-encoding anything. A bridge one level further down receives the
+same four bytes and applies the same test, so the recursion needs no depth
+field and no routing table.
+
+**⚠️ Bridges are store-and-forward, and ACK before delivery.** A downstream
+NAK — a module absent or wedged — therefore cannot propagate back
+synchronously. Clock-stretching through the hop would fix that, but at 100kHz
+a downstream write is ~400µs and each further hop adds as much, which breaks
+the ~1ms stretch ceiling in §10. So delivery failures are reported
+asynchronously via `FWD_STATUS`, surfaced through the bridge's dirty bitmap
+and ATTN like any other event.
+
+Latency is one transaction per hop: about 850µs to chassis 1, 1.3ms to
+chassis 2. Both are comfortably inside the §1 invariant, which is exactly why
+the invariant is what makes multi-chassis tolerable at all.
+
 ---
 
 ## 5. Register model and transactions
@@ -323,6 +380,13 @@ off-the-shelf tools.
 | `0x88` | `COMMAND` | W | Identify, calibrate, clear error |
 | `0x90` | `STAGE` | W | Preset staging, §7 |
 | `0x9F` | `ENTER_BOOTLOADER` | W | Magic value only, §8 |
+| `0xA0` | `FORWARD` | W | **Bridge only.** Tunnelled write, §4 |
+| `0xA1` | `INVENTORY` | R | **Bridge only.** What the downstream segment holds |
+| `0xA2` | `FWD_STATUS` | R | **Bridge only.** Asynchronous delivery errors |
+
+**`FORWARD` is the one write that is not `[reg, hi, lo]`** — its payload is
+`[reg, addr_msb, param, hi, lo]`, carrying the NRPN address byte verbatim.
+System registers may define their own shapes; parameter registers may not.
 
 ### Broadcast
 
