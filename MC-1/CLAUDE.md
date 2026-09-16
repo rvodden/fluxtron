@@ -468,8 +468,10 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
   still need distinguishing from the four CV jacks by some plain-word
   means. See the section above; it costs vertical space MC-1 does not
   obviously have.
-- **Bus master firmware** — parameter addressing/encoding over I2C is
-  unspecified and is now load-bearing in phase 1.
+- **Bus master firmware** — the protocol itself is specified in `../BUS.md`;
+  what remains is MC-1's own side of it: the NRPN state machine, the parameter
+  shadow and downstream coalescing, discovery and rediscovery, preset
+  stage/commit sequencing, and driving firmware updates.
 - Exact USB-C connector part number for the daughterboard.
 - **AS1115 segment/digit driver dropout at 5V** against the GS2022CB-B's
   3.80V worst-case Vf — the tightest electrical margin on the module.

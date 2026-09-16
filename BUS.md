@@ -3,8 +3,9 @@
 The digital backplane that carries parameter values between modules. Referenced
 from `CLAUDE.md`; this file is the normative description.
 
-MC-1 is the bus master. Every other module is a slave. Only *parameter values*
-travel here — see the invariant below.
+MC-1 is the master of chassis 0. Each further chassis is mastered by its own
+CX-1 bridge; every other module is a slave. Only *parameter values* travel
+here — see the invariant below.
 
 ---
 
@@ -44,12 +45,12 @@ analogue and deterministic. It is a single global pair, so mono only.
 
 | Property | Value |
 |---|---|
-| Transport | I2C, multi-drop, MC-1 as sole master per segment |
+| Transport | I2C, multi-drop, **exactly one master per segment** — MC-1 in chassis 0, CX-1 below |
 | DVCC (logic rail) | **5V**, sourced by PS-1's bus board |
 | I2C signalling level | **DVCC — they are the same thing** |
 | Speed | **100kHz** |
 | Pull-ups | One ~2.2kΩ pair, **on the bus board only** |
-| Connector | **2×6 (12-pin)** IDC, shrouded and keyed |
+| Connectors | Four distinct formats, none cross-pluggable — see below |
 
 ### Pinout
 
@@ -205,7 +206,7 @@ and that is not worth designing around.
 
 - **Series resistors (~220Ω) on SDA and SCL** at each module's connector. They
   limit injection into the pin ESD structures in the fault and bench-error
-  cases below, and damp ribbon ringing besides. *(An earlier revision
+  cases above, and damp ribbon ringing besides. *(An earlier revision
   justified these by a power-up window that does not exist — see the DVCC
   section above. They earn their place on the sustained cases, not the
   transient one.)*
@@ -350,14 +351,13 @@ STM32G0B1 is already a two-port device. CX-1 is that part with a different
 firmware personality.
 
 **Topology is a daisy chain**, and it falls out for free: the bridge is
-addressed like any other module on its parent's bus. Traffic for chassis N+1
-goes to the bridge's slot address on chassis N's bus, which re-emits it
-downstream. Recursion, no special routing.
+addressed like any other device on its parent's bus. Traffic for chassis N+1
+goes to `0x30` on chassis N's bus, which re-emits it downstream. Recursion, no
+special routing.
 
-- **MC-1 discovers the bridge** by scanning and reading identity registers for
-  module type `CX`. An earlier draft reserved slot 15 for it; that does not
-  work with geographic addressing, since the bridge occupies whatever physical
-  position it is plugged into.
+- **MC-1 finds the bridge by probing `0x30`**, then reads its identity
+  registers to confirm `MODULE_TYPE` `CX`. An earlier draft reserved slot 15
+  for it, which would have spent a slot address on a port that is not a slot.
 - Each downstream chassis needs its own PS-1 — the inter-chassis link carries
   only differential I2C plus a ground reference, **never power**.
 - **The bridge aggregates a summary dirty bitmap** — which slots below it have
@@ -378,9 +378,9 @@ downstream. Recursion, no special routing.
 
 ### Chassis numbers are assigned, not set
 
-CX-1 is a slave on its parent's bus and already holds a unique address there,
-taken geographically from the backplane. So the parent can reach it *before*
-it knows its chassis number, and simply tell it:
+CX-1 is a slave on its parent's bus and already holds a unique address there —
+the reserved `0x30`, fixed by this document. So the parent can reach it
+*before* it knows its chassis number, and simply tell it:
 
 1. MC-1 is chassis 0 by definition — it is the root master.
 2. MC-1 scans chassis 0 and finds a module reporting `MODULE_TYPE` `CX`.
@@ -524,8 +524,8 @@ sequenceDiagram
     Note over MC1,VO1: Phase 2 — discovery. Once at boot, per segment.
     CX1->>VO1: scans its own segment independently
     VO1-->>CX1: MODULE_TYPE "VO", PARAM_COUNT 7
-    MC1->>CX1: scan 0x20-0x2F, read MODULE_TYPE
-    CX1-->>MC1: "CX" — this slot is a bridge
+    MC1->>CX1: probe 0x30, read MODULE_TYPE
+    CX1-->>MC1: "CX" — a bridge is uplinked here
     MC1->>CX1: read INVENTORY
     CX1-->>MC1: chassis 1: slot 3 = VO-1, ...
 
@@ -595,8 +595,8 @@ off-the-shelf tools.
 | `0x84` | `PARAM_COUNT` | R | How much of `0x00–0x7F` is real |
 | `0x85` | `CAPABILITIES` | R | Bitfield |
 | `0x86` | `STATUS` | R | Busy, calibrating, error |
-| `0x87` | `DIRTY` | R | 32-bit bitmap, two registers |
-| `0x88` | `COMMAND` | W | Identify, calibrate, clear error |
+| `0x87–0x88` | `DIRTY` | R | 32-bit bitmap, so it spans **two** registers |
+| `0x89` | `COMMAND` | W | Identify, calibrate, clear error |
 | `0x90` | `STAGE` | W | Preset staging, §7 |
 | `0x9F` | `ENTER_BOOTLOADER` | W | Magic value only, §8 |
 | `0xA0` | `FORWARD` | W | **Bridge only.** Tunnelled write, §4 |
@@ -696,7 +696,7 @@ sequenceDiagram
     VF1->>VF1: into shadow copy
 
     Note over MC1,VF1: Commit — one general call per segment
-    MC1->>MC1: every staged write ACKed?<br/>if not, STAGE = 0 and abort
+    MC1->>MC1: local writes ACKed, AND each bridge<br/>drained with FWD_STATUS clean?<br/>if not, STAGE = 0 and abort
 
     par one general call on chassis 0
         MC1->>VO1: COMMIT
@@ -773,7 +773,7 @@ details, not protocol. Note that flash endurance is ~10k cycles.
 ## 8. Firmware update over the bus
 
 `CLAUDE.md` records that MC-1 can reflash any module using the STM32's I2C
-system bootloader. That pulls three things into the protocol:
+system bootloader. That pulls several things into the protocol:
 
 - **`ENTER_BOOTLOADER` takes a magic value, never a bare flag.** A module that
   jumps to the bootloader by accident goes dark until power-cycled.
@@ -904,7 +904,7 @@ control is an incremental encoder.
   the existing daisy-chain design.
 
 **MC-1 is a MIDI decoder, not a MIDI repeater.** It runs the NRPN state machine
-and pushes clean `(slot, register, value)` triples. Slaves never see MIDI
+and pushes clean `(chassis, slot, register, value)` tuples. Slaves never see MIDI
 semantics, so adding a second control surface later touches no module firmware.
 
 ### ⚠️ Why coarse and fine tune are separate parameters
@@ -918,8 +918,8 @@ than 14 bits must split the same way.
 
 ## 10. Discovery, errors and recovery
 
-- **At power-on MC-1 scans `0x20–0x2F`** and reads `MODULE_TYPE` from each
-  responder, building the map dynamically. Its firmware never needs rebuilding
+- **At power-on MC-1 scans `0x20–0x2F` and probes `0x30`**, reading
+  `MODULE_TYPE` from each responder, building the map dynamically. Its firmware never needs rebuilding
   for a given rack layout.
 - **Scanning retries.** Modules do not necessarily boot before the master;
   rediscovery runs on a slow timer rather than once at startup.
@@ -961,9 +961,10 @@ Consequences:
 
 ## Open items
 
-- Verify the G0B1's I2C pin 5V tolerance, with VDD off, against the datasheet.
-- Confirm the STM32G0 I2C bootloader address and pin set against AN2606.
+- **Which of I2C1/I2C2 the bus takes.** Free choice (§8); pick one range-wide.
 - `CAPABILITIES` and `STATUS` bitfield definitions.
+- Whether the PA3 bootloader-hang erratum applies to the G0B1's bootloader
+  version, or only to the G030 it was reported against (§8).
 - CX-1 is specified here only as far as the protocol requires; it has no module
   folder yet and is not in phase 1 scope.
 - Whether `PROTOCOL_VERSION` mismatch should refuse or degrade.

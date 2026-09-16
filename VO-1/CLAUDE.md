@@ -357,8 +357,8 @@ additionally needs:
   and one gating it.
 - **Matched resistor network part** for the tune scaling stage, and the
   precision op-amp to go with it.
-- The bus protocol itself — parameter addressing/encoding over I2C is now
-  load-bearing in phase 1 and isn't specified anywhere yet.
+- VO-1's slave side of the bus protocol (`../BUS.md`): its parameter register
+  map within `0x00–0x7F`, the dirty bitmap, and preset staging.
 - Whether VO-1 wants any parameter readout at all, or whether the DAW/host
   is the only place a MIDI-set value is visible.
 - Exact Rt/Rz values for the AS3340 compensation circuit.
