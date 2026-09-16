@@ -179,8 +179,8 @@ with decent copper and possibly a small heatsink on the positive regulator.
   geographic addressing scheme, and it is this board's job. Number them from
   the left, so a slot number and a physical position are the same thing.
   Modules pull these up internally, so the board only ever pulls down.
-- **A dedicated master port at the left-hand end**, physically distinct from
-  the numbered slots so a slave module cannot be plugged into it by mistake.
+- **A dedicated master port at the left-hand end** — a **2×4 (8-pin)** header,
+  narrower than the 2×6 slots, so neither can be plugged into the other.
   MC-1 uses it in chassis 0; CX-1 uses it in every chassis below. Because the
   master is not a numbered slot, **all 16 slot addresses stay available to
   slaves** — see `../BUS.md` §3.

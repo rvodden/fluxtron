@@ -53,9 +53,45 @@ analogue and deterministic. It is a single global pair, so mono only.
 
 ### Pinout
 
+**The four connectors**, one row per distinct format. Every pin count differs,
+so **no two can be cross-plugged** — the same mechanical reasoning as the
+never-a-10-pin-bus rule below:
+
+| Connector | Format | Between |
+|---|---|---|
+| **Power** | 2×8 (16-pin), or 2×5 (10-pin) where no +5V is needed | Every module ↔ bus board. Range-wide, see `CLAUDE.md` |
+| **Module bus** | **2×6 (12-pin)** | Slave modules ↔ a numbered slot |
+| **Master port** | **2×4 (8-pin)** | MC-1 or CX-1 ↔ the bus board's master port |
+| **Uplink** | **RJ45 / Cat5** | CX-1's panel ↔ the parent bus board's CX port |
+
+#### Module bus connector — 2×6
+
 | Pin | Signal | Notes |
 |---|---|---|
 | 1 | DVCC (5V) | Pull-up reference, **not** a module supply |
+| 2 | GND | |
+| 3 | SDA | |
+| 4 | SCL | |
+| 5 | nRESET | Master-driven, open-drain. See §8 |
+| 6 | ATTN | Slave-driven, open-drain, wired-OR. See §6 |
+| 7–10 | A0–A3 | Slot address, driven by the backplane. See §3 |
+| 11–12 | *spare* | Reserved |
+
+#### Master port — 2×4
+
+Same signals minus the slot address, which a master has no use for. The
+narrower shell is what stops a slave module being plugged in here, and stops a
+master module being plugged into a numbered slot.
+
+| Pin | Signal |
+|---|---|
+| 1 | DVCC (5V) |
+| 2 | GND |
+| 3 | SDA |
+| 4 | SCL |
+| 5 | nRESET |
+| 6 | ATTN |
+| 7–8 | *spare* |
 
 **⚠️ DVCC *is* the I2C signalling level.** The pull-ups tie to it, so SDA and
 SCL swing 0→DVCC and every threshold derives from it — the sink-current floor
@@ -66,13 +102,6 @@ tying it to their local rail and +5V is already on the 16-pin power header for
 anything that wants a supply. Its only other duty is backplane-presence
 detection, which works at any voltage. **So "DVCC is 5V" and "the bus signals
 at 5V" are one decision, not two.**
-| 2 | GND | |
-| 3 | SDA | |
-| 4 | SCL | |
-| 5 | nRESET | Master-driven, open-drain. See §8 |
-| 6 | ATTN | Slave-driven, open-drain, wired-OR. See §6 |
-| 7–10 | A0–A3 | Slot address, driven by the backplane. See §3 |
-| 11–12 | *spare* | Reserved |
 
 ### ⚠️ Do not use a 10-pin connector
 
@@ -252,8 +281,8 @@ unchanged.
 16 addresses are ever consumed, leaving most of the I2C space free.
 
 **The master occupies no slot address.** Every bus board has a **dedicated
-master port**, physically distinct from the numbered slots, at the left-hand
-end. MC-1 plugs into it in chassis 0; CX-1 plugs into it in every chassis
+master port** — a 2×4 header, narrower than the 2×6 slots so neither can be
+plugged into the other — at the left-hand end. MC-1 plugs into it in chassis 0; CX-1 plugs into it in every chassis
 below. All 16 slot addresses therefore stay available to slaves.
 
 **A bridge's uplink sits at a reserved `0x30`, outside the slot range.** The
