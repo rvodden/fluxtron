@@ -540,6 +540,22 @@ Module-specific protection beyond this baseline (e.g. MC-1's USB-C ESD/VBUS
 protection and MIDI opto-isolation) is noted in that module's own
 `CLAUDE.md`, not here.
 
+## Every module defines its own safe state
+
+The bus carries a **Panic** broadcast (`BUS.md` §6.7) and **every module must
+implement it**. What "safe" means is the module's to define — the rack is too
+heterogeneous for a central answer. MC-1's is a safe CV and a dropped gate; a
+mixer's is levels at zero; a VCO's is something else again.
+
+**So every module's `CLAUDE.md` must state its safe state**, as part of the
+same checklist as the protection baseline above. A module that receives Panic
+and does nothing is worse than one that does not implement it, because the rack
+looks like it responded.
+
+For most modules this is the same as the power-on state the MCP4728's EEPROM
+already holds (pulse width at 50%, depths at zero). Where they coincide, say
+so rather than define the same thing twice.
+
 ## Open items / not yet decided
 
 - Spare 12HP allocation (extra spacing vs. blind panel vs. new module).

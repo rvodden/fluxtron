@@ -494,7 +494,7 @@ Everything the bus can say. `RS` is a repeated START.
 | M6 | Dirty bitmap read | master → slave | `0x20+slot` | `[0x87]` RS read 4 | 32-bit bitmap |
 | M7 | **Attention** | slave → master | ATTN line | open-drain assert, wired-OR | master issues M6 |
 | M8 | **Commit** | master → all | general call `0x00` | `[0x10]` | none meaningful |
-| M9 | **Panic** | master → all | general call `0x00` | `[0x11]` | none meaningful |
+| M9 | **Panic** | master → all | general call `0x00` | `[0x11]` | none meaningful — §6.7 |
 | M10 | Enter bootloader | master → slave | `0x20+slot` | `[0x9F, magic]` | ACK |
 | M11 | Tunnelled write | master → bridge | `0x30` | `[0xA0, addr_msb, param, hi, lo]` | ACK **from the bridge only** |
 | M12 | Tunnelled read | master → bridge | `0x30` | `[0xA4, addr_msb, param]` RS read 2 | uint16 **from the bridge's cache** |
@@ -508,8 +508,8 @@ Two shapes break the uniform `[reg, hi, lo]`, both system registers:
 pointer before reading. **Parameter registers may never define their own
 shape.**
 
-**⚠️ M9 `Panic` has a code but no agreed semantics** — see §9. It is listed
-because the broadcast slot is reserved, not because its behaviour is settled.
+Both broadcasts (M8, M9) must be **forwarded by a bridge** to its own segment,
+or a downstream chassis never sees them (§7.2).
 
 ### 6.3 Parameter update, and upstream events
 
@@ -780,6 +780,47 @@ sequenceDiagram
   boot before the master, so a NAK means "absent for now" rather than "absent".
   A bridge accepts reassignment of `CHASSIS_ID` on every pass.
 
+### 6.7 Panic
+
+**Every module must implement Panic. What "safe" means is the module's to
+define, not this document's.** The rack is too heterogeneous for a central
+answer — MC-1's safe state is a safe CV and a dropped gate, a mixer's is levels
+at zero, a VCO's is something else again. The protocol defines the message and
+the obligation; each module's own `CLAUDE.md` defines the state.
+
+**⚠️ Range-wide obligation: every module spec must state its safe state.**
+A module that receives Panic and does nothing is worse than one that does not
+implement it, because the rack looks like it responded. Treat this as part of
+the same checklist as the circuit-protection baseline.
+
+What the protocol *does* fix, because it is the same for every module:
+
+- **Immediate, never staged.** Panic applies straight to the outputs. It does
+  not go through the shadow copy.
+- **It aborts any staging in progress.** A Panic arriving mid-recall discards
+  the shadow as if `STAGE = 0` had been written. Committing a half-staged
+  preset because a panic interrupted it would be the opposite of safe.
+- **⚠️ It *does* raise dirty flags — unlike a commit.** This is the one place
+  the §6.3 rule inverts, and the reason is worth stating: after a commit MC-1
+  knows every value because it wrote them, but after a Panic it does **not**,
+  because each module chose its own. MC-1's shadow is therefore stale, and the
+  modules must tell it so through the ordinary `DIRTY`/ATTN path. Suppressing
+  flags here by analogy with commit would silently desynchronise the rack.
+- **Latching, with no "un-panic".** Panic sets values; ordinary parameter
+  writes move them again. There is no second message to undo it.
+- **Fire-and-forget.** A broadcast is unverifiable (§5.2), so Panic carries no
+  confirmation. If MC-1 needs to know the rack is safe, it reads back.
+
+**Most modules' safe state is their power-on state**, which the range doc
+already requires the MCP4728's EEPROM to hold (pulse width at 50%, depths at
+zero). Where they coincide, a module spec should say so rather than define the
+same thing twice.
+
+**Triggering.** Panic is an NRPN system command (§8), and MC-1 should also map
+**CC 120 (All Sound Off)** to it — that is what a DAW's panic button sends, and
+"silence everything" is exactly rack-wide. **CC 123 (All Notes Off) stays
+local**: it is about notes, so MC-1 drops its gate and does not touch the bus.
+
 ---
 
 ## 7. Bridging: the logical layer of a multi-chassis system
@@ -829,10 +870,11 @@ routing table**.
 - **The bridge aggregates a summary dirty bitmap** — which slots below it have
   pending events — so MC-1 does one read per *chassis*, not per module. Without
   this, upstream cost grows with system size.
-- **⚠️ A bridge must forward general calls.** A general call reaches only the
-  segment it was issued on, so without this a downstream chassis stages a
-  preset and never commits it — the worst possible failure, since the rack
-  would be half-switched.
+- **⚠️ A bridge must forward general calls — both COMMIT and Panic.** A
+  general call reaches only the segment it was issued on. Without forwarding, a
+  downstream chassis stages a preset and never commits it, leaving the rack
+  half-switched; and a Panic silences one case while another keeps going, which
+  is worse still, since the operator has every reason to believe it worked.
 - **⚠️ A bridge must flush its forward queue before re-emitting a commit.**
   Staged values may still be queued; committing first applies an incomplete
   shadow.
@@ -927,13 +969,13 @@ questions, but nothing can be implemented against them as they stand:
   segment holds.
 - **`CAPABILITIES` and `STATUS` bitfields** (`0x85`, `0x86`).
 
+Owed by each module rather than by this file:
+
+- **Every module's safe state for Panic** (§6.7). MC-1 and VO-1 both still owe
+  theirs.
+
 Genuinely undecided:
 
-- **⚠️ What `Panic` (M9) actually does.** The broadcast code is reserved and
-  the NRPN system command lists it, but no behaviour is defined. Since the bus
-  carries no note data (§1), the MIDI sense of panic does not apply — the
-  candidate meaning is "every module to a safe parameter state", which needs a
-  definition of safe per module type. **It may simply not be needed.**
 - **Which of I2C1/I2C2 the bus takes.** Free choice (§6.5); pick one
   range-wide.
 - Whether the PA3 bootloader-hang erratum applies to the G0B1's bootloader

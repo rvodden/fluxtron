@@ -459,6 +459,21 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
   not yet decided — see main open items list) — protects the host port
   from a fault on MC-1's side.
 
+## Safe state on Panic
+
+MC-1 must define what it does on a bus Panic (`../BUS.md` §6.7), and it is the
+module where the answer matters most, since it drives pitch and gate directly.
+
+**Gate low is the unambiguous part** — that is what stops sound. The rest is
+not yet decided: whether V/OCT holds its last value or goes to 0V, and whether
+velocity CV drops to zero. Holding pitch avoids a click into whatever the VCO
+feeds; zeroing it is more predictable. **Decide before firmware, not at
+bring-up.**
+
+MC-1 also **maps CC 120 (All Sound Off) to a bus Panic**, since that is what a
+DAW's panic button sends. **CC 123 (All Notes Off) stays local** — it is about
+notes, so MC-1 drops its gate and leaves the bus alone.
+
 ## Open items
 
 - **Vertical panel budget** — the row-of-4 problem is resolved and MC-1

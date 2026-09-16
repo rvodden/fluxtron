@@ -355,6 +355,10 @@ additionally needs:
   four encoders at human speed is around 2,000 interrupts per second in
   total. The auto-tune frequency counter takes one timer in counter mode
   and one gating it.
+- **VO-1's safe state on Panic** (`../BUS.md` §6.7) — required of every
+  module. Likely the same as its power-on state (pulse width 50%, FM and PWM
+  depths at zero); if so, say so rather than define it twice. Note VO-1 is an
+  oscillator, so "safe" does not mean silent — a VCA downstream handles that.
 - **Matched resistor network part** for the tune scaling stage, and the
   precision op-amp to go with it.
 - VO-1's slave side of the bus protocol (`../BUS.md`): its parameter register
