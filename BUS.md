@@ -353,6 +353,46 @@ on the number.
 rule ("chassis higher than mine → downstream") cannot say *which* downstream.
 MC-1 must report that as an error rather than half-work.
 
+### Startup: addressing, discovery and chassis assignment
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant MC1 as MC-1<br/>chassis 0 master
+    participant CX1 as CX-1<br/>chassis 0 slot 5
+    participant VO1 as VO-1<br/>chassis 1 slot 3
+
+    Note over MC1,VO1: Power-on. Addressing is local — no bus traffic at all.
+    CX1->>CX1: DVCC present, A0-A3 = 5, address 0x25<br/>CHASSIS_ID unassigned
+    VO1->>VO1: DVCC present, A0-A3 = 3, address 0x23
+
+    Note over CX1,VO1: A bridge masters its own segment before it is numbered
+    CX1->>VO1: scan 0x20-0x2F
+    VO1-->>CX1: MODULE_TYPE "VO", PARAM_COUNT 7
+
+    Note over MC1,VO1: MC-1 discovers chassis 0
+    MC1->>CX1: scan 0x20-0x2F, read MODULE_TYPE
+    CX1-->>MC1: "CX" at 0x25 — this slot is a bridge
+    Note over MC1,CX1: An unassigned bridge NAKs FORWARD,<br/>so nothing can route yet
+
+    Note over MC1,VO1: Chassis numbers assigned top-down
+    MC1->>CX1: write CHASSIS_ID = 1
+    CX1-->>MC1: ACK — now accepts FORWARD for chassis 1
+    MC1->>CX1: read INVENTORY
+    CX1-->>MC1: chassis 1: slot 3 = VO-1, ...
+
+    opt INVENTORY holds another CX
+        MC1->>CX1: FORWARD write CHASSIS_ID = 2 to that slot
+        Note over MC1,VO1: Recursion — bounded at 8 by the 3-bit field
+    end
+
+    Note over MC1,VO1: Map complete, bus live. Nothing was configured by hand.
+```
+
+**Rediscovery runs on a slow timer, not once.** Modules do not necessarily
+boot before the master, so a NAK means "absent for now" rather than "absent".
+A bridge accepts reassignment of `CHASSIS_ID` on every pass.
+
 ### Where CX-1 physically lives
 
 **One CX-1 per link, seated in the upstream chassis.** It is not plugged into
@@ -554,9 +594,62 @@ instant change.
 3. MC-1 issues a **general-call COMMIT**. Every module applies its shadow
    simultaneously.
 
-The broadcast is what makes this worth doing: the entire rack switches in **one
-I2C transaction**, sub-millisecond skew across every module, instead of tens of
-milliseconds of visible sweep.
+The broadcast is what makes this worth doing: a whole segment switches in
+**one I2C transaction**, instead of tens of milliseconds of visible sweep.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant MC1 as MC-1
+    participant VO1 as VO-1<br/>chassis 0 slot 2
+    participant CX1 as CX-1<br/>chassis 0 slot 5
+    participant VF1 as VF-1<br/>chassis 1 slot 4
+
+    Note over MC1,VF1: Program Change arrives. MC-1 loads the preset from flash.
+    MC1->>MC1: per stored slot, check MODULE_TYPE against<br/>INVENTORY — skip every mismatch
+
+    Note over MC1,VF1: Stage — DAC outputs do not move
+    MC1->>VO1: write STAGE = 1
+    VO1-->>MC1: ACK
+    MC1->>CX1: FORWARD STAGE = 1 to chassis 1 slot 4
+    CX1->>VF1: write STAGE = 1
+    MC1->>VO1: param burst, auto-incrementing
+    VO1->>VO1: into shadow copy, not the DAC
+    MC1->>CX1: FORWARD param burst
+    CX1->>VF1: param burst
+    VF1->>VF1: into shadow copy
+
+    Note over MC1,VF1: Commit — one general call per segment
+    MC1->>MC1: every staged write ACKed?<br/>if not, STAGE = 0 and abort
+
+    par one general call on chassis 0
+        MC1->>VO1: COMMIT
+    and
+        MC1->>CX1: COMMIT
+    end
+
+    VO1->>VO1: shadow applied to DACs
+    CX1->>CX1: flush forward queue first
+    CX1->>VF1: general call COMMIT on chassis 1
+    VF1->>VF1: shadow applied to DACs
+    Note over MC1,VF1: No dirty flags raised — MC-1 knows what it wrote
+```
+
+Two requirements fall out of the multi-chassis case, and neither is optional:
+
+- **⚠️ A bridge must forward general calls.** A general call reaches only the
+  segment it was issued on, so without this a downstream chassis stages a
+  preset and never commits it — the worst possible failure, since the rack
+  would be half-switched.
+- **⚠️ A bridge must flush its forward queue before re-emitting the commit.**
+  Writes are store-and-forward, so staged values may still be queued when the
+  commit arrives. Committing first would apply a shadow that is not yet
+  complete.
+
+**Skew across a bridge is one hop, not zero.** Within a segment the switch is a
+single transaction; a downstream chassis follows about 400µs later per hop at
+100kHz. Inaudible for a preset change, but the "one transaction" property is a
+per-segment guarantee, not a system-wide one.
 
 - `STAGE = 0x0000` **aborts** and discards the shadow.
 - **Staging auto-aborts after ~1 second** with no commit, so a master that dies
