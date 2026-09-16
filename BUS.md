@@ -218,8 +218,11 @@ A module never learns which chassis it is in. MC-1 addresses `(chassis, slot)`;
 the bridge for chassis N strips the chassis field and forwards the bare slot
 onto its local bus. Modules are genuinely chassis-agnostic.
 
-**Only the CX-1 bridge is configured** — one per chassis, set once, where a
-jumper is entirely reasonable.
+**Nothing in the system is configured by hand — not even the bridge.** An
+earlier draft here said CX-1's chassis number was "set once, where a jumper is
+entirely reasonable". It does not need one, and that removes the last piece of
+configuration anywhere in the design. See "Chassis numbers are assigned, not
+set" in §4.
 
 **Two modules in different chassis share an I2C address, and that is
 intended.** Chassis 1 slot 3 and chassis 0 slot 3 both listen on `0x23`, each
@@ -309,6 +312,46 @@ downstream. Recursion, no special routing.
 - **⚠️ The bridge needs a transparent pass-through mode** for firmware
   updates. Bootloader traffic uses a fixed address that protocol-aware
   forwarding will not recognise.
+
+### Chassis numbers are assigned, not set
+
+CX-1 is a slave on its parent's bus and already holds a unique address there,
+taken geographically from the backplane. So the parent can reach it *before*
+it knows its chassis number, and simply tell it:
+
+1. MC-1 is chassis 0 by definition — it is the root master.
+2. MC-1 scans chassis 0 and finds a module reporting `MODULE_TYPE` `CX`.
+3. MC-1 writes `CHASSIS_ID = 1` to it. That bridge now accepts `FORWARD`
+   packets whose chassis field is 1, and passes anything higher downstream.
+4. MC-1 reads that bridge's `INVENTORY`. If it holds another `CX`, MC-1
+   assigns it chassis 2 — by tunnelling the write through the bridge it has
+   just configured.
+
+The recursion is bounded by the 3-bit chassis field at 8.
+
+**This works where general I2C auto-addressing does not**, because the
+chicken-and-egg problem is absent: auto-addressing modules is hard because you
+need an address to assign an address, and CX-1 already has one. Assigning the
+chassis number is an ordinary register write to a device the master can
+already reach.
+
+Two properties held deliberately:
+
+- **`CHASSIS_ID` is volatile and reassigned at every discovery.** Never
+  persisted. Moving a case to a different position in the chain then just
+  works, with no stale state to go wrong, and a bridge must accept
+  reassignment.
+- **Numbering follows physical chain order** — first case downstream is 1,
+  the next is 2. More intuitive than a jumper, which has to be read off the
+  board to find out.
+
+A bridge boots **unassigned** and must NAK or ignore `FORWARD` until it has an
+ID. It may scan its own segment immediately, since `INVENTORY` does not depend
+on the number.
+
+**⚠️ Daisy chain only.** Two bridges on one segment is a tree, and the routing
+rule ("chassis higher than mine → downstream") cannot say *which* downstream.
+MC-1 must report that as an error rather than half-work.
 
 ### Where CX-1 physically lives
 
@@ -443,6 +486,7 @@ off-the-shelf tools.
 | `0xA0` | `FORWARD` | W | **Bridge only.** Tunnelled write, §4 |
 | `0xA1` | `INVENTORY` | R | **Bridge only.** What the downstream segment holds |
 | `0xA2` | `FWD_STATUS` | R | **Bridge only.** Asynchronous delivery errors |
+| `0xA3` | `CHASSIS_ID` | R/W | **Bridge only.** Assigned at discovery, §4. Volatile |
 
 **`FORWARD` is the one write that is not `[reg, hi, lo]`** — its payload is
 `[reg, addr_msb, param, hi, lo]`, carrying the NRPN address byte verbatim.
