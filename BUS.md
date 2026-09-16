@@ -46,6 +46,7 @@ analogue and deterministic. It is a single global pair, so mono only.
 |---|---|
 | Transport | I2C, multi-drop, MC-1 as sole master per segment |
 | DVCC (logic rail) | **5V**, sourced by PS-1's bus board |
+| I2C signalling level | **DVCC — they are the same thing** |
 | Speed | **100kHz** |
 | Pull-ups | One ~2.2kΩ pair, **on the bus board only** |
 | Connector | **2×6 (12-pin)** IDC, shrouded and keyed |
@@ -55,6 +56,16 @@ analogue and deterministic. It is a single global pair, so mono only.
 | Pin | Signal | Notes |
 |---|---|---|
 | 1 | DVCC (5V) | Pull-up reference, **not** a module supply |
+
+**⚠️ DVCC *is* the I2C signalling level.** The pull-ups tie to it, so SDA and
+SCL swing 0→DVCC and every threshold derives from it — the sink-current floor
+`(DVCC − 0.4)/3mA`, `VIL` at `0.3 × DVCC`, and the FT-tolerance question
+below. There is no arrangement where the two differ usefully: a DVCC that did
+not reference the pull-ups would have no job, since modules are forbidden from
+tying it to their local rail and +5V is already on the 16-pin power header for
+anything that wants a supply. Its only other duty is backplane-presence
+detection, which works at any voltage. **So "DVCC is 5V" and "the bus signals
+at 5V" are one decision, not two.**
 | 2 | GND | |
 | 3 | SDA | |
 | 4 | SCL | |
@@ -142,8 +153,6 @@ bench-error cases, bounded and non-destructive.
 
 ### ⚠️ 5V DVCC costs 400kHz
 
-### ⚠️ 5V DVCC costs 400kHz
-
 At 5V the 3mA sink spec (VOL 0.4V) puts a **floor** of 1.53kΩ on the pull-up,
 while rise time puts a **ceiling** of `300ns / (0.8473 × Cb)` at 400kHz. Those
 cross at about **230pF**, above which no valid passive value exists. A
@@ -165,13 +174,12 @@ and that is not worth designing around.
 
 ### Module-side requirements
 
-- **Series resistors (~220Ω) on SDA and SCL** at each module's connector.
-  Every module's 3.3V rail is derived *from* the 5V rail, so on **every power
-  cycle** there is a window where the bus sits at 5V with pull-ups live while
-  the MCU's VDD is still climbing from zero. The resistors limit injection into
-  the pin ESD structures, and damp ribbon ringing besides.
-- **⚠️ The 5V DVCC choice is under review — see the box below.** It may not
-  survive the tolerance check.
+- **Series resistors (~220Ω) on SDA and SCL** at each module's connector. They
+  limit injection into the pin ESD structures in the fault and bench-error
+  cases below, and damp ribbon ringing besides. *(An earlier revision
+  justified these by a power-up window that does not exist — see the DVCC
+  section above. They earn their place on the sustained cases, not the
+  transient one.)*
 - **ESD protection on SDA/SCL** per the range-wide protection standard.
 - The inter-module bus and any local I2C peripheral must sit on **separate MCU
   I2C ports** (range-wide rule; the G0B1 has three).
