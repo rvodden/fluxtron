@@ -421,8 +421,12 @@ The deciding factors, strongest first:
 
 **⚠️ Layout constraint that comes with the I2C bootloader:** the
 inter-module bus must land on a **bootloader-capable I2C peripheral and pin
-set**, or the reflash-over-bus feature is lost. Check against AN2606 before
-routing any board — it is free if designed in and impossible to retrofit.
+set**, or the reflash-over-bus feature is lost. Per AN2606's STM32G0B1xx/0C1x
+table that is **I2C1 or I2C2** — the pins within each are fixed, but there is
+a choice of peripheral. **So put local peripherals (AS1115, MCP4728,
+AD5693R) on I2C3**, which is not bootloader-capable and does not need to be;
+that satisfies the two-port rule above and leaves both qualifying ports free
+for the bus. Free if designed in, impossible to retrofit.
 
 ### What this gives up
 

@@ -405,14 +405,25 @@ system bootloader. That pulls three things into the protocol:
 - **The bootloader uses a fixed I2C address**, not the slot address, so **only
   one module can be in bootloader mode at a time**. MC-1 sequences reflashing
   strictly one-by-one.
-- **Reported, to confirm against AN2606's STM32G0 table:** the bootloader is on
-  **I2C1, PB6 (SCL) / PB7 (SDA)** at `0xA2` 8-bit — `0x51` 7-bit, clear of the
-  `0x20–0x2F` slot range — and the pins are **fixed, not remappable**. That
-  makes PB6/PB7 the pair the inter-module bus must use, and the pair whose 5V
-  tolerance matters.
+- **Confirmed against AN2606's STM32G0B1xx/0C1x table: either I2C1 or I2C2
+  may be used.** The pin set *within* each peripheral is fixed — no alternate
+  AF mappings — but there is a choice of peripheral. *(An earlier revision of
+  this file said the bootloader was I2C1 on PB6/PB7 only, "fixed, not
+  remappable". That came from a community report about the G030 and was
+  over-generalised; the G0B1 has more options.)*
+- **Consequence: local peripherals go on I2C3.** The G0B1 has three I2C ports
+  and the range-wide two-port rule needs the inter-module bus separate from
+  the AS1115 / MCP4728 / AD5693R. I2C3 is the port that is *not*
+  bootloader-capable, so spending it on locals leaves both qualifying ports
+  free for the bus — the bus then takes whichever of I2C1/I2C2 routes better,
+  rather than being pinned to one peripheral before layout starts.
+- Bootloader address to confirm; the community figure of `0xA2` 8-bit
+  (`0x51` 7-bit) would be clear of the `0x20–0x2F` slot range.
 - **⚠️ Reported erratum: the I2C bootloader hangs if PA3 stays low**, needing a
   pull-up on PA3. If PA3 is used for anything that idles low, reflash-over-bus
-  fails silently. Confirm and design the pull-up in.
+  fails silently. Reported against bootloader v5.2 on a G030, so **check
+  whether it applies to the G0B1's bootloader version** before designing the
+  pull-up in — it is cheap insurance either way.
 - **nRESET is what makes the feature survive a bad flash.** A software
   "enter bootloader" command can only be delivered while the application is
   still running — precisely not the case when reflashing is most needed. Without
