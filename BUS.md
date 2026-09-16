@@ -786,6 +786,14 @@ sequenceDiagram
 
 Physical arrangement is §2.4 and §2.6; addressing is §4.4 and §4.5.
 
+**The bridge is deliberately split across layers here, and deliberately
+reassembled elsewhere.** A layered spec describes each layer once, so CX-1
+appears in four places rather than one. `CX-1/CLAUDE.md` — when that module is
+specced — is where it reads as a single thing, gathering these parts into one
+module-level view the way every other module folder does. This file stays the
+normative description of each layer; that one will be the readable
+reconstruction, not a second source of truth.
+
 **Rejected: a transparent buffer** making one logical bus across all chassis.
 It leaves a single flat address space — every module in the system needing a
 globally unique setting, with a ledger of which case got which range, and
@@ -931,5 +939,7 @@ Genuinely undecided:
 - Whether the PA3 bootloader-hang erratum applies to the G0B1's bootloader
   version, or only to the G030 it was reported against.
 - Whether a `PROTOCOL_VERSION` mismatch should refuse or degrade.
-- CX-1 is specified here only as far as the protocol requires; it has no module
-  folder yet and is not in phase 1 scope.
+- CX-1 is specified here only as far as the protocol requires. Its own
+  `CX-1/CLAUDE.md` will reconstruct the bridge as one readable piece from the
+  layers above (§7 preamble); it has no module folder yet and is not in phase 1
+  scope.
