@@ -177,29 +177,70 @@ regenerated onto the child's.
 
 | End | Hardware |
 |---|---|
-| **Parent bus board, at the CX port** | A differential line driver for CV, and a slew-limited buffer for Gate, taking the parent's own bus CV/Gate lines |
+| **Parent bus board, at the CX port** | A precision differential line driver for CV and an RS-485-class driver for Gate, taking the parent's own bus CV/Gate lines |
 | **CX-1, in the child chassis** | The matching receivers. CX-1 drives the child's bus CV/Gate lines through its **power** connector, the way a Doepfer A-190 does |
 
-**It fits Cat5 exactly**, using the pairs the cable already has:
+**Everything is differential, on shielded Cat5:**
 
 | Pair | Carries |
 |---|---|
 | 1 | `DSDA+/−` |
 | 2 | `DSCL+/−` |
-| 3 | **CV+/−** — differential |
-| 4 | **Gate + GND** |
+| 3 | **CV+/−** |
+| 4 | **Gate+/−** |
+| Shield | DC common-mode reference |
+
+**Making all four pairs differential is what lets the shield serve as the
+ground.** With nothing single-ended, no signal return current flows in the
+reference at all — it only has to hold the two chassis within the receivers'
+common-mode range. A shield is entirely adequate for that, where it would not
+be for a return. So going fully differential *buys back* the fourth pair
+rather than costing one.
+
+It also removes a mitigation: a differential gate's fields cancel, so it does
+not couple into the adjacent I2C pairs, and **the edge needs no slew
+limiting**.
 
 - **CV must be differential.** A cent at 1V/oct is 833µV, and two chassis have
   separate PSUs bonded only through the shields of whatever patch cables run
   between them — uncontrolled, and carrying return current. **10mV of ground
   offset is 12 cents; 50mV is 60.** A receiver rejecting common mode removes
-  that entirely; a ground-referenced CV has nothing to reject it with.
-- **Gate can be single-ended**, being a logic-level signal with ~1V of margin.
-  Pairing it *with* its ground return keeps the loop area small, and
-  **slew-limiting the edge** removes the crosstalk it would otherwise couple
-  into the adjacent I2C pairs. A gate has no need of fast edges.
+  that; a ground-referenced CV has nothing to reject it with.
 - This is the one place the link carries something other than I2C. It still
   **never carries power**.
+
+#### Two different transceivers, not one dual part
+
+The two signals barely overlap in what they need, and one of the obvious parts
+cannot do both:
+
+| | CV | Gate |
+|---|---|---|
+| Carries | Precision analogue against an 833µV/cent budget | A logic level |
+| Part class | **Integrated precision differential receiver** (INA137 / THAT1240 class) | **RS-485/RS-422 transceiver** |
+
+- **An RS-485 receiver is a comparator** — it outputs a logic level, not an
+  analogue voltage — so it categorically cannot carry CV. Going the other way,
+  an audio-grade receiver on gate works but wastes precision, and RS-485 is
+  pennies with a ±7V common-mode range that tolerates *more* ground offset
+  than the PCA9615 alongside it.
+- **⚠️ The CV receiver must be an integrated part, not a discrete diff amp** —
+  the same reasoning as the matched-network rule in `CLAUDE.md`, and the same
+  failure mode. Its CMRR is what rejects the offset:
+
+  | Ground offset | CMRR needed to keep it under 0.1 cent (83µV) |
+  |---|---|
+  | 10mV | 42dB — any diff amp manages it |
+  | **1V**, two bricks with no patch cable yet bonding the cases | **82dB — needs laser-trimmed resistors** |
+
+  Four discrete 0.1% resistors give roughly 54dB. That is fine for the
+  10mV case and nowhere near enough for the 1V one, which is a state the rack
+  can genuinely be in before anything is patched between the cases.
+- **⚠️ A chassis receiving CV over the link has a worse pitch budget than one
+  generating it locally.** The receiver's own offset drift adds to the 833µV
+  per cent that `CLAUDE.md`'s error table accounts for, and that table does not
+  currently include this term. Budget it before relying on cross-chassis
+  pitch accuracy.
 
 **⚠️ Rejected: a second MC-1 in each chassis.** It was an earlier
 recommendation here, and it is wrong twice over.
