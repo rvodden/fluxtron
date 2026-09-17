@@ -53,15 +53,18 @@ Monophonic system. Modules:
 | EG-1 | Envelope generator (ADSR) | 2 | 8 each |
 | LF-1 | LFO | 1 | 8 |
 | MX-1 | Mixer | 1 | 8 |
-| PS-1 | Power supply + bus board | 1 | 8 |
+| PS-1 | Power supply + bus board | 1 | **16** |
 
-Total 72HP of 84HP (KOMA Case 3U/84HP) — 12HP spare, not yet allocated
-(candidates: extra spacing, blind panels, an output/headphone module).
+Total 80HP of 84HP (KOMA Case 3U/84HP) — 4HP spare, not enough for another
+module, so it is spacing or a blind panel.
 
-**PS-1 is a module in its own right, not a section of MC-1**, and may yet go
-to 16HP. It supplies **±12V and +5V** from an external 15V DC brick, and owns
-the bus board. Everything else about it — rail generation, regulator choice,
-current budget, thermals — is in `PS-1/CLAUDE.md` and does not belong here.
+**PS-1 is a module in its own right, not a section of MC-1**, and is **settled
+at 16HP** — 8HP was the earlier hope, and the thermal budget closed it off
+once the supply was sized for a full 16-module bus segment rather than for
+phase 1's eight. It supplies **±12V and +5V** from an external **15V 3A**
+DC brick, and owns the bus board. Everything else about it — rail
+generation, regulator choice, current budget, thermals — is in
+`PS-1/CLAUDE.md` and does not belong here.
 
 Flagged for later, not in scope now: **LF-2**, a fuller multi-waveform
 crossfade LFO (separate sine/saw/square cores blended via a dual-VCA-style
@@ -131,8 +134,12 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     is not worth the efficiency. Budget the dissipation into the PTC rating.
   - **3.3V stays per-module, but its LDO is fed from the bus +5V, not +12V** —
     a 1.7V drop instead of 8.7V, which takes VO-1's regulator from 0.4W to
-    78mW beside its expo converter. A *shared* 3.3V rail stays rejected: no
-    rejection stage between modules, and it breaks the per-module PTC rule.
+    78mW beside its expo converter. (**⚠️ That 0.4W is an estimate, not a
+    measurement**, and it implies a 46mA 3.3V domain against roughly 18mA
+    from the datasheets — a 3× spread that decides PS-1's +5V regulator
+    rating. See `PS-1/CLAUDE.md`; measure one real module before ordering.)
+    A *shared* 3.3V rail stays rejected: no rejection stage between modules,
+    and it breaks the per-module PTC rule.
     - **Consequence, now confirmed: every module fits a 16-pin power header.**
       If every module's 3.3V comes from +5V then every module needs +5V —
       there is no such thing as a module that can keep a 10-pin header. Deriving
@@ -277,8 +284,15 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     module needs no extra connector, only extra current. Lay out the local
     LDO anyway, unpopulated, with a jumper selecting the source — it is what
     keeps the module working in a case whose PSU has no 5V rail. Budget that
-    dissipation into the module's PTC rating only if the LDO is populated. Note the margin is genuinely tight — a 3.8V worst-case segment
-    against the AS1115's 5.5V maximum leaves little for the drivers — and
+    dissipation into the module's PTC rating only if the LDO is populated.
+    **⚠️ Budget the AS1115's rail at the pin, not at the bus.** The
+    often-quoted 1.2V of driver headroom (5.0V less a 3.8V worst-case
+    segment) assumes a clean 5.0V that no module ever sees: the protection
+    standard puts a reverse-polarity element and a PTC in series, and a long
+    backplane adds IR drop on top. A 0.7V silicon diode alone takes the
+    margin to ~0.4V, which is not a margin. Hence the Schottky/PMOS rule for
+    +5V under Circuit protection, a low-resistance PTC, and heavy copper on
+    the bus board's 5V pour. Note the margin is genuinely tight — and
     a 5V AS1115 talking to a 3.3V MCU needs the I2C level shift thought
     about. MC-1's spec works this through; any later module with a blue
     display inherits the same three problems.
@@ -561,12 +575,18 @@ must satisfy, not a per-module decision to re-derive.
   needed — worth checking on VO-1, whose main board is already down to roughly
   40 × 80mm. The CV and Gate pins come along with it, unconnected by default,
   which costs nothing and leaves a module able to tap the bus CV/Gate later
-  without a connector change *plus* a
+  without a connector change. The header is backed by a
   reverse-polarity protection circuit on each rail as a backstop for the
-  "offset by one pin" case a keyed shroud doesn't catch. Default to simple
-  series diodes (~0.7V drop, acceptable given ±12V headroom) unless a
-  specific module's circuit is voltage-sensitive enough to need an
-  ideal-diode/PMOS approach instead.
+  "offset by one pin" case a keyed shroud doesn't catch.
+  - **On ±12V**: simple series diodes (~0.7V drop, acceptable given the
+    headroom) unless a specific module's circuit is voltage-sensitive enough
+    to need an ideal-diode/PMOS approach instead.
+  - **⚠️ On +5V, a 0.7V series diode is not acceptable** — use a Schottky or
+    a PMOS ideal diode. The ±12V justification is a headroom argument and it
+    does not carry over: +5V feeds a 3.3V LDO with only 1.7V to spend, and on
+    a display module it is also the AS1115's supply, where the drop comes
+    straight off the tightest electrical margin in the range. See the AS1115
+    rail-budget warning under Common components.
 - **Per-module overcurrent protection**: a resettable PTC polyfuse on each
   power rail, per module, so a fault on one module can't pull down the
   shared bus and affect its neighbours. Exact current rating TBD per
@@ -613,12 +633,13 @@ so rather than define the same thing twice.
 
 ## Open items / not yet decided
 
-- Spare 12HP allocation (extra spacing vs. blind panel vs. new module).
+- Spare 4HP allocation — spacing or a blind panel; too narrow for a module.
 - EG-1's control set (fully continuous ADSR via 4 encoders vs. some fixed
   stages) — affects whether it needs a dedicated encoder sub-board.
-- PS-1's own open items — 8HP vs. 16HP, whether it carries an MCU, and part
-  numbers. See `PS-1/CLAUDE.md`. (The external brick and 15V input are
-  settled.)
+- PS-1's own open items — whether it carries an MCU, and part numbers. See
+  `PS-1/CLAUDE.md`. (The external brick, the 15V 3A input, the 16HP panel and
+  the 16-module sizing basis are settled; the per-module +5V draw is owed a
+  measurement.)
 - `BUS.md`'s own open items — four register definitions owed (`COMMAND`
   opcodes, the bootloader magic value, the `INVENTORY` format, and the
   `CAPABILITIES`/`STATUS` bitfields), plus which of I2C1/I2C2 the bus takes.
