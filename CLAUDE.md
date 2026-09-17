@@ -374,8 +374,9 @@ number governs the whole chain, and the DAC contributes almost none of it:
 | Matched thin-film array, 1ppm/°C tracking | 20 ppm | 0.24 |
 | Precision op-amp, 3µV/°C at gain 4 | — | 0.29 |
 | Jellybean op-amp, 10µV/°C at gain 4 | — | 0.96 |
-| *INA2134 receiver offset drift* — **cross-chassis only** | *see below* | *see below* |
-| *INA2134 gain (resistor TCR) drift* — **cross-chassis only** | *see below* | *see below* |
+| *INA2134 offset drift, ±2µV/°C* — **cross-chassis only** | 40µV | *0.05* |
+| *INA2134 gain drift, ±1ppm/°C typ* — **cross-chassis only** | 20 ppm | *0.24* |
+| *INA2134 gain drift, **±10ppm/°C max*** — **cross-chassis only** | 200 ppm | ***2.41*** |
 
 #### ⚠️ The last two rows apply only to a chassis receiving CV over the link
 
@@ -389,24 +390,35 @@ account for:
 | **Offset drift** | `(µV/°C × 20) / 833µV` cents | No — fixed offset |
 | **Gain drift** (on-chip resistor TCR tracking) | `ppm/°C × 20 / 83` cents | Yes — worst at full scale |
 
-Sensitivity, to show which figure matters:
+**Both figures are now measured, from SBOS071** (in `datasheets/`), and they
+settle the question the earlier revision could only guess at:
 
-| If offset drift is | Cents | | If gain drift is | Cents |
-|---|---|---|---|---|
-| 2µV/°C | 0.05 | | 1 ppm/°C | 0.24 |
-| 5µV/°C | 0.12 | | 2 ppm/°C | 0.48 |
-| 10µV/°C | 0.24 | | 5 ppm/°C | **1.20** |
+| Parameter | Typ | Max | Cents over 20°C |
+|---|---|---|---|
+| Input offset voltage vs temperature | ±2µV/°C | *(none given)* | 0.05 |
+| **Gain vs temperature** | **±1 ppm/°C** | **±10 ppm/°C** | **0.24 typ / 2.41 max** |
 
-**Gain drift is the one to check first.** Offset drift costs at most a couple of
-tenths of a cent across any plausible value, but gain drift at 5ppm/°C would
-exceed every other term in the table combined. TI describe the on-chip
-resistors as laser-trimmed with "excellent TCR tracking", which suggests the
-1ppm/°C end — but that is a marketing phrase, not a number.
+**⚠️ The typical part is excellent and the worst-case part is the problem.**
+The guess recorded here previously — that TI's "excellent TCR tracking" meant
+the 1ppm/°C end — was right about *typical* and silent about the 10:1 spread.
+At the datasheet maximum the gain term alone is **2.41 cents**, which exceeds
+every other row in the table combined and is audible on a sustained note.
 
-**⚠️ Both figures are owed from the datasheet.** They are not recorded here
-because TI's site is unreachable from the environment these notes were written
-in, and guessing part specifications has already produced two errors in this
-project. Read them before relying on cross-chassis pitch accuracy.
+Three consequences, all of them cross-chassis only:
+
+- **Offset drift is a non-issue** at 0.05 cents. Stop worrying about it.
+- **A cross-chassis chain cannot inherit the single-chassis error budget.**
+  Either bin the parts, or accept that a downstream chassis may be a couple
+  of cents off and calibrate it out at the receiving end — which is possible,
+  because the drift is a *gain* error and MC-1 already carries a gain-and-
+  offset calibration routine.
+- **The calibration must live in the receiving chassis**, not in the sending
+  MC-1, since the error belongs to the receiver's INA2134.
+
+Also from SBOS071, and relevant to the impedance-balanced link the bus board
+sends CV over: **CMRR is 74dB minimum, 90dB typical** at VCM = ±31V with
+RS = 0Ω. The 0.1% resistor rule in `PS-1/CLAUDE.md` exists to avoid degrading
+that, and 74dB is the number it must not spoil.
 
 **Separately: this table has never stated how its terms combine.** Summed
 linearly it is a worst case; root-sum-square is the realistic figure for

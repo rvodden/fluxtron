@@ -317,7 +317,11 @@ overkill at two channels.
   parameters that had no panel control at all. See the push-switch scheme
   above.
 - **Sub divider**: 74HC74; pulse squaring 74HC14.
-- **Depth VCAs**: LM13700.
+- **Depth VCAs**: LM13700. **Supply current 2.6mA** with both channels at
+  IABC = 500µA (SLYZ022, in `../datasheets/`) — below the ~4mA the range's
+  power budget assumed, so VO-1's ±12V estimate is conservative rather than
+  optimistic. Common-mode range ±12V typ on ±15V rails; check the headroom
+  again once the rails are ±12V.
 - **Tune DAC**: **AD5693R** (16-bit, I2C, 2.5V on-chip reference at
   2ppm/°C), sharing VO-1's local I2C bus with the MCP4728. See
   `../CLAUDE.md` for the error budget and the output-stage rules — the

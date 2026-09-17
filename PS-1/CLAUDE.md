@@ -105,13 +105,22 @@ another ~1V, leaving roughly **13.2V at the regulator input**. An LM317 needs
 about 3V of dropout and would fall out of regulation. This wants a genuinely
 low-dropout precision part — see below.
 
-**That ~1V is the figure to attack, and Protection now does.** It assumed a
-series diode. A PMOS ideal diode recovers most of it, putting the −5% case
-nearer **14.0V** and buying back most of a volt of regulator headroom for the
-cost of one FET and a controller. The dropout constraint and the dissipation
-constraint are the same constraint pulling opposite ways — a −5% brick starves
-the regulator while a +5% one cooks it — and 15V sits between them with little
-room, so a volt reclaimed at the input is worth more here than it looks.
+**⚠️ Correction: with the real TPS7A47 number, dropout is no longer tight at
+all.** The regulator needs 12V + 450mV worst case = **12.45V** at its input,
+and every candidate input element clears it:
+
+| Input element | Input at −5% brick | Slack |
+|---|---|---|
+| PMOS ideal diode | 14.00V | +1.55V |
+| Schottky | 13.65V | +1.20V |
+| Silicon diode | 13.35V | +0.90V |
+
+So the "genuinely low-dropout precision part" requirement above was right, and
+satisfying it retired the problem. **The earlier claim that the ideal diode is
+*forced by the dropout budget* is wrong and is corrected in Protection** — the
+argument for it is now thermal, not dropout. What remains true is that the
+dissipation constraint still pulls the other way: a +5% brick cooks what a −5%
+brick was supposed to starve, and that half of the squeeze is real.
 
 ### The negative rail is the actual problem
 
@@ -137,15 +146,26 @@ is **mandatory**, not optional.
   the input to every module's 3.3V LDO, and so reaches the pitch DACs at one
   remove. See the open item on it.
 
-Regulator candidates. The 16-module ceilings below decide more of this than
-the earlier eight-module ones did:
+**Regulators: settled — TPS7A47 and TPS7A33**, confirmed against the
+datasheets in `../datasheets/` rather than adopted on reputation:
 
-- **⚠️ LT3045 / LT3094 (500mA) no longer fit the +12V rail** at a 700mA
-  design target. Very low noise and ~0.4V dropout, so still attractive —
-  but only as a paralleled pair (they are designed for it). On −12V at
-  600mA the same problem applies.
-- **TPS7A47 / TPS7A33 (1A)** clear both ceilings as single parts.
-- LM317/LM337 are ruled out by the dropout note above.
+| | TPS7A47 (+12V) | TPS7A33 (−12V) |
+|---|---|---|
+| Max output current | **1A** | **1A** |
+| Dropout at 1A | 307mV typ, **450mV max** | 325mV typ, **800mV max** |
+| Dropout at 500mA | — | 290mV |
+| Ground current | 6.1mA at 1A | 210µA typ at 0mA |
+| Document | SBVS204G | SBVS169D |
+
+Both clear the 700/600mA ceilings as single parts, with the 450mV worst-case
+dropout comfortably inside the input budget (see below).
+
+- **⚠️ LT3045 / LT3094 are out.** 500mA against a 700mA target means a
+  paralleled pair, which is two parts, two footprints and a current-sharing
+  question, to buy noise performance that nothing downstream needs — every
+  module re-regulates to 3.3V behind its own LDO anyway. Recorded so it is
+  not re-proposed.
+- LM317/LM337 remain ruled out by the dropout note above.
 
 **Rail sequencing matters**: ±12V should come up together. Op-amps across the
 rack can latch up if one rail appears well before the other. This is only
@@ -523,13 +543,21 @@ conclusion is unlikely to move, but confirm before ordering.
 The range-wide protection standard in `../CLAUDE.md` is written for modules
 *consuming* power. PS-1 is the source, so it needs a different list:
 
-- **Input reverse polarity — a PMOS ideal diode, not a series diode.** This
-  is forced by the dropout budget this file computes above: a −5% brick plus
-  protection and inrush losses already lands near 13.2V at the regulator
-  input, and a 0.7V series diode is most of what makes that tight. An ideal
-  diode recovers nearly all of it, and is the difference between needing a
-  sub-0.5V-dropout regulator and not. At ~2A it also saves over a watt of
-  heat in a module that has no watts spare.
+- **Input reverse polarity — a PMOS ideal diode, not a series diode.**
+  **⚠️ The reason is heat, not dropout.** An earlier revision justified this
+  on the dropout budget; the TPS7A47's measured 450mV worst case retired that
+  argument, and a plain silicon diode would still leave 0.9V of slack. What
+  it would not leave is thermal headroom — the element sits at the input
+  where the full ~1.9A flows:
+
+  | Input element | Dissipated there |
+  |---|---|
+  | PMOS ideal diode | 0.10W |
+  | Schottky | 0.76W |
+  | Silicon diode | **1.33W** |
+
+  1.33W is over a quarter of this module's entire ~5W budget, spent on a
+  part that does nothing in normal operation. That is the argument.
 - **Input overvoltage** — the wrong brick will be plugged in eventually.
 - **Soft start / inrush limiting.** Every module's bulk capacitance charges
   at once at power-on.
