@@ -488,18 +488,38 @@ driven by someone else's supply, and PS-1 to feed someone else's backplane.
 30mV against the +5V rail's 1.7V of LDO headroom is noise. Compare the 0.7V a
 series silicon diode was costing before Protection changed it.
 
-**Part: Molex Micro-Fit 3.0, 2×4 (8 circuit).** Nominally ~8.5A per contact
-at 18AWG — several times the worst rail — so it is chosen for its mechanical
-properties, not its ampacity:
+**Part: Molex Micro-Fit 3.0, 2×4 (8 circuit).** Chosen for its mechanical
+properties, not its ampacity — which it has in great excess:
 
-**⚠️ The ampacity figures in this section are from memory, not datasheets**,
-and Molex's site was unreachable from the environment these notes were
-written in. This file's own pitch-DAC section records that guessing part
-specifications has already produced two errors in this project, so treat them
-as order-of-magnitude. In particular, **per-contact ratings derate with
-circuit count** — an 8-circuit housing does not carry the single-circuit
-maximum on every pin simultaneously. The margin here is wide enough that the
-conclusion is unlikely to move, but confirm before ordering.
+Micro-Fit derating, 18AWG, basis **not exceeding a 30°C temperature rise**:
+
+| Circuits | Wire-to-wire | Wire-to-board |
+|---|---|---|
+| 2 | 7.0A | 8.5A |
+| 6 | 6.5A | 7.0A |
+| 12 | 6.5A | 6.5A |
+
+**⚠️ Correction: an earlier revision here quoted ~8.5A per contact. That is
+the 2-circuit wire-to-board best case, not this connector's.** A 2×4 sits
+between the 6- and 12-circuit rows at roughly **6.5A per circuit**, which is
+exactly the derating-with-circuit-count effect that revision warned about
+without quantifying. The conclusion is unaffected — every rail has 7× margin
+or better:
+
+| Rail | Current | Contacts | Per contact | Margin |
+|---|---|---|---|---|
+| +5V | 1.50A | 2 | 0.75A | 8.7× |
+| **GND** | **2.80A** | **3** | **0.93A** | **7.0×** |
+| +12V | 0.70A | 1 | 0.70A | 9.3× |
+| −12V | 0.60A | 1 | 0.60A | 10.8× |
+
+**⚠️ Provenance is weaker here than for the other parts in `../datasheets/`.**
+These figures come from a search index's extraction of Molex's PS-43045 /
+PS-44300 specifications, not from reading the PDF — molex.com answers 503 to
+this environment and `tools.molex.com` is unreachable, so the document could
+not be committed alongside the others. Better than the memory they replace,
+not as good as a datasheet in hand. **Confirm against the PDF before
+ordering**, and commit it when someone can reach it.
 
 | Pins | Rail | Per contact |
 |---|---|---|
@@ -520,10 +540,10 @@ conclusion is unlikely to move, but confirm before ordering.
   and nothing else in the range should adopt the family without differing
   circuit count or keying.
 - **Mini-Fit Jr. is what ATX literally uses** and is the alternative if
-  tooling commonality argues for it — but at 4.2mm pitch it is ~18 × 12mm
-  against Micro-Fit's ~12.5 × 9mm, and 9A per contact is over-specified by
-  6× on a board already short of area. Take Micro-Fit unless a Mini-Fit
-  crimper is already to hand.
+  tooling commonality argues for it — but at 4.2mm pitch it is roughly twice
+  the footprint of Micro-Fit for still more ampacity, on a board already
+  short of area. Micro-Fit is over-specified by 7× as it is. Take Micro-Fit
+  unless a Mini-Fit crimper is already to hand.
 - **⚠️ Budget for a crimp tool.** Either family needs one, and a genuine
   Molex crimper is a few hundred pounds. Generic tools are adequate at
   this volume but the joint quality is not the same — worth knowing before
