@@ -72,7 +72,7 @@ set.
 
 | Connector | Format | Between |
 |---|---|---|
-| **Power** | 2×8 (16-pin), or 2×5 (10-pin) where no +5V is needed | Every module ↔ bus board. Range-wide, see `CLAUDE.md` |
+| **Power** | 2×8 (16-pin) on every module | Every module ↔ bus board. 16-pin because every module's 3.3V LDO runs from +5V. Range-wide, see `CLAUDE.md` |
 | **Module bus** | **2×6 (12-pin)** | Slave module ↔ a numbered slot |
 | **Master port** | **2×4 (8-pin)** | MC-1 or CX-1 ↔ the bus board's master port |
 | **Uplink** | **RJ45 / Cat5** | CX-1's panel ↔ the parent bus board's CX port |
@@ -145,10 +145,12 @@ reserved address rather than a slot number (§4.4).
 ### 2.5 ⚠️ Never a 10-pin bus connector
 
 Ten signals tempts a 2×5 header — the same family as the Eurorack power
-header, same ribbon, same crimp tooling. **A 10-pin bus header beside a 10-pin
-power header is an invitation to plug ±12V into the I2C bus**, which destroys
-every MCU on the backplane. 2×6 physically cannot accept the power ribbon, and
-the two spare pins cost nothing now and are impossible to add later.
+header, same ribbon, same crimp tooling. **A 10-pin socket mates with a 16-pin
+shrouded power header by design**, that being ordinary Eurorack practice, so a
+10-pin bus plug would go straight onto ±12V and destroy every MCU on the
+backplane. The hazard is not that the two look alike; it is that the smaller
+one *fits*. 2×6 does not, and the two spare pins cost nothing now and are
+impossible to add later.
 
 ### 2.6 Where CX-1 physically lives
 

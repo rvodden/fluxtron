@@ -396,10 +396,10 @@ Two further consequences:
   what a 3.3V driver guarantees. Budget for a MOSFET level-shifter pair on
   the local I2C, or confirm the AS1115's VIH allows 3.3V direct drive.
 - **Where the 5V comes from — PS-1 changes this.** The rail should now be
-  taken **from the bus on a 16-pin power header**, not made locally. PS-1
-  provides a guaranteed +5V, and a 10-pin socket plugs onto a 16-pin bus
-  header perfectly well, so this costs MC-1 a connector change and nothing
-  else. **Lay out the local LDO anyway, unpopulated, with a jumper selecting
+  taken **from the bus**, not made locally. PS-1 provides a guaranteed +5V,
+  and MC-1 carries a 16-pin power header like every module — that is now
+  range-wide, since every module's 3.3V LDO runs from +5V, so it costs MC-1
+  nothing beyond the extra segment current. **Lay out the local LDO anyway, unpopulated, with a jumper selecting
   the source** — that is what keeps MC-1 working in a case whose PSU has no
   5V rail. The dissipation figures below apply only if the LDO is populated.
 - **LDO dissipation, and dimming as a thermal lever** (local-LDO path only).

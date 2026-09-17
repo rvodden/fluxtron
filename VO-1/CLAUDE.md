@@ -322,8 +322,10 @@ overkill at two channels.
   2ppm/°C), sharing VO-1's local I2C bus with the MCP4728. See
   `../CLAUDE.md` for the error budget and the output-stage rules — the
   matched resistor network matters more than the DAC does. Because it
-  generates its own reference from the 3.3V rail, **VO-1 needs no 5V rail**
-  — which a discrete reference might have forced.
+  generates its own reference from the 3.3V rail, **VO-1 needs no 5V for
+  analogue purposes** — which a discrete reference might have forced.
+  It still takes +5V at its 16-pin header as the input to its 3.3V LDO, like
+  every module; what it lacks is any *analogue or display* load on that rail.
 - **Parameter DAC**: **MCP4728** (12-bit, 4-channel, I2C) — pulse width,
   FM depth and PWM CV depth on three channels, one spare. On VO-1's local
   I2C port, which it has to itself since VO-1 carries no AS1115.

@@ -94,9 +94,10 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   - Physical: a **separate 2×6 (12-pin) connector** (DVCC, GND, SDA, SCL,
     nRESET, ATTN, A0–A3, 2 spare) alongside the standard Eurorack power
     header, its own ribbon, kept away from analogue sections at layout time.
-    Populated on every module. **⚠️ Never a 10-pin connector** — beside the
-    10-pin power header it invites plugging ±12V into the bus, which destroys
-    every MCU on the backplane.
+    Populated on every module. **⚠️ Never a 10-pin connector** — a 10-pin
+    socket mates with a 16-pin shrouded power header *by design*, that being
+    ordinary Eurorack practice, so a 10-pin bus plug would go straight onto
+    ±12V and destroy every MCU on the backplane.
   - Protocol: **I2C**, reusing the same physical layer as each module's
     local AS1115 (see below).
   - Addressing: **geographic — the backplane holds the address.** Each bus
@@ -130,11 +131,19 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     a 1.7V drop instead of 8.7V, which takes VO-1's regulator from 0.4W to
     78mW beside its expo converter. A *shared* 3.3V rail stays rejected: no
     rejection stage between modules, and it breaks the per-module PTC rule.
-    - **⚠️ This puts a 16-pin power header on every module**, where the
-      protection standard below still says 10-pin. Not yet confirmed. Keep
-      the portability fallback: a wide-Vin LDO with a **jumper selecting bus
-      +5V or bus +12V** as its input, so a module still runs in a case whose
-      PSU has no 5V rail.
+    - **Consequence, now confirmed: every module fits a 16-pin power header.**
+      If every module's 3.3V comes from +5V then every module needs +5V —
+      there is no such thing as a module that can keep a 10-pin header. Deriving
+      3.3V from +12V instead is 0.4W per module against 78mW, roughly 3.2W of
+      scattered heat across a phase-1 rack against 0.6W.
+    - **⚠️ Do not confuse the two uses of +5V.** *Every* module takes it as its
+      3.3V LDO input. Only modules with a **blue display** additionally need it
+      as the AS1115's supply (see Common components). "VO-1 needs no 5V rail"
+      means no display rail; VO-1 still takes +5V at its header like everything
+      else.
+    - Keep the portability fallback: a wide-Vin LDO with a **jumper selecting
+      bus +5V or bus +12V** as its input, so a module still runs in a case whose
+      PSU has no 5V rail — hot, but working.
 
 ## PCB / panel construction
 
@@ -252,21 +261,18 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     3.2V part leaves nothing across the series resistor — dim, and wildly
     variable part to part. Drive indicator LEDs from **+12V through a series
     resistor, switched by a small NPN or MOSFET off the GPIO** instead.
-    +12V is guaranteed on the 10-pin header; a +5V rail is not. Size for
-    2–3mA, not 20 — blue LEDs are bright and the panel is matte black.
-    (**PS-1 changes this premise**: a FluxTron rack now has a guaranteed +5V
-    rail. The +12V-and-transistor approach stays the default because it costs
-    almost nothing and keeps modules portable to other people's cases — but
-    it is no longer forced.)
+    Size for 2–3mA, not 20 — blue LEDs are bright and the panel is matte
+    black. (A FluxTron rack has a guaranteed +5V rail, so this is no longer
+    forced; the +12V-and-transistor approach stays the default because it
+    costs almost nothing and keeps modules portable to cases without one.)
   - **The AS1115 sources segment current from its own supply**, so its V+
     must exceed the segment's forward voltage plus driver dropout. At 3.3V
     it cannot drive blue segments at all. Any module with a blue display
-    needs a **5V rail** for the AS1115. **Since PS-1, that rail should come
-    from the bus** on a 16-pin header rather than from a local LDO — the
-    local part burns ~560mW on MC-1, the range's worst thermal spot, on its
-    most crowded board. Modules needing 5V fit a 16-pin header; modules that
-    do not (VO-1 explicitly needs no 5V rail) keep 10-pin, and a 10-pin
-    socket plugs onto a 16-pin bus header perfectly well. Lay out the local
+    needs the **+5V rail** as the AS1115's supply. **Since PS-1 that comes
+    from the bus**, not from a local LDO — the local part burns ~560mW on
+    MC-1, the range's worst thermal spot, on its most crowded board. Every
+    module already has a 16-pin header for its 3.3V LDO input, so a display
+    module needs no extra connector, only extra current. Lay out the local
     LDO anyway, unpopulated, with a jumper selecting the source — it is what
     keeps the module working in a case whose PSU has no 5V rail. Budget that
     dissipation into the module's PTC rating only if the LDO is populated. Note the margin is genuinely tight — a 3.8V worst-case segment
@@ -306,7 +312,7 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     mistake — there is no wrong reference grade to order by accident.
   - **It also removes VO-1's rail risk.** An AD5662 + REF5025 pairing would
     have had the reference generating 2.5V from VO-1's 3.3V rail, since
-    VO-1 has no AS1115 and therefore no 5V. Whether the dropout allowed it
+    VO-1 has no AS1115 and so nothing drawing on +5V beyond its LDO input. Whether the dropout allowed it
     was an open question that could have forced a rail VO-1 does not
     otherwise want. The AD5693R runs from 2.7–5.5V and makes its own
     reference, so the question never arises.
@@ -507,8 +513,10 @@ Applies to every module's schematic. Cheap to design in now, painful to
 retrofit after boards are fabbed — treat this as a checklist each module
 must satisfy, not a per-module decision to re-derive.
 
-- **Reverse power protection**: shrouded, keyed 10-pin power header on every
-  module (prevents backwards insertion mechanically) *plus* a
+- **Reverse power protection**: shrouded, keyed **16-pin** power header on
+  every module (prevents backwards insertion mechanically). 16-pin because
+  every module needs +5V for its 3.3V LDO — see the signal architecture
+  section *plus* a
   reverse-polarity protection circuit on each rail as a backstop for the
   "offset by one pin" case a keyed shroud doesn't catch. Default to simple
   series diodes (~0.7V drop, acceptable given ±12V headroom) unless a
@@ -561,8 +569,13 @@ so rather than define the same thing twice.
 - Spare 12HP allocation (extra spacing vs. blind panel vs. new module).
 - EG-1's control set (fully continuous ADSR via 4 encoders vs. some fixed
   stages) — affects whether it needs a dedicated encoder sub-board.
-- PS-1's own open items — external brick vs. internal mains above all, plus
-  8HP vs. 16HP and whether it carries an MCU. See `PS-1/CLAUDE.md`.
-- `BUS.md`'s own open items — which of I2C1/I2C2 the bus takes, and the
-  CAPABILITIES/STATUS bitfields. (DVCC is settled at 5V; I2C pin tolerance,
-  the bootloader address and its pin sets are all resolved.)
+- PS-1's own open items — 8HP vs. 16HP, whether it carries an MCU, and part
+  numbers. See `PS-1/CLAUDE.md`. (The external brick and 15V input are
+  settled.)
+- `BUS.md`'s own open items — four register definitions owed (`COMMAND`
+  opcodes, the bootloader magic value, the `INVENTORY` format, and the
+  `CAPABILITIES`/`STATUS` bitfields), plus which of I2C1/I2C2 the bus takes.
+  (DVCC, I2C pin tolerance, the bootloader address and pin sets, and Panic
+  are all settled.)
+- **Each module's safe state for Panic**, per the section above. MC-1 and VO-1
+  both still owe theirs.

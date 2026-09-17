@@ -24,7 +24,7 @@ PS-1 owns two physically separate things that are easiest to design together:
 Three things that were previously worked around, and can now stop being:
 
 - **A guaranteed +5V rail.** The range doc currently reasons "+12V is
-  guaranteed on the 10-pin header; a +5V rail is not", and MC-1 therefore
+  guaranteed on the power header; a +5V rail is not", and MC-1 therefore
   generates 5V locally with an LDO from +12V, dissipating **~560mW** — the
   worst thermal spot in the range, on the module least able to absorb it.
   Owning the PSU removes that premise. See "The +5V rail" below.
@@ -42,13 +42,19 @@ Three things that were previously worked around, and can now stop being:
 **PS-1 provides +5V.** It is nearly free once a switcher is in the design, and
 it is standard on the 16-pin Eurorack header anyway.
 
-**This does not force a range-wide header change.** A bus board carries 16-pin
-headers; a module with a 10-pin socket plugs onto the ±12V end of one
-perfectly well, which is ordinary Eurorack practice. So:
+**Every module fits a 16-pin header**, because every module's 3.3V LDO runs
+from +5V (see `../CLAUDE.md`). An earlier revision here said this "does not
+force a range-wide header change", with only display modules taking 16-pin and
+the rest keeping 10-pin. That was written before 3.3V moved onto the 5V rail,
+and once it did, there is no module that can keep a 10-pin header.
 
-- Modules that need +5V (currently only **MC-1**, for its AS1115) fit a
-  **16-pin** header.
-- Modules that do not (**VO-1** explicitly needs no 5V rail) keep **10-pin**.
+Two distinct loads share the rail, and conflating them is what caused the
+confusion:
+
+| Load | Which modules |
+|---|---|
+| 3.3V LDO input | **Every** module |
+| AS1115 supply for a blue display | Only modules with one — currently MC-1 |
 
 **⚠️ Portability caveat.** A FluxTron module that depends on bus +5V will not
 work correctly in someone else's case, since many PSUs omit that rail — which
