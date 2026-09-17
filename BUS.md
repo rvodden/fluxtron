@@ -42,7 +42,9 @@ it can display it, key-track slowly, or report to a host. It is the
 
 **If a cable-free gate is ever wanted**, the standard Eurorack 16-pin bus
 already carries CV and Gate lines, which PS-1's bus board routes. That is
-analogue and deterministic. It is a single global pair, so mono only.
+analogue and deterministic. It is a single global pair, so mono only — **and
+per segment**: those lines stop at the chassis boundary. See §2.7 for reaching
+another chassis.
 
 ---
 
@@ -132,7 +134,8 @@ reserved address rather than a slot number (§4.4).
   *(An earlier revision called this part "3.3V-class" and counted level
   translation as a cost of the 5V decision. That was asserted from memory and
   is wrong.)*
-- The cable carries **differential I2C plus a ground reference, never power**.
+- The cable carries **differential I2C plus a ground reference — never power,
+  and never CV or Gate** (§2.7).
 - **⚠️ The inter-chassis ground is a parallel path.** Two cases with separate
   bricks are already bonded through the shields of any patch cables running
   between them, so the link's ground adds a loop — and audio *will* run
@@ -165,6 +168,41 @@ may have none free.
 *Rejected: two CX-1s per link, back to back.* Would make every bus board
 identical but costs 16HP per link instead of 8HP; the dedicated CX port
 achieves the same uniformity for the price of one transceiver.
+
+### 2.7 Reaching another chassis with CV and Gate
+
+The bus CV/Gate pair is per-segment. **A second MC-1 in the downstream chassis
+is the way to extend it**, fed from the first MC-1's TRS MIDI THRU — which is
+a capability MC-1 already has, so this costs no new design.
+
+Each MC-1 generates CV and Gate onto its own chassis's bus lines, referenced to
+that chassis's own ground, and consumed by modules sitting on it. Nothing
+analogue crosses between cases. Chassis 2 chains from chassis 1's THRU, and so
+on.
+
+**⚠️ Rejected: carrying CV over the inter-chassis link.** A cent at 1V/oct is
+833µV, and two chassis have separate PSUs bonded only through the shields of
+whatever patch cables run between them — uncontrolled, and carrying return
+current. **10mV of ground offset is 12 cents; 50mV is 60.** A ground-referenced
+CV has nothing to reject that with.
+
+A **differential** link would reject it, and is the honest option if
+cross-chassis unison is ever genuinely needed — but it is real analogue design
+(driver, receiver, and the receiver's own drift against an 833µV budget) for
+what is a convenience feature. Not worth it by default.
+
+**⚠️ Rejected: gate alone over the I2C link.** Gate *is* tolerant of ground
+offset, and Cat5 has a spare conductor. But a fast logic edge in the same cable
+as the I2C pairs invites crosstalk onto a bus that has no error detection
+beyond ACK — and a second MC-1 supplies gate for free anyway.
+
+**What the second MC-1 costs.** Its THRU is a store-and-forward regeneration,
+so chassis 1's note events land about **1ms** behind chassis 0's, and the two
+MC-1s carry independently calibrated pitch DACs. Neither matters for a second
+*voice*. Both matter for two VCOs meant to sound in **unison** across chassis —
+1ms of skew comb-filters when mixed. **For unison, patch V/OCT with a cable**,
+which has neither problem and is what you would reach for anyway when audio
+already runs between the cases.
 
 ---
 

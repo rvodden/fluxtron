@@ -202,7 +202,9 @@ with decent copper and possibly a small heatsink on the positive regulator.
     translation is needed at this port whatever DVCC is set to.
   - This board carries no *upstream* port: a chassis is brought onto the bus
     by its own CX-1, not by its bus board.
-- **Route the Eurorack bus CV and Gate lines.** The standard 16-pin header
+- **Route the Eurorack bus CV and Gate lines** — per chassis. They stop at the
+  bus board; nothing carries them between cases (`../BUS.md` §2.7). A
+  downstream chassis gets its own pair from its own MC-1. The standard 16-pin header
   carries them and we are going 16-pin for the +5V anyway, so this is two
   traces on a board already being fabbed. If a cable-free global gate is ever
   wanted, the mechanism exists and is analogue and deterministic — which
