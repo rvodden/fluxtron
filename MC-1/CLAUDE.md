@@ -284,13 +284,13 @@ one-handed, and the timeout above gives most of the same safety.
   onward for a third, etc. Lets one USB cable drive several independent
   FluxTron voice chains, each MC-1 tuned to a different channel via its
   encoder.
-- **Two MC-1s on the *same* channel is a supported mode, not a mistake.** It
-  is how CV and Gate reach a second chassis: the bus CV/Gate pair is
-  per-segment, so a downstream chassis gets its own MC-1 generating the same
-  note locally, referenced to its own ground (`../BUS.md` §2.7). Note the THRU
-  regeneration puts it ~1ms behind, and the two pitch DACs calibrate
-  independently — fine for a second voice, not for cross-chassis unison, which
-  wants a patch cable instead.
+- **⚠️ One MC-1 per system, not per chassis.** A downstream chassis is
+  mastered by its CX-1, so a second MC-1 there would put **two masters** on
+  that segment. CV and Gate reach a second chassis over a differential link on
+  the CX cable instead (`../BUS.md` §2.7) — cheaper than an MC-1 and without
+  the conflict. Daisy-chained MC-1s remain a *multi-voice* feature, each on its
+  own channel and its own chassis-0-equivalent segment, not a way to replicate
+  one voice across chassis.
 
 ## Physical construction: three separate boards
 

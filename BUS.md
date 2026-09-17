@@ -134,8 +134,8 @@ reserved address rather than a slot number (§4.4).
   *(An earlier revision called this part "3.3V-class" and counted level
   translation as a cost of the 5V decision. That was asserted from memory and
   is wrong.)*
-- The cable carries **differential I2C plus a ground reference — never power,
-  and never CV or Gate** (§2.7).
+- The cable carries **differential I2C, a differential CV pair and a gate
+  (§2.7), plus a ground reference — never power**.
 - **⚠️ The inter-chassis ground is a parallel path.** Two cases with separate
   bricks are already bonded through the shields of any patch cables running
   between them, so the link's ground adds a loop — and audio *will* run
@@ -171,38 +171,54 @@ achieves the same uniformity for the price of one transceiver.
 
 ### 2.7 Reaching another chassis with CV and Gate
 
-The bus CV/Gate pair is per-segment. **A second MC-1 in the downstream chassis
-is the way to extend it**, fed from the first MC-1's TRS MIDI THRU — which is
-a capability MC-1 already has, so this costs no new design.
+The bus CV/Gate pair is per-segment. **A differential link alongside the I2C
+pairs carries it downstream**, driven from the parent's bus lines and
+regenerated onto the child's.
 
-Each MC-1 generates CV and Gate onto its own chassis's bus lines, referenced to
-that chassis's own ground, and consumed by modules sitting on it. Nothing
-analogue crosses between cases. Chassis 2 chains from chassis 1's THRU, and so
-on.
+| End | Hardware |
+|---|---|
+| **Parent bus board, at the CX port** | A differential line driver for CV, and a slew-limited buffer for Gate, taking the parent's own bus CV/Gate lines |
+| **CX-1, in the child chassis** | The matching receivers. CX-1 drives the child's bus CV/Gate lines through its **power** connector, the way a Doepfer A-190 does |
 
-**⚠️ Rejected: carrying CV over the inter-chassis link.** A cent at 1V/oct is
-833µV, and two chassis have separate PSUs bonded only through the shields of
-whatever patch cables run between them — uncontrolled, and carrying return
-current. **10mV of ground offset is 12 cents; 50mV is 60.** A ground-referenced
-CV has nothing to reject that with.
+**It fits Cat5 exactly**, using the pairs the cable already has:
 
-A **differential** link would reject it, and is the honest option if
-cross-chassis unison is ever genuinely needed — but it is real analogue design
-(driver, receiver, and the receiver's own drift against an 833µV budget) for
-what is a convenience feature. Not worth it by default.
+| Pair | Carries |
+|---|---|
+| 1 | `DSDA+/−` |
+| 2 | `DSCL+/−` |
+| 3 | **CV+/−** — differential |
+| 4 | **Gate + GND** |
 
-**⚠️ Rejected: gate alone over the I2C link.** Gate *is* tolerant of ground
-offset, and Cat5 has a spare conductor. But a fast logic edge in the same cable
-as the I2C pairs invites crosstalk onto a bus that has no error detection
-beyond ACK — and a second MC-1 supplies gate for free anyway.
+- **CV must be differential.** A cent at 1V/oct is 833µV, and two chassis have
+  separate PSUs bonded only through the shields of whatever patch cables run
+  between them — uncontrolled, and carrying return current. **10mV of ground
+  offset is 12 cents; 50mV is 60.** A receiver rejecting common mode removes
+  that entirely; a ground-referenced CV has nothing to reject it with.
+- **Gate can be single-ended**, being a logic-level signal with ~1V of margin.
+  Pairing it *with* its ground return keeps the loop area small, and
+  **slew-limiting the edge** removes the crosstalk it would otherwise couple
+  into the adjacent I2C pairs. A gate has no need of fast edges.
+- This is the one place the link carries something other than I2C. It still
+  **never carries power**.
 
-**What the second MC-1 costs.** Its THRU is a store-and-forward regeneration,
-so chassis 1's note events land about **1ms** behind chassis 0's, and the two
-MC-1s carry independently calibrated pitch DACs. Neither matters for a second
-*voice*. Both matter for two VCOs meant to sound in **unison** across chassis —
-1ms of skew comb-filters when mixed. **For unison, patch V/OCT with a cable**,
-which has neither problem and is what you would reach for anyway when audio
-already runs between the cases.
+**⚠️ Rejected: a second MC-1 in each chassis.** It was an earlier
+recommendation here, and it is wrong twice over.
+
+- **Architecturally blocked.** CX-1 masters the downstream segment, so an MC-1
+  there would give that segment **two masters**. Avoiding that means rolling
+  CX-1's function into MC-1, which then needs *two* inter-chassis cables —
+  MIDI and I2C — since note data cannot ride the bus (§1).
+- **Far more expensive.** MC-1 carries a USB-C daughterboard, a display, an
+  AS1115, an opto-isolator and three PCBs. A differential receiver and a gate
+  buffer are a few pounds.
+
+The two objections resolve each other: with a differential link the child
+chassis needs no MC-1, so CX-1 remains its sole master.
+
+**Still true: for cross-chassis unison, a patch cable is fine too.** Audio
+already runs between the cases, and a cable has neither ground offset nor a
+part count.
+
 
 ---
 
