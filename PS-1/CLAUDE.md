@@ -329,11 +329,12 @@ What perpendicular costs, and it is not nothing:
 - **Mechanical support has to be designed.** Every other module is held by its
   jack nuts; PS-1 has no jacks. It needs a front bracket to the panel and
   probably a rear standoff — a part no other module in the range needs.
-- **It may resolve the bus-board feed for free.** A card extending back from
-  the panel arrives at the backplane edge-on, so a right-angle header or card
-  edge could mate directly instead of running a high-current ribbon. Attractive
-  at ~2A aggregate, but contingent on the backplane's mounting geometry, which
-  is not yet specified. See the open items.
+- **It does *not* change how PS-1 feeds the backplane.** A perpendicular card
+  arrives at the bus board edge-on, and an earlier revision of this file
+  floated mating the two directly. **Rejected** — see the feed connector
+  below. It would tie PS-1's board outline to one backplane position in one
+  chassis, and the range designs around a particular case without treating it
+  as a constraint.
 - **16HP stays the fallback** if the mechanical work or the layout does not
   close. Nothing above depends on 8HP; it is the better answer if it fits.
 
@@ -439,10 +440,83 @@ target an LT3045 (500mA) is out unless two are paralleled. Take the TPS7A47 at
 - Bulk decoupling distributed along the rails, not lumped at one end. With
   16 modules' bulk capacitance downstream this is a soft-start question as
   much as a decoupling one; see Protection.
-- **⚠️ How PS-1 itself lands on the board is not yet specified.** It is the
-  source, so it cannot plug into a 16-pin slot as a sink — it needs its own
-  feed connector sized for the full rail currents (~2A aggregate), or the
-  supply and backplane share one PCB. Open; see below.
+
+### The feed connector: PS-1 → bus board
+
+PS-1 is the source, so it cannot plug into a 16-pin slot as a sink. It feeds
+the backplane over a **short cable with an ATX-style keyed, latching crimp
+connector** — header on each board, receptacles on the cable, so either board
+can be replaced and the cable is itself a serviceable part.
+
+**⚠️ A direct board-to-board mate is rejected.** It is the obvious thing to do
+with a perpendicular card sitting edge-on to the backplane, and it is wrong:
+it welds PS-1's board outline and mounting position to one backplane in one
+chassis. We design around a specific case; we do not build its dimensions into
+a board that could otherwise go anywhere. A cable also lets the bus board be
+driven by someone else's supply, and PS-1 to feed someone else's backplane.
+
+**It costs nothing electrically**, which is what makes the argument easy —
+300mm of 18AWG plus two crimp contacts is about 20mΩ:
+
+| Rail | Current at ceiling | Drop |
+|---|---|---|
+| +12V | 0.70A | 14mV |
+| −12V | 0.60A | 12mV |
+| +5V | 1.50A | 30mV (20mV on two contacts) |
+| GND | **2.80A** | 57mV |
+
+30mV against the +5V rail's 1.7V of LDO headroom is noise. Compare the 0.7V a
+series silicon diode was costing before Protection changed it.
+
+**Part: Molex Micro-Fit 3.0, 2×4 (8 circuit).** Nominally ~8.5A per contact
+at 18AWG — several times the worst rail — so it is chosen for its mechanical
+properties, not its ampacity:
+
+**⚠️ The ampacity figures in this section are from memory, not datasheets**,
+and Molex's site was unreachable from the environment these notes were
+written in. This file's own pitch-DAC section records that guessing part
+specifications has already produced two errors in this project, so treat them
+as order-of-magnitude. In particular, **per-contact ratings derate with
+circuit count** — an 8-circuit housing does not carry the single-circuit
+maximum on every pin simultaneously. The margin here is wide enough that the
+conclusion is unlikely to move, but confirm before ordering.
+
+| Pins | Rail | Per contact |
+|---|---|---|
+| 1 | +12V | 0.70A |
+| 1 | −12V | 0.60A |
+| 2 | +5V | 0.75A |
+| 3 | **GND** | 0.93A |
+| 1 | spare | — |
+
+- **⚠️ GND carries the sum of all three rails, not the largest.** 2.8A at the
+  ceilings, so it gets the most contacts. This is the detail that is easy to
+  get wrong by giving every rail one pin.
+- **Keyed and latching is the whole point.** This connector carries ±12V into
+  a backplane feeding the entire rack; inserting it reversed would destroy
+  every module at once. A plain 2.54mm header would permit that, and the range
+  already has a hard anti-confusion rule about connectors (see the 10-pin note
+  in `../CLAUDE.md`). Micro-Fit cannot mate with anything else in the range,
+  and nothing else in the range should adopt the family without differing
+  circuit count or keying.
+- **Mini-Fit Jr. is what ATX literally uses** and is the alternative if
+  tooling commonality argues for it — but at 4.2mm pitch it is ~18 × 12mm
+  against Micro-Fit's ~12.5 × 9mm, and 9A per contact is over-specified by
+  6× on a board already short of area. Take Micro-Fit unless a Mini-Fit
+  crimper is already to hand.
+- **⚠️ Budget for a crimp tool.** Either family needs one, and a genuine
+  Molex crimper is a few hundred pounds. Generic tools are adequate at
+  this volume but the joint quality is not the same — worth knowing before
+  committing to a crimped interconnect on a hand-built project.
+- **The spare pin is deliberately unassigned.** The obvious candidate is
+  **+5V remote sense**, letting the buck regulate at the backplane rather
+  than at PS-1's output and deleting cable and pour IR drop from the
+  AS1115's margin. Worth perhaps 75mV — real but not decisive, and it adds
+  an overvoltage failure mode if the sense line ever opens. Hold it until
+  bring-up says the display margin needs it.
+- **If the bus board becomes two PCBs** (an open item below), it needs either
+  a second feed connector or a link between the halves. Decide that with the
+  board split, not before.
 
 ## Protection
 
@@ -473,10 +547,8 @@ The range-wide protection standard in `../CLAUDE.md` is written for modules
   the rack reaches that count either way, so this is a bus decision rather
   than a power one — but the two documents should agree before a backplane
   is laid out.
-- **How PS-1 feeds its own bus board** — a dedicated source connector, one
-  shared PCB, or a direct edge-on mate now that the supply card is
-  perpendicular. The third is the most attractive at ~2A and needs the
-  backplane's mounting geometry pinned down first. See the bus-board section.
+- ~~How PS-1 feeds its own bus board~~ — **settled**: a cabled Micro-Fit 3.0
+  2×4, not a direct mate. See the feed connector section.
 - **PS-1's mechanical mounting.** A perpendicular card has no jack nuts
   holding it; it needs a panel bracket and probably a rear standoff. This is
   what 8HP is contingent on, and it is the item that would send the module

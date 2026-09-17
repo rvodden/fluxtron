@@ -455,6 +455,20 @@ spend the BOM on tempco rather than on initial accuracy.
     output against every other's.
   - **The pull-ups live on the bus board, populated exactly once**, never
     per-module. Sizing and the reasoning are in `PS-1/CLAUDE.md`.
+- **The range's complete connector inventory**, since the anti-confusion rule
+  above is only checkable against a full list. Nothing here mates with
+  anything else here, which is the property to preserve:
+
+  | Connector | Where | Carries |
+  |---|---|---|
+  | 2×8 (16-pin) IDC, shrouded/keyed | every module ↔ bus board | ±12V, +5V, CV, Gate |
+  | 2×6 (12-pin) IDC | every module ↔ bus board | I2C bus, §`BUS.md` 2 |
+  | Molex Micro-Fit 3.0 2×4 | **PS-1 → bus board only** | rail feed, keyed/latching |
+  | RJ45 (shielded) | CX port, populated only when chaining | inter-chassis |
+
+  **⚠️ Nothing but PS-1's feed may adopt Micro-Fit** without a different
+  circuit count or keying. It carries ±12V into the whole backplane, so a
+  mis-mate is a rack-wide failure rather than a module-level one.
   - **⚠️ The module 3.3V LDO must track its input** — no long enable delay or
     soft-start. Every G0B1 I2C pin is FT, so 5V tolerance holds in operation,
     but absolute-max VIN is `VDD + 4.0V`; a delayed-start regulator is the
