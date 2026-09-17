@@ -297,17 +297,20 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     LDO anyway, unpopulated, with a jumper selecting the source — it is what
     keeps the module working in a case whose PSU has no 5V rail. Budget that
     dissipation into the module's PTC rating only if the LDO is populated.
-    **⚠️ Budget the AS1115's rail at the pin, not at the bus.** The
-    often-quoted 1.2V of driver headroom (5.0V less a 3.8V worst-case
-    segment) assumes a clean 5.0V that no module ever sees: the protection
-    standard puts a reverse-polarity element and a PTC in series, and a long
-    backplane adds IR drop on top. A 0.7V silicon diode alone takes the
-    margin to ~0.4V, which is not a margin. Hence the Schottky/PMOS rule for
-    +5V under Circuit protection, a low-resistance PTC, and heavy copper on
-    the bus board's 5V pour. Note the margin is genuinely tight — and
-    a 5V AS1115 talking to a 3.3V MCU needs the I2C level shift thought
-    about. MC-1's spec works this through; any later module with a blue
-    display inherits the same three problems.
+    **⚠️ Budget the AS1115's rail at the pin, not at the bus**, and note its
+    absolute maximum is **7V** — 5.5V is the top of the *operating* range,
+    not the abs-max, which an earlier revision had confused. Worked through
+    against DS000206 in MC-1's spec, the result is that the chain needs
+    **4.21V at V+** with a worst-case 3.80V segment, which leaves +0.24V
+    after a Schottky, a PTC and the backplane pour — and **−0.16V after a
+    0.7V silicon diode.** That is why the Schottky/PMOS rule for +5V under
+    Circuit protection is load-bearing rather than precautionary, along with
+    a low-resistance PTC and heavy copper on the bus board's 5V pour.
+    **Two things any later blue-display module inherits**: the margin exists
+    only at low segment current (at the datasheet's own test currents the
+    sum is 5.45V and does not fit under 5V at all, so the intensity setting
+    is functional, not cosmetic), and **the I2C level shift is mandatory** —
+    `VIH = 0.7 × VDD` is 3.50V at V+ = 5V, which a 3.3V MCU cannot meet.
 - **Parameter DAC**: **MCP4728** — 12-bit, 4-channel, I2C, MSOP-10, with
   on-board EEPROM. The standard part for every module's parameter channels
   (pulse width, modulation depths, velocity, and their equivalents
