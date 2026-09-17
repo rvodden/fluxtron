@@ -97,7 +97,9 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     Populated on every module. **⚠️ Never a 10-pin connector** — a 10-pin
     socket mates with a 16-pin shrouded power header *by design*, that being
     ordinary Eurorack practice, so a 10-pin bus plug would go straight onto
-    ±12V and destroy every MCU on the backplane.
+    ±12V and destroy every MCU on the backplane. With power now 2×8
+    range-wide, **the range contains no 10-pin connector anywhere**, so this
+    rule is satisfied by construction rather than by remembering it.
   - Protocol: **I2C**, reusing the same physical layer as each module's
     local AS1115 (see below).
   - Addressing: **geographic — the backplane holds the address.** Each bus
@@ -513,10 +515,15 @@ Applies to every module's schematic. Cheap to design in now, painful to
 retrofit after boards are fabbed — treat this as a checklist each module
 must satisfy, not a per-module decision to re-derive.
 
-- **Reverse power protection**: shrouded, keyed **16-pin** power header on
-  every module (prevents backwards insertion mechanically). 16-pin because
-  every module needs +5V for its 3.3V LDO — see the signal architecture
-  section *plus* a
+- **Reverse power protection**: shrouded, keyed **2×8 (16-pin)** power header
+  on **every** module (prevents backwards insertion mechanically). 2×8 is
+  mandatory module-side, not just on the bus board: a 2×5 header physically
+  omits the +5V pins, so a module cannot have one and still take the rail its
+  3.3V LDO runs from. Budget ~8mm more board width than a 2×5 would have
+  needed — worth checking on VO-1, whose main board is already down to roughly
+  40 × 80mm. The CV and Gate pins come along with it, unconnected by default,
+  which costs nothing and leaves a module able to tap the bus CV/Gate later
+  without a connector change *plus* a
   reverse-polarity protection circuit on each rail as a backstop for the
   "offset by one pin" case a keyed shroud doesn't catch. Default to simple
   series diodes (~0.7V drop, acceptable given ±12V headroom) unless a
@@ -525,7 +532,9 @@ must satisfy, not a per-module decision to re-derive.
 - **Per-module overcurrent protection**: a resettable PTC polyfuse on each
   power rail, per module, so a fault on one module can't pull down the
   shared bus and affect its neighbours. Exact current rating TBD per
-  module's actual draw.
+  module's actual draw. **Note +5V is now one of those rails on every
+  module**, not only on ones with a display — and conversely each module's
+  **+12V draw has fallen**, since its 3.3V domain moved off that rail.
 - **Output short-circuit protection**: series resistor (~1kΩ typical) on
   every CV/audio/gate output, so a patching mistake (output shorted to
   ground or to another output) is current-limited rather than damaging.
