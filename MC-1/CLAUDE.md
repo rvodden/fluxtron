@@ -266,8 +266,12 @@ one-handed, and the timeout above gives most of the same safety.
     frequency accuracy is not load-bearing anywhere on this module. A
     crystal remains cheap insurance if bring-up suggests otherwise.
   - **USB is why MC-1 specifically needs the G0B1** rather than a smaller
-    G0 — the G031/G071 parts have no USB controller at all. This is the
-    module that sets the range-wide part choice; the others inherit it.
+    G0 — the G031/G071 parts have no USB controller at all. Do not be
+    misled by the G071/G081 datasheets advertising a *USB Type-C Power
+    Delivery controller*: that is UCPD, a PD negotiation block with no USB
+    data path, and USB MIDI cannot run on it. Only G0B1/G0C1 define a
+    `USB_DRD_FS` peripheral. This is the module that sets the range-wide
+    part choice; the others inherit it.
 - **TRS MIDI IN/THRU**: 3.5mm TRS Type A (see range-wide doc).
 - **No dual-input/merge logic**: a given unit is fed by *either* USB
   (if enumerated) *or* TRS IN, never both — simpler firmware, no merge
@@ -280,6 +284,13 @@ one-handed, and the timeout above gives most of the same safety.
   onward for a third, etc. Lets one USB cable drive several independent
   FluxTron voice chains, each MC-1 tuned to a different channel via its
   encoder.
+- **⚠️ One MC-1 per system, not per chassis.** A downstream chassis is
+  mastered by its CX-1, so a second MC-1 there would put **two masters** on
+  that segment. CV and Gate reach a second chassis over a differential link on
+  the CX cable instead (`../BUS.md` §2.7) — cheaper than an MC-1 and without
+  the conflict. Daisy-chained MC-1s remain a *multi-voice* feature, each on its
+  own channel and its own chassis-0-equivalent segment, not a way to replicate
+  one voice across chassis.
 
 ## Physical construction: three separate boards
 
@@ -391,9 +402,18 @@ Two further consequences:
   the MCU pins, and the AS1115's input thresholds at V+=5V may sit above
   what a 3.3V driver guarantees. Budget for a MOSFET level-shifter pair on
   the local I2C, or confirm the AS1115's VIH allows 3.3V direct drive.
-- **LDO dissipation, and dimming as a thermal lever.** Multiplexed, one
-  digit lit at a time, all 8 segments at 10mA is ~80mA from the 5V rail —
-  7V × 80mA ≈ **560mW** in a linear LDO from +12V. That wants a SOT-223 or
+- **Where the 5V comes from — PS-1 changes this.** The rail should now be
+  taken **from the bus**, not made locally. PS-1 provides a guaranteed +5V,
+  and MC-1 carries a 16-pin power header like every module — that is now
+  range-wide, since every module's 3.3V LDO runs from +5V, so it costs MC-1
+  nothing beyond the extra segment current. **Lay out the local LDO anyway, unpopulated, with a jumper selecting
+  the source** — that is what keeps MC-1 working in a case whose PSU has no
+  5V rail. The dissipation figures below apply only if the LDO is populated.
+- **LDO dissipation, and dimming as a thermal lever** (local-LDO path only).
+  Multiplexed, one digit lit at a time, all 8 segments at 10mA is ~80mA from
+  the 5V rail — 7V × 80mA ≈ **560mW** in a linear LDO from +12V. That was the
+  worst thermal spot in the range, on its most crowded board, and taking the
+  rail from the bus deletes it. If populated, it wants a SOT-223 or
   DPAK part and a real thermal pad, and it goes on the PTC budget. At
   120–180 mcd these are very bright and will almost certainly be run well
   below full intensity, which cuts the dissipation proportionally — so the
@@ -446,6 +466,21 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
   not yet decided — see main open items list) — protects the host port
   from a fault on MC-1's side.
 
+## Safe state on Panic
+
+MC-1 must define what it does on a bus Panic (`../BUS.md` §6.7), and it is the
+module where the answer matters most, since it drives pitch and gate directly.
+
+**Gate low is the unambiguous part** — that is what stops sound. The rest is
+not yet decided: whether V/OCT holds its last value or goes to 0V, and whether
+velocity CV drops to zero. Holding pitch avoids a click into whatever the VCO
+feeds; zeroing it is more predictable. **Decide before firmware, not at
+bring-up.**
+
+MC-1 also **maps CC 120 (All Sound Off) to a bus Panic**, since that is what a
+DAW's panic button sends. **CC 123 (All Notes Off) stays local** — it is about
+notes, so MC-1 drops its gate and leaves the bus alone.
+
 ## Open items
 
 - **Vertical panel budget** — the row-of-4 problem is resolved and MC-1
@@ -455,14 +490,18 @@ ESD on jacks, decoupling, bus ESD). MC-1 additionally needs:
   still need distinguishing from the four CV jacks by some plain-word
   means. See the section above; it costs vertical space MC-1 does not
   obviously have.
-- **Bus master firmware** — parameter addressing/encoding over I2C is
-  unspecified and is now load-bearing in phase 1.
+- **Bus master firmware** — the protocol itself is specified in `../BUS.md`;
+  what remains is MC-1's own side of it: the NRPN state machine, the parameter
+  shadow and downstream coalescing, discovery and rediscovery, preset
+  stage/commit sequencing, and driving firmware updates.
 - Exact USB-C connector part number for the daughterboard.
 - **AS1115 segment/digit driver dropout at 5V** against the GS2022CB-B's
   3.80V worst-case Vf — the tightest electrical margin on the module.
 - **I2C level shifting** between the 3.3V MCU and the 5V AS1115.
-- **A local 5V rail for the AS1115** is now confirmed necessary, not just
-  likely — sizing and thermals per the note above.
+- **The 5V rail for the AS1115** is confirmed necessary. Source is settled
+  in principle — from PS-1 over a 16-pin header, with an unpopulated local
+  LDO and a jumper as the portability fallback — but the connector change and
+  the jumper arrangement are not yet drawn.
 - **Free-running internal clock** (MC-1 as master when no MIDI clock is
   present) — genuinely useful, genuinely separate: it needs a tempo
   control, a start/stop affordance and probably tap, none of which fit the

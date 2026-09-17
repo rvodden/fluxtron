@@ -322,8 +322,10 @@ overkill at two channels.
   2ppm/°C), sharing VO-1's local I2C bus with the MCP4728. See
   `../CLAUDE.md` for the error budget and the output-stage rules — the
   matched resistor network matters more than the DAC does. Because it
-  generates its own reference from the 3.3V rail, **VO-1 needs no 5V rail**
-  — which a discrete reference might have forced.
+  generates its own reference from the 3.3V rail, **VO-1 needs no 5V for
+  analogue purposes** — which a discrete reference might have forced.
+  It still takes +5V at its 16-pin header as the input to its 3.3V LDO, like
+  every module; what it lacks is any *analogue or display* load on that rail.
 - **Parameter DAC**: **MCP4728** (12-bit, 4-channel, I2C) — pulse width,
   FM depth and PWM CV depth on three channels, one spare. On VO-1's local
   I2C port, which it has to itself since VO-1 carries no AS1115.
@@ -355,10 +357,14 @@ additionally needs:
   four encoders at human speed is around 2,000 interrupts per second in
   total. The auto-tune frequency counter takes one timer in counter mode
   and one gating it.
+- **VO-1's safe state on Panic** (`../BUS.md` §6.7) — required of every
+  module. Likely the same as its power-on state (pulse width 50%, FM and PWM
+  depths at zero); if so, say so rather than define it twice. Note VO-1 is an
+  oscillator, so "safe" does not mean silent — a VCA downstream handles that.
 - **Matched resistor network part** for the tune scaling stage, and the
   precision op-amp to go with it.
-- The bus protocol itself — parameter addressing/encoding over I2C is now
-  load-bearing in phase 1 and isn't specified anywhere yet.
+- VO-1's slave side of the bus protocol (`../BUS.md`): its parameter register
+  map within `0x00–0x7F`, the dirty bitmap, and preset staging.
 - Whether VO-1 wants any parameter readout at all, or whether the DAW/host
   is the only place a MIDI-set value is visible.
 - Exact Rt/Rz values for the AS3340 compensation circuit.
