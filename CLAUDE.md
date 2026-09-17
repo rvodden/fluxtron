@@ -337,13 +337,34 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   - **⚠️ Two on one bus needs address programming.** The three address LSBs
     are set by an LDAC-assisted write sequence, not by pins. Fine at one
     per module; plan for it if a module ever needs more than 4 channels.
+  - **Supply current scales with channels left in Normal mode** — 800µA typ
+    for four, then 600, 400, 200µA as each is powered down (40nA with all
+    four down). **Power down the channels a module does not use**: it is a
+    register write, and it takes MC-1 from 800µA to 200µA since it uses only
+    velocity. Small, but free.
 - **Pitch DAC**: **AD5693R** (nanoDAC+, 16-bit, single-channel, I2C,
   buffered rail-to-rail output, **2.5V on-chip reference at 2ppm/°C**).
   One on VO-1 (tune) and one on MC-1 (V/OCT out).
-  - **The on-chip reference is the point.** It beats a discrete REF5025 at
-    its 3ppm grade (0.48 cent of warm-up drift against 0.72), deletes a
-    part and its capacitors from two modules, and removes a whole class of
-    mistake — there is no wrong reference grade to order by accident.
+  - **⚠️ Order the B grade: `AD5693RBRMZ` (MSOP-10).** An earlier revision
+    of this file claimed the on-chip reference "removes a whole class of
+    mistake — there is no wrong reference grade to order by accident."
+    **That is wrong, and the datasheet says so plainly:**
+
+    | Grade | Reference TC typ | max | Cents over 20°C |
+    |---|---|---|---|
+    | **B — `AD5693RB…`** | **2 ppm/°C** | **5 ppm/°C** | **0.48 / 1.20** |
+    | A — `AD5693RA…` | 5 ppm/°C | 20 ppm/°C | 1.20 / **4.82** |
+
+    The grade is one letter buried mid-part-number — `AD5693R**B**RMZ`
+    against `AD5693R**A**RMZ` — which makes it *more* orderable-by-accident
+    than a separate reference IC would have been, not less. An A-grade part
+    at its maximum throws away 4.82 cents, second only to the discrete
+    resistor row in the error budget above.
+  - **The on-chip reference is still the point**, on the B grade: 0.48 cent
+    of warm-up drift against 0.72 for a discrete REF5025 at its 3ppm grade,
+    and it deletes a part and its capacitors from two modules. Note the
+    comparison is typ against typ; the B grade's 5ppm/°C *maximum* is
+    1.20 cents, worse than the REF5025's typical.
   - **It also removes VO-1's rail risk.** An AD5662 + REF5025 pairing would
     have had the reference generating 2.5V from VO-1's 3.3V rail, since
     VO-1 has no AS1115 and so nothing drawing on +5V beyond its LDO input. Whether the dropout allowed it
@@ -359,6 +380,9 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     **This is now a firmware requirement rather than an optimisation**,
     which it would not have been on a separate SPI bus. It is the one real
     cost of the choice.
+  - **Supply current 350µA typ / 500µA max** in normal mode with the
+    internal reference enabled, 2µA max powered down — well under the
+    ~1.5mA the power budget had assumed.
   - Addresses do not clash: the AD5693R sits around 0x4C (A0-selectable),
     the MCP4728 at 0x60, the AS1115 low. On MC-1 it belongs on the **3.3V
     side of the AS1115 level shifter**, alongside the MCP4728.
@@ -375,9 +399,13 @@ number governs the whole chain, and the DAC contributes almost none of it:
 | Source | Drift over 20°C | Cents |
 |---|---|---|
 | 16-bit LSB over 10V | — | 0.18 |
-| AD5693R on-chip reference, 2ppm/°C | 40 ppm | 0.48 |
+| AD5693R on-chip reference, **B grade** 2ppm/°C typ | 40 ppm | 0.48 |
+| AD5693R on-chip reference, B grade 5ppm/°C **max** | 100 ppm | 1.20 |
+| *AD5693R reference, **A grade** 20ppm/°C max — wrong part* | *400 ppm* | ***4.82*** |
 | **Discrete 1% resistors, 25ppm/°C** | **500 ppm** | **6.00** |
 | Matched thin-film array, 1ppm/°C tracking | 20 ppm | 0.24 |
+| AD5693R **gain** tempco, ±1ppm/°C (separate from the reference) | 20 ppm | 0.24 |
+| AD5693R reference noise, 16.5µV p-p at gain 4 | — | 0.08 |
 | Precision op-amp, 3µV/°C at gain 4 | — | 0.29 |
 | Jellybean op-amp, 10µV/°C at gain 4 | — | 0.96 |
 | *INA2134 offset drift, ±2µV/°C* — **cross-chassis only** | 40µV | *0.05* |

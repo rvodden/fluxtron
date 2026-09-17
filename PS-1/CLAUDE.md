@@ -219,9 +219,10 @@ implied by VO-1's "roughly 0.4W off +12V". **The 46mA was wrong.**
 | Peripherals a slave actually enables (Table 36, ×64MHz) | +1.7mA |
 | — 2 GPIO ports 0.40, I2C1 0.23, I2C3 0.06, 2 timers 0.63, DMA1 0.33 | |
 | **MCU subtotal** | **~10.3mA** |
-| MCP4728, AD5693R where fitted | ~1–2.5mA |
-| Local I2C pull-ups, LDO quiescent | ~2.5mA |
-| **Whole 3.3V domain** | **~14–16mA** |
+| AD5693R where fitted (350µA typ, 500µA max) | 0.35mA |
+| MCP4728 (800µA for 4 channels, 200µA for 1) | 0.2–0.8mA |
+| Local I2C pull-ups, LDO quiescent — *still estimated* | ~2.5mA |
+| **Whole 3.3V domain** | **~13.6–14.4mA** |
 
 MC-1 adds USB (0.21mA), CRS (0.01mA) and a MIDI USART (0.47mA) for ~16mA.
 
@@ -230,10 +231,11 @@ right one, and the +5V total lands near **~360–560mA** with displays. The
 1.5A ceiling stays — the margin is now comfort rather than uncertainty, and
 five modules are still unspecified.
 
-**⚠️ Two terms above are still estimates**: the MCP4728 and AD5693R supply
-currents (Microchip and ADI both unreachable), and the pull-up/LDO figures.
-They are small and cannot move the conclusion, but a bench measurement of
-one populated module is still the thing that would retire them.
+**Both DAC currents are now measured** (22187E and the AD5693R datasheet,
+both in `../datasheets/`) and came in *below* the estimates — the AD5693R at
+350µA against an assumed 1.5mA. **Only the pull-up and LDO-quiescent terms
+remain estimated**, and at ~2.5mA combined they cannot move the regulator
+choice. A bench measurement would retire them; nothing waits on it.
 
 #### Per-rail budget at 16 modules
 
@@ -629,12 +631,10 @@ The range-wide protection standard in `../CLAUDE.md` is written for modules
 
 ## Open items
 
-- **Measure one populated module's 3.3V domain.** No longer urgent — DS13560
-  settles the MCU at ~10.3mA and the whole domain at ~15mA, so the 18mA-vs-46mA
-  spread is closed. What remains estimated is the MCP4728 and AD5693R supply
-  currents (Microchip and ADI unreachable) and the pull-up/LDO figures, which
-  are small enough not to move the regulator choice. VO-1 is still the obvious
-  module to put a meter on.
+- **Measure one populated module's 3.3V domain.** Nice to have, not blocking.
+  Every silicon term is now from a datasheet — MCU ~10.3mA, AD5693R 0.35mA,
+  MCP4728 0.2–0.8mA — leaving only the pull-ups and LDO quiescent (~2.5mA
+  together) as estimates. VO-1 is the obvious module to put a meter on.
 - **One 16-slot segment or two bridged segments** for a larger chassis. The
   bus-board section recommends two; sizing the supply for 16 modules assumes
   the rack reaches that count either way, so this is a bus decision rather

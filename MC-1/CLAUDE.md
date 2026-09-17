@@ -481,8 +481,11 @@ Two further consequences:
   **Sit it on the 3.3V side of the AS1115 level shifter**, not the 5V
   side: the AS1115 needs 5V only because blue segments demand it, and
   there is no reason to drag the DAC up with it.
-- **Pitch DAC**: **AD5693R** (16-bit, I2C, 2.5V on-chip reference at
-  2ppm/°C) for the V/OCT output. On the local I2C bus alongside the
+- **Pitch DAC**: **AD5693R — specifically `AD5693RBRMZ`, the B grade**
+  (16-bit, I2C, 2.5V on-chip reference at 2ppm/°C typ) for the V/OCT output.
+  **⚠️ `AD5693RARMZ` is the A grade** — 20ppm/°C max, 4.82 cents, and one
+  letter away. MC-1 has no auto-tune to hide it behind; see
+  `../CLAUDE.md`. On the local I2C bus alongside the
   MCP4728 and the AS1115 — and, like the MCP4728, on the **3.3V side of
   the level shifter**. **Firmware must write the pitch DAC before raising
   gate**, so a note-on cannot skew against a parameter update sharing the
