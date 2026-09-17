@@ -204,14 +204,15 @@ with decent copper and possibly a small heatsink on the positive regulator.
     by its own CX-1, not by its bus board.
 - **Route the Eurorack bus CV and Gate lines.** Within a chassis they are the
   standard global pair. To reach a downstream chassis they leave through the
-  **CX port**, which therefore also carries **differential drivers for both**
-  (`../BUS.md` §2.7) — a precision line driver for CV, since inter-chassis
-  ground offset lands straight on it at 12 cents per 10mV, and an
-  RS-485-class driver for Gate. All four Cat5 pairs are then differential,
-  which is what lets the cable's **shield** serve as the common-mode
-  reference: no signal return current flows in it. Use **shielded** RJ45
-  jacks. Populate alongside the PCA9615, only when the chassis chains
-  further. The standard 16-pin header
+  **CX port**, sent **impedance-balanced** (`../BUS.md` §2.7): a matched
+  **0.1%** series resistor pair per signal, and **no driver IC** — the
+  receiving end does the rejecting. 0.1% rather than 1% because the impedance
+  match sets system CMRR, and 1% lands exactly on the margin needed for the
+  worst inter-chassis ground offset. All four Cat5 pairs are then
+  differential, which is what lets the cable's **shield** serve as the
+  common-mode reference: no signal return current flows in it. Use
+  **shielded** RJ45 jacks. Populate alongside the PCA9615, only when the
+  chassis chains further. The standard 16-pin header
   carries them and we are going 16-pin for the +5V anyway, so this is two
   traces on a board already being fabbed. If a cable-free global gate is ever
   wanted, the mechanism exists and is analogue and deterministic — which

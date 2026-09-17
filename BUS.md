@@ -177,8 +177,8 @@ regenerated onto the child's.
 
 | End | Hardware |
 |---|---|
-| **Parent bus board, at the CX port** | A precision differential line driver for CV and an RS-485-class driver for Gate, taking the parent's own bus CV/Gate lines |
-| **CX-1, in the child chassis** | The matching receivers. CX-1 drives the child's bus CV/Gate lines through its **power** connector, the way a Doepfer A-190 does |
+| **Parent bus board, at the CX port** | Impedance-balanced sending — a matched 0.1% series resistor pair per signal, no driver IC — taking the parent's own bus CV/Gate lines |
+| **CX-1, in the child chassis** | One `INA2134` dual receiver for both. CX-1 drives the child's bus CV/Gate lines through its **power** connector, the way a Doepfer A-190 does |
 
 **Everything is differential, on shielded Cat5:**
 
@@ -209,38 +209,56 @@ limiting**.
 - This is the one place the link carries something other than I2C. It still
   **never carries power**.
 
-#### Two different transceivers, not one dual part
+#### One dual receiver carries both, and no driver IC is needed
 
-The two signals barely overlap in what they need, and one of the obvious parts
-cannot do both:
+**Child end: a single `INA2134`** — dual differential line receiver, G=1,
+90dB CMRR, on-chip precision resistors, SO-14. One channel for CV, one for
+Gate. (`INA2137` is the same idea with EMI filters but ±6dB gain; G=1 is what
+this wants, so INA2134.)
 
-| | CV | Gate |
-|---|---|---|
-| Carries | Precision analogue against an 833µV/cent budget | A logic level |
-| Part class | **Integrated precision differential receiver** (INA137 / THAT1240 class) | **RS-485/RS-422 transceiver** |
+**Parent end: impedance-balanced sending, no driver IC.** Drive the `+` leg and
+tie the `−` leg to the *sender's* ground through a matching series resistor.
+The inter-chassis offset then appears identically on both legs, so the receiver
+rejects it as common mode exactly as it would with true differential drive.
+There is no dual balanced-line driver to buy anyway — DRV134 and DRV135 are
+both single-channel, differing only in package — and this makes the question
+moot.
 
-- **An RS-485 receiver is a comparator** — it outputs a logic level, not an
-  analogue voltage — so it categorically cannot carry CV. Going the other way,
-  an audio-grade receiver on gate works but wastes precision, and RS-485 is
-  pennies with a ±7V common-mode range that tolerates *more* ground offset
-  than the PCA9615 alongside it.
-- **⚠️ The CV receiver must be an integrated part, not a discrete diff amp** —
-  the same reasoning as the matched-network rule in `CLAUDE.md`, and the same
-  failure mode. Its CMRR is what rejects the offset:
+**Gate does not need RS-485.** A Eurorack bus gate *is* an analogue voltage
+(0/+5V), so the second receiver channel passes it through and reproduces it on
+the child's bus line. No comparator, no logic-level conversion, no second
+transceiver. An RS-485 receiver could not have carried CV in any case — it is a
+comparator, outputting logic rather than an analogue voltage — so sharing one
+part was only ever possible in the analogue direction.
 
-  | Ground offset | CMRR needed to keep it under 0.1 cent (83µV) |
-  |---|---|
-  | 10mV | 42dB — any diff amp manages it |
-  | **1V**, two bricks with no patch cable yet bonding the cases | **82dB — needs laser-trimmed resistors** |
+Two things the saving is not free of:
 
-  Four discrete 0.1% resistors give roughly 54dB. That is fine for the
-  10mV case and nowhere near enough for the 1V one, which is a state the rack
-  can genuinely be in before anything is patched between the cases.
-- **⚠️ A chassis receiving CV over the link has a worse pitch budget than one
-  generating it locally.** The receiver's own offset drift adds to the 833µV
-  per cent that `CLAUDE.md`'s error table accounts for, and that table does not
-  currently include this term. Budget it before relying on cross-chassis
-  pitch accuracy.
+- **⚠️ Specify 0.1% resistors for the impedance balance.** System CMRR is
+  limited by how well the two source impedances match against the receiver's
+  ~25kΩ input network, at roughly `20·log10(R_in / ΔR)`:
+
+  | Series resistor grade | ΔR on 100Ω | System CMRR |
+  |---|---|---|
+  | 1% | 2Ω | **82dB — marginal** |
+  | **0.1%** | 0.2Ω | **102dB — comfortable** |
+
+  What that has to survive is the offset itself. Keeping it under 0.1 cent
+  (83µV) needs 42dB against a 10mV offset — trivial — but **82dB against 1V**,
+  which is a state the rack can genuinely be in when two bricks are running
+  with nothing yet patched between the cases to bond them. 1% lands exactly on
+  that boundary; 0.1% clears it by 20dB.
+- **⚠️ Verify the INA2134's channel-to-channel crosstalk against the pitch
+  budget.** CV and Gate now share one package, so a gate edge couples into the
+  CV channel as a pitch glitch. At −100dB a 5V edge contributes 50µV, or
+  0.06 cent, which is fine — but that is an assumed figure, not a read one.
+  Check it before committing, since the whole point of the shared part is that
+  the two channels do not interact.
+
+**⚠️ A chassis receiving CV over the link has a worse pitch budget than one
+generating it locally.** The receiver's own offset drift adds to the 833µV per
+cent that `CLAUDE.md`'s error table accounts for, and that table does not
+currently include this term. Budget it before relying on cross-chassis pitch
+accuracy.
 
 **⚠️ Rejected: a second MC-1 in each chassis.** It was an earlier
 recommendation here, and it is wrong twice over.
