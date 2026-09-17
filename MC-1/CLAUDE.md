@@ -407,18 +407,24 @@ thermal reasons; that is now a *functional* requirement, not an aesthetic or
 thermal preference. Do not let anyone "fix" a dim display by raising the
 intensity register.
 
-**⚠️ And it only closes with a Schottky.** Budgeted at the pin rather than at
-the bus, per the range-wide warning:
+**⚠️ And it only closes on a low-drop element.** Budgeted at the pin rather
+than at the bus, per the range-wide warning:
 
-| Bus 5.00V, less… | | At the pin | Margin |
-|---|---|---|---|
-| Schottky 0.30 + PTC 0.20 + pour 0.05 | | 4.45V | **+0.24V** |
-| **Silicon diode 0.70** + PTC 0.20 + pour 0.05 | | 4.05V | **−0.16V — fails** |
+| Bus 5.00V, less… | At the pin | Margin |
+|---|---|---|
+| **Logic-level P-FET 0.006** + PTC 0.20 + pour 0.05 | 4.74V | **+0.54V** |
+| Schottky 0.30 + PTC 0.20 + pour 0.05 | 4.45V | +0.24V |
+| Silicon diode 0.70 + PTC 0.20 + pour 0.05 | 4.05V | **−0.16V — fails** |
 
-So the range-wide "no 0.7V series diode on +5V" rule is not a precaution
-here, it is the difference between a display that works and one that does
-not. **If more margin is wanted, raise the bus to 5.25V** — that buys
-+0.49V and is well inside the AS1115's operating range.
+**Fit the MOSFET.** At 126mA a ~50mΩ logic-level P-channel part drops 6mV
+where a Schottky drops 300mV, which more than doubles the margin for the
+cost of a gate resistor. It must be a *logic-level* part — Vgs is only −5V
+here. See the reverse-polarity rules in `../CLAUDE.md`, including the
+orientation gotcha.
+
+Two further levers if it is ever wanted: **raise the bus to 5.25V** (+0.49V
+on top, well inside the AS1115's 2.7–5.5V operating range), or drop the
+segment current below 10mA.
 
 **Correction: the AS1115's absolute maximum is 7V, not 5.5V.** 5.5V is the
 top of the *operating* range (2.7–5.5V). An earlier revision of this file
@@ -539,8 +545,8 @@ notes, so MC-1 drops its gate and leaves the bus alone.
   stage/commit sequencing, and driving firmware updates.
 - Exact USB-C connector part number for the daughterboard.
 - ~~AS1115 segment/digit driver dropout at 5V~~ — **settled** against
-  DS000206: it closes with +0.24V at the pin, but only with a Schottky and
-  only at 10mA/segment. See the 5V rail section.
+  DS000206: it closes with +0.54V at the pin behind a MOSFET, and only at
+  10mA/segment. A silicon diode fails it outright. See the 5V rail section.
 - ~~I2C level shifting~~ — **settled: mandatory.** `VIH = 0.7 × VDD` puts
   the threshold at 3.50V with V+ at 5V, so 3.3V direct drive is out.
 - **The 5V rail for the AS1115** is confirmed necessary. Source is settled

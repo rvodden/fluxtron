@@ -111,12 +111,12 @@ and every candidate input element clears it:
 
 | Input element | Input at −5% brick | Slack |
 |---|---|---|
-| PMOS ideal diode | 14.00V | +1.55V |
+| P-channel MOSFET | 14.00V | +1.55V |
 | Schottky | 13.65V | +1.20V |
 | Silicon diode | 13.35V | +0.90V |
 
 So the "genuinely low-dropout precision part" requirement above was right, and
-satisfying it retired the problem. **The earlier claim that the ideal diode is
+satisfying it retired the problem. **The earlier claim that the MOSFET is
 *forced by the dropout budget* is wrong and is corrected in Protection** — the
 argument for it is now thermal, not dropout. What remains true is that the
 dissipation constraint still pulls the other way: a +5% brick cooks what a −5%
@@ -543,21 +543,36 @@ conclusion is unlikely to move, but confirm before ordering.
 The range-wide protection standard in `../CLAUDE.md` is written for modules
 *consuming* power. PS-1 is the source, so it needs a different list:
 
-- **Input reverse polarity — a PMOS ideal diode, not a series diode.**
+- **Input reverse polarity — a P-channel MOSFET, and no controller.**
   **⚠️ The reason is heat, not dropout.** An earlier revision justified this
-  on the dropout budget; the TPS7A47's measured 450mV worst case retired that
-  argument, and a plain silicon diode would still leave 0.9V of slack. What
-  it would not leave is thermal headroom — the element sits at the input
-  where the full ~1.9A flows:
+  on the dropout budget; the TPS7A47's measured 450mV worst case retired
+  that argument, and a plain silicon diode would still leave 0.9V of slack.
+  What it would not leave is thermal headroom — the element carries the full
+  ~1.9A of brick current:
 
-  | Input element | Dissipated there |
-  |---|---|
-  | PMOS ideal diode | 0.10W |
-  | Schottky | 0.76W |
-  | Silicon diode | **1.33W** |
+  | Input element | Drop | Dissipated there |
+  |---|---|---|
+  | **P-FET, 25mΩ** | **48mV** | **90mW** |
+  | P-FET, 50mΩ | 95mV | 181mW |
+  | Schottky | 300mV | 570mW |
+  | Silicon diode | 700mV | **1.33W** |
 
   1.33W is over a quarter of this module's entire ~5W budget, spent on a
-  part that does nothing in normal operation. That is the argument.
+  part that does nothing in normal operation. A 25mΩ FET spends 90mW.
+
+  **An *ideal-diode controller* is not required** — an earlier revision here
+  called for one, which overbuilt it. Reverse polarity is not ORing or
+  hot-swap, so a single FET plus a gate resistor suffices. Follow the
+  orientation and ground-return rules in `../CLAUDE.md`, plus one that is
+  specific to this module:
+  - **⚠️ Clamp Vgs at the 15V input.** Gate-to-ground puts Vgs at 15V
+    against a typical ±20V rating — only 5V of margin, which a brick's
+    turn-on overshoot can eat. Fit a gate Zener and series resistor. The
+    module +5V rails have no such problem.
+  - **Mind the interaction with soft-start.** The gate RC sets the FET's
+    turn-on ramp, and into 1.6mF of downstream bulk capacitance a slow ramp
+    means the FET spends real time in its linear region. Size it with the
+    soft-start, not independently.
 - **Input overvoltage** — the wrong brick will be plugged in eventually.
 - **Soft start / inrush limiting.** Every module's bulk capacitance charges
   at once at power-on.

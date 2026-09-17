@@ -301,11 +301,12 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     absolute maximum is **7V** — 5.5V is the top of the *operating* range,
     not the abs-max, which an earlier revision had confused. Worked through
     against DS000206 in MC-1's spec, the result is that the chain needs
-    **4.21V at V+** with a worst-case 3.80V segment, which leaves +0.24V
-    after a Schottky, a PTC and the backplane pour — and **−0.16V after a
-    0.7V silicon diode.** That is why the Schottky/PMOS rule for +5V under
-    Circuit protection is load-bearing rather than precautionary, along with
-    a low-resistance PTC and heavy copper on the bus board's 5V pour.
+    **4.21V at V+** with a worst-case 3.80V segment. After the PTC and the
+    backplane pour that leaves **+0.54V behind a MOSFET**, +0.24V behind a
+    Schottky, and **−0.16V behind a 0.7V silicon diode, which fails.** That
+    is why the +5V MOSFET rule under Circuit protection is load-bearing
+    rather than precautionary, along with a low-resistance PTC and heavy
+    copper on the bus board's 5V pour.
     **Two things any later blue-display module inherits**: the margin exists
     only at low segment current (at the datasheet's own test currents the
     sum is 5.45V and does not fit under 5V at all, so the intensity setting
@@ -619,15 +620,38 @@ must satisfy, not a per-module decision to re-derive.
   without a connector change. The header is backed by a
   reverse-polarity protection circuit on each rail as a backstop for the
   "offset by one pin" case a keyed shroud doesn't catch.
-  - **On ±12V**: simple series diodes (~0.7V drop, acceptable given the
-    headroom) unless a specific module's circuit is voltage-sensitive enough
-    to need an ideal-diode/PMOS approach instead.
-  - **⚠️ On +5V, a 0.7V series diode is not acceptable** — use a Schottky or
-    a PMOS ideal diode. The ±12V justification is a headroom argument and it
-    does not carry over: +5V feeds a 3.3V LDO with only 1.7V to spend, and on
-    a display module it is also the AS1115's supply, where the drop comes
-    straight off the tightest electrical margin in the range. See the AS1115
-    rail-budget warning under Common components.
+  - **⚠️ On +5V, use a MOSFET.** Not a silicon diode, and not even a
+    Schottky where the margin is tight. A logic-level P-channel FET at
+    ~50mΩ drops **6mV** at a module's 126mA against a Schottky's 300mV,
+    which on a display module is worth more than half the AS1115's entire
+    driver margin (+0.54V with the FET against +0.24V with a Schottky, and
+    **−0.16V with a silicon diode, which fails**). The ±12V headroom
+    argument does not carry over to a rail feeding a 3.3V LDO with 1.7V to
+    spend.
+  - **On ±12V**: series diodes remain acceptable — the headroom is genuinely
+    there, and a diode is one part where a FET is three, which matters on
+    boards as tight as VO-1's. Use a FET if the module's own headroom
+    argues for it.
+  - **No ideal-diode controller is needed for any of this.** Plain reverse
+    polarity is not ORing or hot-swap: a single MOSFET with a gate resistor
+    does the whole job, and the controller is the thing that would have made
+    it expensive. Three rules make it work, and getting any of them wrong is
+    the usual way this circuit fails:
+    - **⚠️ Drain to the supply, source to the load — the FET goes in
+      "backwards".** The body diode must be *reverse* biased in the fault
+      case; wired source-to-supply it is forward biased on reversal and
+      conducts merrily, protecting nothing. P-channel on a positive rail,
+      N-channel on −12V, gate to ground through a resistor in both cases.
+    - **⚠️ Never put the FET in the ground return.** A low-side N-channel is
+      cheaper and lower-Rds(on) for the money, and it is wrong here: this is
+      one shared analogue ground carrying audio and CV returns across the
+      whole backplane, and breaking it per-module would be a serious fault.
+      High side only.
+    - **⚠️ On +5V it must be a logic-level part.** Vgs is only −5V, and an
+      ordinary P-FET specifies Rds(on) at −10V — it would be barely on.
+      Pick one characterised at −4.5V or lower. No such concern on ±12V.
+  - This protects against reversal only, not overvoltage. The TVS/clamping
+    requirements below still stand.
 - **Per-module overcurrent protection**: a resettable PTC polyfuse on each
   power rail, per module, so a fault on one module can't pull down the
   shared bus and affect its neighbours. Exact current rating TBD per
