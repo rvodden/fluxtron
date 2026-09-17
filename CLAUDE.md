@@ -348,6 +348,44 @@ number governs the whole chain, and the DAC contributes almost none of it:
 | Matched thin-film array, 1ppm/°C tracking | 20 ppm | 0.24 |
 | Precision op-amp, 3µV/°C at gain 4 | — | 0.29 |
 | Jellybean op-amp, 10µV/°C at gain 4 | — | 0.96 |
+| *INA2134 receiver offset drift* — **cross-chassis only** | *see below* | *see below* |
+| *INA2134 gain (resistor TCR) drift* — **cross-chassis only** | *see below* | *see below* |
+
+#### ⚠️ The last two rows apply only to a chassis receiving CV over the link
+
+A locally generated CV does not have them. A chassis taking its CV from an
+upstream case over the CX link (`BUS.md` §2.7) puts an `INA2134` differential
+receiver in the path, and that adds two terms the rest of this table does not
+account for:
+
+| Term | Converts as | Scales with signal? |
+|---|---|---|
+| **Offset drift** | `(µV/°C × 20) / 833µV` cents | No — fixed offset |
+| **Gain drift** (on-chip resistor TCR tracking) | `ppm/°C × 20 / 83` cents | Yes — worst at full scale |
+
+Sensitivity, to show which figure matters:
+
+| If offset drift is | Cents | | If gain drift is | Cents |
+|---|---|---|---|---|
+| 2µV/°C | 0.05 | | 1 ppm/°C | 0.24 |
+| 5µV/°C | 0.12 | | 2 ppm/°C | 0.48 |
+| 10µV/°C | 0.24 | | 5 ppm/°C | **1.20** |
+
+**Gain drift is the one to check first.** Offset drift costs at most a couple of
+tenths of a cent across any plausible value, but gain drift at 5ppm/°C would
+exceed every other term in the table combined. TI describe the on-chip
+resistors as laser-trimmed with "excellent TCR tracking", which suggests the
+1ppm/°C end — but that is a marketing phrase, not a number.
+
+**⚠️ Both figures are owed from the datasheet.** They are not recorded here
+because TI's site is unreachable from the environment these notes were written
+in, and guessing part specifications has already produced two errors in this
+project. Read them before relying on cross-chassis pitch accuracy.
+
+**Separately: this table has never stated how its terms combine.** Summed
+linearly it is a worst case; root-sum-square is the realistic figure for
+independent drifts and is considerably kinder. Worth deciding which, since
+adding terms makes the difference matter more.
 
 Two rules follow, and they matter more than the DAC part number:
 

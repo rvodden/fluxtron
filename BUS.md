@@ -262,10 +262,11 @@ Two things the saving is not free of:
   pitch is already moving at note-on and the VCA is closing at note-off.
 
 **⚠️ A chassis receiving CV over the link has a worse pitch budget than one
-generating it locally.** The receiver's own offset drift adds to the 833µV per
-cent that `CLAUDE.md`'s error table accounts for, and that table does not
-currently include this term. Budget it before relying on cross-chassis pitch
-accuracy.
+generating it locally.** The receiver adds an offset-drift term and a
+gain-drift term, both now carried in `CLAUDE.md`'s error table — with the two
+datasheet figures still owed. Gain drift is the one that matters: at 5ppm/°C it
+would exceed every other term in that table combined, where offset drift costs
+at most a couple of tenths of a cent.
 
 **⚠️ Rejected: a second MC-1 in each chassis.** It was an earlier
 recommendation here, and it is wrong twice over.
