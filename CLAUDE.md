@@ -53,16 +53,18 @@ Monophonic system. Modules:
 | EG-1 | Envelope generator (ADSR) | 2 | 8 each |
 | LF-1 | LFO | 1 | 8 |
 | MX-1 | Mixer | 1 | 8 |
-| PS-1 | Power supply + bus board | 1 | **16** |
+| PS-1 | Power supply + bus board | 1 | 8 |
 
-Total 80HP of 84HP (KOMA Case 3U/84HP) — 4HP spare, not enough for another
-module, so it is spacing or a blind panel.
+Total 72HP of 84HP (KOMA Case 3U/84HP) — 12HP spare, not yet allocated
+(candidates: extra spacing, blind panels, an output/headphone module).
 
-**PS-1 is a module in its own right, not a section of MC-1**, and is **settled
-at 16HP** — 8HP was the earlier hope, and the thermal budget closed it off
-once the supply was sized for a full 16-module bus segment rather than for
-phase 1's eight. It supplies **±12V and +5V** from an external **15V 3A**
-DC brick, and owns the bus board. Everything else about it — rail
+**PS-1 is a module in its own right, not a section of MC-1.** It targets
+**8HP**, which it reaches only by mounting its board **perpendicular** to the
+panel — the one exemption to the parallel-PCB rule in the range (see PCB /
+panel construction). **16HP is the fallback** if the mechanical mounting that
+orientation needs does not close; budget the spare HP knowing that. It
+supplies **±12V and +5V** from an external **15V 3A** DC brick, and owns the
+bus board. Everything else about it — rail
 generation, regulator choice, current budget, thermals — is in
 `PS-1/CLAUDE.md` and does not belong here.
 
@@ -160,6 +162,16 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   perpendicular. Panel-mount components (pots, encoders, jacks) are designed
   around this orientation; perpendicular would need right-angle variants of
   everything.
+  - **⚠️ The rule binds a module only in so far as that justification does,
+    and PS-1 is the one module it does not reach.** PS-1 has no pots, no
+    encoders and no jacks — its panel is a DC inlet (chassis-mount on flying
+    leads either way), possibly a switch, and THT indicator LEDs, which the
+    LED rule below already exempts. **PS-1's main board is therefore
+    perpendicular, deliberately**: it buys 1.6× the board area in an 8HP slot
+    and room for a proper heatsink in the airflow, which is what keeps the
+    module at 8HP instead of 16HP. See `PS-1/CLAUDE.md`. No other module
+    currently qualifies, and a module that grows a jack or an encoder stops
+    qualifying.
 - **Depth budget is set by whichever component needs the most reach from
   panel to PCB** — and different component families need very different
   reach, which is the recurring design problem across every module:
@@ -633,13 +645,15 @@ so rather than define the same thing twice.
 
 ## Open items / not yet decided
 
-- Spare 4HP allocation — spacing or a blind panel; too narrow for a module.
+- Spare 12HP allocation (extra spacing vs. blind panel vs. new module) —
+  drops to 4HP if PS-1 falls back to 16HP.
 - EG-1's control set (fully continuous ADSR via 4 encoders vs. some fixed
   stages) — affects whether it needs a dedicated encoder sub-board.
-- PS-1's own open items — whether it carries an MCU, and part numbers. See
-  `PS-1/CLAUDE.md`. (The external brick, the 15V 3A input, the 16HP panel and
-  the 16-module sizing basis are settled; the per-module +5V draw is owed a
-  measurement.)
+- PS-1's own open items — whether it carries an MCU, the mechanical mounting
+  its perpendicular board needs (which is what 8HP is contingent on), and part
+  numbers. See `PS-1/CLAUDE.md`. (The external brick, the 15V 3A input, the
+  perpendicular orientation and the 16-module sizing basis are settled; the
+  per-module +5V draw is owed a measurement.)
 - `BUS.md`'s own open items — four register definitions owed (`COMMAND`
   opcodes, the bootloader magic value, the `INVENTORY` format, and the
   `CAPABILITIES`/`STATUS` bitfields), plus which of I2C1/I2C2 the bus takes.

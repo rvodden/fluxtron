@@ -260,8 +260,9 @@ of "a bigger brick" is the one that makes PS-1 worse:
 | 18V | 4.6W |
 
 Current headroom at the same voltage adds no dissipation anywhere; voltage
-headroom nearly doubles it in the part already forcing this module to 16HP.
-The 15V choice made on dropout grounds above is unchanged.
+headroom nearly doubles it in the part that already sizes this module's
+heatsink — and 4.6W is where 8HP would genuinely stop working, perpendicular
+board or not. The 15V choice made on dropout grounds above is unchanged.
 
 Why 3A rather than 2A:
 
@@ -286,25 +287,68 @@ MCU. It loses on two counts: USB-C is exactly the connector that unplugs when
 nudged, against this module's explicit locking-connector requirement, and a
 failed negotiation leaves the rack silently on 5V.
 
-### Thermals settle the panel width
+### Panel width: 8HP, on a PCB mounted **perpendicular** to the panel
 
-**16HP, settled.** 3.31W of linear dissipation plus buck losses is around 5W
-in one module, with 2.4W of it worst-case in the positive regulator alone.
-That needs real heatsinking and the board area to put it on. 8HP was arguable
-against the eight-module budget and is not against this one. Note this costs a
-backplane position: PS-1 occupies two.
+3.31W of linear dissipation plus buck losses is around 5W in the module, with
+2.4W of it worst-case in the positive regulator alone. **That does not settle
+the width — it settles the orientation**, and an earlier revision here got
+that wrong by declaring 8HP dead. A heatsink was always needed, at any width:
 
-**The +12V regulator ceiling resolves with it.** At a 700mA design target an
-LT3045 (500mA) is out unless two are paralleled. Take the TPS7A47 at 1A, or
-parallel a pair.
+| +12V regulator at 2.4W, 40°C case ambient | Sink | Junction |
+|---|---|---|
+| Bare DPAK on a copper pour (~30°C/W) | 112°C | ~118°C — **fails** |
+| Large pour with vias (~20°C/W) | 88°C | ~94°C — marginal |
+| Small extruded heatsink (~8°C/W) | 59°C | ~65°C |
+| 100mm vertical extrusion (~5°C/W) | 52°C | ~58°C |
+
+So the question was never "can 8HP shed 5W", it was "is there room for the
+heatsink and the parts". Turned perpendicular, there is:
+
+| 8HP slot, ~105mm usable height, 70mm case depth | Board area |
+|---|---|
+| Parallel to the panel (the range default) | 43cm² |
+| **Perpendicular** | **68cm² (1.6×)** |
+
+Across the 40.64mm width, a 1.6mm board plus clearances plus a 15mm extrusion
+comes to 20.6mm — **half the slot, with 20mm spare**. The fins run vertically
+through the full 70mm of case depth, which is the orientation natural
+convection wants anyway.
+
+**⚠️ This is a deliberate exemption from the range-wide parallel-PCB rule, not
+an oversight — do not "correct" it.** That rule exists because pots, encoders
+and jacks are built for a parallel board and would otherwise need right-angle
+variants of everything. **PS-1 has none of those.** Its panel carries a DC
+inlet (a chassis-mount part on flying leads regardless of orientation),
+possibly a switch, and THT indicator LEDs — which the range doc already
+exempts from depth constraints because their leads are bent to reach. The
+rule's justification simply does not reach this module. Recorded in
+`../CLAUDE.md` alongside the rule itself.
+
+What perpendicular costs, and it is not nothing:
+
+- **Mechanical support has to be designed.** Every other module is held by its
+  jack nuts; PS-1 has no jacks. It needs a front bracket to the panel and
+  probably a rear standoff — a part no other module in the range needs.
+- **It may resolve the bus-board feed for free.** A card extending back from
+  the panel arrives at the backplane edge-on, so a right-angle header or card
+  edge could mate directly instead of running a high-current ribbon. Attractive
+  at ~2A aggregate, but contingent on the backplane's mounting geometry, which
+  is not yet specified. See the open items.
+- **16HP stays the fallback** if the mechanical work or the layout does not
+  close. Nothing above depends on 8HP; it is the better answer if it fits.
+
+**The +12V regulator ceiling is independent of all this.** At a 700mA design
+target an LT3045 (500mA) is out unless two are paralleled. Take the TPS7A47 at
+1A, or parallel a pair.
 
 ## Bus board
 
-- **Ten 16-pin power positions** (84HP ÷ 8HP), shrouded and keyed. PS-1's own
-  16HP consumes two positions' worth of panel width, leaving **eight usable
-  module positions** in 84HP (68HP ÷ 8HP) — exactly phase 1's eight. The
-  supply is rated for 16 modules (see the sizing basis above); the *position
-  count* is set by this chassis, and a 16-slot backplane is a later board.
+- **Ten 16-pin power positions** (84HP ÷ 8HP), shrouded and keyed. PS-1 at
+  8HP consumes one position's worth of panel width, leaving **nine usable
+  module positions** in 84HP — phase 1 needs eight. (At the 16HP fallback it
+  is two positions and eight remain, which still fits.) The supply is rated
+  for 16 modules (see the sizing basis above); the *position count* is set by
+  this chassis, and a 16-slot backplane is a later board.
 - **⚠️ Heavy copper on the +5V pour — at least 2oz, a pour and not a trace.**
   At 280mA this did not matter; at up to 1.5A it does, because +5V feeds LDOs
   with 1.7V of headroom and, on a display module, the AS1115 directly.
@@ -429,8 +473,14 @@ The range-wide protection standard in `../CLAUDE.md` is written for modules
   the rack reaches that count either way, so this is a bus decision rather
   than a power one — but the two documents should agree before a backplane
   is laid out.
-- **How PS-1 feeds its own bus board** — a dedicated source connector, or one
-  shared PCB. See the bus-board section.
+- **How PS-1 feeds its own bus board** — a dedicated source connector, one
+  shared PCB, or a direct edge-on mate now that the supply card is
+  perpendicular. The third is the most attractive at ~2A and needs the
+  backplane's mounting geometry pinned down first. See the bus-board section.
+- **PS-1's mechanical mounting.** A perpendicular card has no jack nuts
+  holding it; it needs a panel bracket and probably a rear standoff. This is
+  what 8HP is contingent on, and it is the item that would send the module
+  back to 16HP.
 - **Rail sequencing across three rails, not two.** The existing note only
   covers ±12V rising together for op-amp latch-up. But +5V is a buck straight
   off the brick and will come up first, while `../CLAUDE.md` requires each
