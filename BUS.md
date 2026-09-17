@@ -247,12 +247,19 @@ Two things the saving is not free of:
   which is a state the rack can genuinely be in when two bricks are running
   with nothing yet patched between the cases to bond them. 1% lands exactly on
   that boundary; 0.1% clears it by 20dB.
-- **⚠️ Verify the INA2134's channel-to-channel crosstalk against the pitch
-  budget.** CV and Gate now share one package, so a gate edge couples into the
-  CV channel as a pitch glitch. At −100dB a 5V edge contributes 50µV, or
-  0.06 cent, which is fine — but that is an assumed figure, not a read one.
-  Check it before committing, since the whole point of the shared part is that
-  the two channels do not interact.
+- **Channel-to-channel crosstalk is a non-issue — checked.** CV and Gate share
+  one package, so a gate edge couples into the CV channel as a pitch glitch.
+  The INA2134 gives **118dB of channel separation to 10kHz**, so a 5V edge
+  contributes `5V / 10^(118/20)` = **6.3µV, or 0.008 cent** — about a
+  hundred-and-thirtieth of a cent, and two orders of magnitude inside the
+  833µV-per-cent budget.
+
+  The specification stops at 10kHz while a gate edge is broadband, so the
+  transient itself is not strictly covered. It does not matter: separation
+  that far above the budget leaves enormous margin, the receiver's own 14V/µs
+  slew limits the edge anyway, and **gate edges coincide with note changes** —
+  the moments when a momentary pitch disturbance is least audible, since the
+  pitch is already moving at note-on and the VCA is closing at note-off.
 
 **⚠️ A chassis receiving CV over the link has a worse pitch budget than one
 generating it locally.** The receiver's own offset drift adds to the 833µV per
