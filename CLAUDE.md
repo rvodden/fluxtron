@@ -136,10 +136,11 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     is not worth the efficiency. Budget the dissipation into the PTC rating.
   - **3.3V stays per-module, but its LDO is fed from the bus +5V, not +12V** —
     a 1.7V drop instead of 8.7V, which takes VO-1's regulator from 0.4W to
-    78mW beside its expo converter. (**⚠️ That 0.4W is an estimate, not a
-    measurement**, and it implies a 46mA 3.3V domain against roughly 18mA
-    from the datasheets — a 3× spread that decides PS-1's +5V regulator
-    rating. See `PS-1/CLAUDE.md`; measure one real module before ordering.)
+    78mW beside its expo converter. (**⚠️ That 0.4W was an estimate and it was
+    roughly 3× too high.** DS13560 Rev 6 puts the G0B1 at **8.6mA typ** at
+    64MHz from flash, and the per-peripheral adders in its Table 36 bring a
+    realistic module to **~10.3mA** of MCU — so a module's whole 3.3V domain
+    is nearer **15mA** than the 46mA the 0.4W implied. See `PS-1/CLAUDE.md`.)
     A *shared* 3.3V rail stays rejected: no rejection stage between modules,
     and it breaks the per-module PTC rule.
     - **Consequence, now confirmed: every module fits a 16-pin power header.**
@@ -301,9 +302,10 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     absolute maximum is **7V** — 5.5V is the top of the *operating* range,
     not the abs-max, which an earlier revision had confused. Worked through
     against DS000206 in MC-1's spec, the result is that the chain needs
-    **4.21V at V+** with a worst-case 3.80V segment. After the PTC and the
-    backplane pour that leaves **+0.54V behind a MOSFET**, +0.24V behind a
-    Schottky, and **−0.16V behind a 0.7V silicon diode, which fails.** That
+    **4.21V at V+** with a worst-case 3.80V segment. After PS-1's feed
+    cable, the PTC and the backplane pour that leaves **+0.48V behind a
+    MOSFET** (+0.41V at connector end-of-life), +0.18V behind a Schottky,
+    and **−0.22V behind a 0.7V silicon diode, which fails.** That
     is why the +5V MOSFET rule under Circuit protection is load-bearing
     rather than precautionary, along with a low-resistance PTC and heavy
     copper on the bus board's 5V pour.
@@ -624,8 +626,8 @@ must satisfy, not a per-module decision to re-derive.
     Schottky where the margin is tight. A logic-level P-channel FET at
     ~50mΩ drops **6mV** at a module's 126mA against a Schottky's 300mV,
     which on a display module is worth more than half the AS1115's entire
-    driver margin (+0.54V with the FET against +0.24V with a Schottky, and
-    **−0.16V with a silicon diode, which fails**). The ±12V headroom
+    driver margin (+0.48V with the FET against +0.18V with a Schottky, and
+    **−0.22V with a silicon diode, which fails**). The ±12V headroom
     argument does not carry over to a rail feeding a 3.3V LDO with 1.7V to
     spend.
   - **On ±12V**: series diodes remain acceptable — the headroom is genuinely

@@ -358,10 +358,15 @@ additionally needs:
   Keep the portability jumper that selects +12V instead, and note that
   populating it restores the 0.4W and its thermal-separation problem. The
   per-module PTC rating must account for the LDO's draw.
-  - **⚠️ The 0.4W figure was never measured**, and it implies a 46mA 3.3V
-    domain where the datasheets suggest roughly 18mA. VO-1 is the obvious
-    module to measure, because that estimate is now sizing PS-1's +5V
-    regulator for the whole rack. See `../PS-1/CLAUDE.md`.
+  - **⚠️ The 0.4W figure was never measured and was roughly 3× too high.**
+    It implied a 46mA 3.3V domain. Against DS13560 Rev 6 the G0B1 draws
+    **8.6mA typ** at 64MHz from flash, and VO-1's peripherals (two GPIO
+    ports, I2C1 for the bus, I2C3 for the DACs, two timers, DMA) add about
+    1.7mA — so ~10.3mA of MCU, and **~15mA for the whole 3.3V domain**
+    including both DACs, the local pull-ups and LDO quiescent. The LDO
+    therefore dissipates about **26mW off +5V**, not 78mW, and would have
+    been ~130mW off +12V rather than 0.4W. A bench measurement is still
+    worth taking, but the order of magnitude is settled.
   - **Switching noise did not go away, it moved.** This rule keeps a buck off
     *this board*, but +5V comes from one on PS-1, so the 3.3V rail feeding
     the AD5693R now traces back to a switcher. Filter the 5V input and treat

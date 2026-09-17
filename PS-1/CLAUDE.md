@@ -208,18 +208,32 @@ Two things follow that are easy to conflate, so keep them apart:
 Assumes every module takes 3.3V from the bus 5V rail, which moves the MCU
 domain's current off +12V and onto +5V.
 
-#### ⚠️ The per-module +5V figure is unresolved, and it is the one that matters
+#### The per-module +5V figure, settled against DS13560 Rev 6
 
-Two numbers are in circulation and they differ by 3×:
+This was carried as a 3× spread — 18mA from the datasheets against 46mA
+implied by VO-1's "roughly 0.4W off +12V". **The 46mA was wrong.**
 
-| Basis | Per module | × 16 |
-|---|---|---|
-| Datasheet-order (G0B1 at 64MHz ~8–12mA, two DACs ~3mA, pull-ups ~2mA) | ~18mA | 288mA |
-| Implied by VO-1's "roughly 0.4W off +12V" (0.4W ÷ 8.7V) | 46mA | 736mA |
+| Term | Per module |
+|---|---|
+| G0B1, 64MHz from flash, Range 1, all peripherals off (Table 28) | **8.6mA typ** (9.1 max @85°C) |
+| Peripherals a slave actually enables (Table 36, ×64MHz) | +1.7mA |
+| — 2 GPIO ports 0.40, I2C1 0.23, I2C3 0.06, 2 timers 0.63, DMA1 0.33 | |
+| **MCU subtotal** | **~10.3mA** |
+| MCP4728, AD5693R where fitted | ~1–2.5mA |
+| Local I2C pull-ups, LDO quiescent | ~2.5mA |
+| **Whole 3.3V domain** | **~14–16mA** |
 
-Neither was measured. At 16 modules this is the difference between a 750mA
-regulator and a 1.5A one, so **measure one populated module before ordering
-the +5V stage.** It is the highest-value bring-up measurement in the project.
+MC-1 adds USB (0.21mA), CRS (0.01mA) and a MIDI USART (0.47mA) for ~16mA.
+
+**16 modules is therefore ~240mA, not 736mA.** The low estimate was the
+right one, and the +5V total lands near **~360–560mA** with displays. The
+1.5A ceiling stays — the margin is now comfort rather than uncertainty, and
+five modules are still unspecified.
+
+**⚠️ Two terms above are still estimates**: the MCP4728 and AD5693R supply
+currents (Microchip and ADI both unreachable), and the pull-up/LDO figures.
+They are small and cannot move the conclusion, but a bench measurement of
+one populated module is still the thing that would retire them.
 
 #### Per-rail budget at 16 modules
 
@@ -478,48 +492,61 @@ driven by someone else's supply, and PS-1 to feed someone else's backplane.
 **It costs nothing electrically**, which is what makes the argument easy —
 300mm of 18AWG plus two crimp contacts is about 20mΩ:
 
-| Rail | Current at ceiling | Drop |
-|---|---|---|
-| +12V | 0.70A | 14mV |
-| −12V | 0.60A | 12mV |
-| +5V | 1.50A | 30mV (20mV on two contacts) |
-| GND | **2.80A** | 57mV |
+Using the real 10mΩ contact and 5mΩ crimp figures, two mated pairs per rail
+plus 300mm of 18AWG:
 
-30mV against the +5V rail's 1.7V of LDO headroom is noise. Compare the 0.7V a
-series silicon diode was costing before Protection changed it.
+| Rail | Current | Drop, initial | Drop, end of life |
+|---|---|---|---|
+| +5V (2 contacts) | 1.50A | 27mV | 57mV |
+| GND (3 contacts) | 2.80A | 34mV | 71mV |
+
+**⚠️ The +5V and GND drops add**, since what a module sees is V+ minus GND:
+**61mV lost across the feed initially, ~128mV at end of life.** Still noise
+against the rail's 1.7V of LDO headroom — but it is *not* noise against
+MC-1's AS1115 margin, which is the one budget in the range thin enough to
+care. Counted there, the margin goes from +0.54V to **+0.48V initial and
++0.41V at end of life**. Comfortable, and now complete rather than optimistic.
 
 **Part: Molex Micro-Fit 3.0, 2×4 (8 circuit).** Chosen for its mechanical
 properties, not its ampacity — which it has in great excess:
 
-Micro-Fit derating, 18AWG, basis **not exceeding a 30°C temperature rise**:
+Derating from **PS-43045** (`../datasheets/`), 18AWG, on a basis of **not
+exceeding a 30°C temperature rise**, with **all circuits powered** — which
+is our case:
 
 | Circuits | Wire-to-wire | Wire-to-board |
 |---|---|---|
 | 2 | 7.0A | 8.5A |
-| 6 | 6.5A | 7.0A |
-| 12 | 6.5A | 6.5A |
+| 6 | 6.0A | 6.5A |
+| 12 | 5.5A | 5.5A |
+| 24 | 5.0A | 5.0A |
 
-**⚠️ Correction: an earlier revision here quoted ~8.5A per contact. That is
-the 2-circuit wire-to-board best case, not this connector's.** A 2×4 sits
-between the 6- and 12-circuit rows at roughly **6.5A per circuit**, which is
-exactly the derating-with-circuit-count effect that revision warned about
-without quantifying. The conclusion is unaffected — every rail has 7× margin
-or better:
+**⚠️ Two corrections to earlier revisions of this section.** The first
+quoted ~8.5A per contact from memory — that is the 2-circuit wire-to-board
+best case, not a 2×4's. The second took 6.5A/12-circuit figures from a
+search index, which had the 6- and 12-circuit rows shifted upward. From the
+document itself, a 2×4 interpolates between the 6- and 12-circuit rows at
+about **6.2A per circuit wire-to-board**. Every rail still clears it:
 
 | Rail | Current | Contacts | Per contact | Margin |
 |---|---|---|---|---|
-| +5V | 1.50A | 2 | 0.75A | 8.7× |
-| **GND** | **2.80A** | **3** | **0.93A** | **7.0×** |
-| +12V | 0.70A | 1 | 0.70A | 9.3× |
-| −12V | 0.60A | 1 | 0.60A | 10.8× |
+| +5V | 1.50A | 2 | 0.75A | 8.3× |
+| **GND** | **2.80A** | **3** | **0.93A** | **6.7×** |
+| +12V | 0.70A | 1 | 0.70A | 8.9× |
+| −12V | 0.60A | 1 | 0.60A | 10.3× |
 
-**⚠️ Provenance is weaker here than for the other parts in `../datasheets/`.**
-These figures come from a search index's extraction of Molex's PS-43045 /
-PS-44300 specifications, not from reading the PDF — molex.com answers 503 to
-this environment and `tools.molex.com` is unreachable, so the document could
-not be committed alongside the others. Better than the memory they replace,
-not as good as a datasheet in hand. **Confirm against the PDF before
-ordering**, and commit it when someone can reach it.
+Three further notes from the document worth carrying:
+
+- **Contact resistance is 10mΩ max initial**, plus 5mΩ for the crimp — not
+  the ~7mΩ an earlier revision assumed. Durability, vibration and shock each
+  allow a further **20mΩ change from initial**, so design against ~35mΩ per
+  contact at end of life, not 10mΩ.
+- **Agency single-circuit ratings are UL 8A / CSA 8A / IEC 5A.** The IEC
+  figure is the low one; we are far below all three.
+- Molex flag the derating values as "for REFERENCE ONLY" and note that
+  **PCB trace design strongly affects wire-to-board temperature rise** —
+  which is this connector's case at both ends, and another reason for the
+  heavy copper the bus board already requires.
 
 | Pins | Rail | Per contact |
 |---|---|---|
@@ -602,9 +629,12 @@ The range-wide protection standard in `../CLAUDE.md` is written for modules
 
 ## Open items
 
-- **⚠️ Measure one populated module's 3.3V domain.** The 18mA-vs-46mA spread
-  above sets the +5V regulator rating and nothing else resolves it. Highest-
-  value measurement in the project; VO-1 is the obvious candidate.
+- **Measure one populated module's 3.3V domain.** No longer urgent — DS13560
+  settles the MCU at ~10.3mA and the whole domain at ~15mA, so the 18mA-vs-46mA
+  spread is closed. What remains estimated is the MCP4728 and AD5693R supply
+  currents (Microchip and ADI unreachable) and the pull-up/LDO figures, which
+  are small enough not to move the regulator choice. VO-1 is still the obvious
+  module to put a meter on.
 - **One 16-slot segment or two bridged segments** for a larger chassis. The
   bus-board section recommends two; sizing the supply for 16 modules assumes
   the rack reaches that count either way, so this is a bus decision rather

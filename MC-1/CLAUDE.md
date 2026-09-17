@@ -410,11 +410,16 @@ intensity register.
 **⚠️ And it only closes on a low-drop element.** Budgeted at the pin rather
 than at the bus, per the range-wide warning:
 
-| Bus 5.00V, less… | At the pin | Margin |
+| PS-1 5.00V, less… | At the pin | Margin |
 |---|---|---|
-| **Logic-level P-FET 0.006** + PTC 0.20 + pour 0.05 | 4.74V | **+0.54V** |
-| Schottky 0.30 + PTC 0.20 + pour 0.05 | 4.45V | +0.24V |
-| Silicon diode 0.70 + PTC 0.20 + pour 0.05 | 4.05V | **−0.16V — fails** |
+| **P-FET 0.006** + PTC 0.20 + pour 0.05 + feed 0.06 | 4.68V | **+0.48V** |
+| the same at connector end-of-life (feed 0.13) | 4.62V | **+0.41V** |
+| Schottky 0.30 + PTC 0.20 + pour 0.05 + feed 0.06 | 4.39V | +0.18V |
+| Silicon diode 0.70 + PTC 0.20 + pour 0.05 + feed 0.06 | 3.99V | **−0.22V — fails** |
+
+The **feed** term is PS-1's Micro-Fit cable losing V+ and GND together
+(`../PS-1/CLAUDE.md`); it was missing from an earlier version of this table,
+which therefore read ~0.06V optimistic.
 
 **Fit the MOSFET.** At 126mA a ~50mΩ logic-level P-channel part drops 6mV
 where a Schottky drops 300mV, which more than doubles the margin for the
@@ -545,8 +550,9 @@ notes, so MC-1 drops its gate and leaves the bus alone.
   stage/commit sequencing, and driving firmware updates.
 - Exact USB-C connector part number for the daughterboard.
 - ~~AS1115 segment/digit driver dropout at 5V~~ — **settled** against
-  DS000206: it closes with +0.54V at the pin behind a MOSFET, and only at
-  10mA/segment. A silicon diode fails it outright. See the 5V rail section.
+  DS000206: it closes with +0.48V at the pin behind a MOSFET (+0.41V at
+  connector end-of-life), and only at 10mA/segment. A silicon diode fails it
+  outright. See the 5V rail section.
 - ~~I2C level shifting~~ — **settled: mandatory.** `VIH = 0.7 × VDD` puts
   the threshold at 3.50V with V+ at 5V, so 3.3V direct drive is out.
 - **The 5V rail for the AS1115** is confirmed necessary. Source is settled
