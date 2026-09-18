@@ -360,17 +360,35 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     than a separate reference IC would have been, not less. An A-grade part
     at its maximum throws away 4.82 cents, second only to the discrete
     resistor row in the error budget above.
-  - **The on-chip reference is still the point**, on the B grade: 0.48 cent
-    of warm-up drift against 0.72 for a discrete REF5025 at its 3ppm grade,
-    and it deletes a part and its capacitors from two modules. Note the
-    comparison is typ against typ; the B grade's 5ppm/°C *maximum* is
-    1.20 cents, worse than the REF5025's typical.
-  - **It also removes VO-1's rail risk.** An AD5662 + REF5025 pairing would
-    have had the reference generating 2.5V from VO-1's 3.3V rail, since
-    VO-1 has no AS1115 and so nothing drawing on +5V beyond its LDO input. Whether the dropout allowed it
-    was an open question that could have forced a rail VO-1 does not
-    otherwise want. The AD5693R runs from 2.7–5.5V and makes its own
-    reference, so the question never arises.
+  - **⚠️ On drift alone, the discrete REF5025 is the better part — the
+    original comparison was not like-for-like.** It read "0.48 cent against
+    0.72", but 0.48 is the AD5693R's *typical* and 0.72 is the REF5025's
+    *maximum*: SBOS410 states the REF50xx grades as maxima explicitly
+    (enhanced 2.5, high 3, standard 8 ppm/°C). Max against max:
+
+    | Reference | Drift max | Cents |
+    |---|---|---|
+    | REF50xx**EI** enhanced | 2.5 ppm/°C | **0.60** |
+    | REF50xx**I** high (the "3ppm grade") | 3 ppm/°C | **0.72** |
+    | **AD5693R B grade** | **5 ppm/°C** | **1.20** |
+
+    So the AD5693R costs about **0.5 cent of worst-case drift** against the
+    discrete pairing it replaced. **This is not a reason to change back** —
+    see below — but the doc should not claim an advantage it does not have.
+  - **The reasons that survive are sourcing and part count**, which were the
+    original drivers anyway: the AD5683R (SPI sibling) proved hard to find,
+    and one part plus its capacitors comes off two boards — MC-1, the most
+    crowded in the range, and VO-1 at roughly 40 × 80mm. **VO-1 also does
+    not care**, since it auto-tunes and corrects reference drift
+    continuously; this is an MC-1-only question, and MC-1 is the board with
+    the least room to put a part back.
+  - **⚠️ Correction: the "VO-1 rail risk" was not real.** An earlier revision
+    said a discrete REF5025 "would have had the reference generating 2.5V
+    from VO-1's 3.3V rail. Whether the dropout allowed it was an open
+    question that could have forced a rail VO-1 does not otherwise want."
+    SBOS410 answers it: the part is specified from `VIN = VOUT + 0.2V`, so
+    2.5V out needs 2.7V in and 3.3V is comfortable. The dropout always
+    allowed it. Keep the decision, drop the reasoning.
   - **⚠️ Firmware must write pitch before raising gate.** The pitch DAC now
     shares the local I2C bus with the MCP4728 and any AS1115, so a note-on
     can in principle queue behind a parameter update. The magnitude is
@@ -454,10 +472,22 @@ sends CV over: **CMRR is 74dB minimum, 90dB typical** at VCM = ±31V with
 RS = 0Ω. The 0.1% resistor rule in `PS-1/CLAUDE.md` exists to avoid degrading
 that, and 74dB is the number it must not spoil.
 
-**Separately: this table has never stated how its terms combine.** Summed
-linearly it is a worst case; root-sum-square is the realistic figure for
-independent drifts and is considerably kinder. Worth deciding which, since
-adding terms makes the difference matter more.
+**⚠️ This table has never stated how its terms combine, and that now decides
+more than any part choice does.** For MC-1 with a B-grade AD5693R, summing
+the local terms (LSB, reference at max, matched array, DAC gain tempco,
+reference noise, precision op-amp):
+
+| Combination | AD5693R B grade | REF5025 high grade |
+|---|---|---|
+| Linear (absolute worst case) | **2.23 cents** | 1.75 cents |
+| Root-sum-square (realistic, independent drifts) | **1.30 cents** | 0.87 cents |
+
+The part choice moves the total by ~0.5 cent. **The combination method moves
+it by ~0.9 cent** — nearly twice as much — so deciding linear vs RSS is worth
+more than revisiting the DAC. RSS is the honest figure for independent drift
+mechanisms; linear is the number to quote only if every part lands at its
+limit in the same direction at once. **Decide this before anyone re-opens the
+reference question on the strength of the 2.23.**
 
 Two rules follow, and they matter more than the DAC part number:
 
