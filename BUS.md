@@ -286,6 +286,72 @@ chassis needs no MC-1, so CX-1 remains its sole master.
 already runs between the cases, and a cable has neither ground offset nor a
 part count.
 
+This rejects a second MC-1 in a *bridged* chassis. The unbridged case — two
+MC-1s sharing one bus board — is rejected separately in §2.8, and for a further
+reason that has nothing to do with who masters the I2C.
+
+### 2.8 ⚠️ One MC-1 per segment — a second MC-1 is a second *system*
+
+**Two MC-1s must never share a bus board**, whatever MIDI channels they are
+filtered to. The tempting arrangement is two of them in one case on channels 1
+and 2, fed by TRS THRU from the first — two independent voices, one USB cable.
+The MIDI half of that is fine and stays (`MC-1/CLAUDE.md`). Sharing a *segment*
+is what does not.
+
+They contend for three resources, and only one of the three announces itself
+when it goes wrong:
+
+| Resource | What contention does | Announces itself? |
+|---|---|---|
+| **Bus CV** | Two drivers through their series resistors settle at an average — a plausible-looking wrong pitch | **No.** Silent, and analogue |
+| **Bus Gate** | The same, unless driven open-drain | No |
+| **Master role** | Two masters on one segment, where nRESET, ATTN, discovery (§6.6), presets (§6.4) and reflash (§6.5) all assume one | Yes — as a bus that half-works |
+
+**The CV row is what settles it.** A second master is at least a condition
+firmware can detect and refuse; two drivers on an analogue line raise no error
+anywhere, and leave a voice out of tune in a way no calibration can reach.
+Fixing the digital half would still leave the half that fails quietly.
+
+**Rejected: a per-module "drives bus CV/Gate" setting**, whether a solder
+jumper or a firmware option. Two MC-1s are the same build from the same BOM, so
+that is a setting which must *differ* between physically identical modules —
+the exact failure mode geographic addressing was adopted to delete (§4.2), and
+it travels with the module when it is re-racked.
+
+**Rejected: zoning the backplane CV/Gate net** into per-voice groups of slots.
+It would turn two voices per case into a feature rather than a hazard, but it
+buys a capability nothing needs: **84HP does not hold two phase-1 voices** —
+eight modules is 72HP — so a real two-voice rig is two cases whatever the
+backplane allows.
+
+**The rule instead, which needs no new mechanism because it already holds by
+construction:**
+
+- **Only a master-port occupant drives bus CV/Gate.** MC-1 and CX-1 are the
+  only modules that drive those lines at all, both sit on the master port, and
+  there is exactly one master port per bus board (§2.2). Every other module's
+  CV/Gate pins stay unpopulated or jumpered, for *receive*
+  (`PS-1/CLAUDE.md`). So the driver is singular for the same reason the master
+  is, and the two are the same module.
+- **An MC-1 chassis is always a chassis 0.** A second MC-1 takes its own
+  chassis, its own PS-1 and its own bus board, where it is that segment's
+  master — with a private address space (§4.5), its own preset store (§6.4),
+  its own Panic domain (§6.7) and its own bus CV/Gate pair. The two racks share
+  no conductor.
+- **They share MIDI, and that is enough.** One USB cable into the first MC-1,
+  TRS THRU onward to the second, each filtering to its own channel. The daisy
+  chain was never the thing in conflict.
+- **Bus expansion and voice expansion are separate axes, and they do not
+  compose.** A chassis is either bridged into an existing system by its CX-1 or
+  the head of a new one by its MC-1 — never both, which is §2.7's objection
+  restated from the other end.
+
+**⚠️ Consequence at the desk: per-system state is genuinely per system.** A
+Program Change recalls a preset in one rack only, and **CC 120 panics one rack
+only**. A DAW's panic button has to reach every channel that has an MC-1 on it,
+not just the one in focus — which is a thing to say in the manual, not a thing
+to fix in firmware, since the racks have no path to tell each other.
+
 
 ---
 

@@ -445,7 +445,10 @@ target an LT3045 (500mA) is out unless two are paralleled. Take the TPS7A47 at
   traces on a board already being fabbed. If a cable-free global gate is ever
   wanted, the mechanism exists and is analogue and deterministic — which
   putting note events on I2C would not be (see `../BUS.md` §1). Module-side
-  connection stays unpopulated or jumpered. A single global pair, so mono
+  connection stays unpopulated or jumpered — **only a master-port occupant ever
+  drives these lines**, MC-1 in a chassis 0 or CX-1 in a bridged one, which is
+  what keeps the driver singular without any per-module setting (`../BUS.md`
+  §2.8). Every other position is a receiver. A single global pair, so mono
   only. **Free now, a respin later.**
 - **DVCC — the bus logic rail — is 5V**, generated here and carried on the
   bus connector's VCC pin. It is a pull-up reference, not a module supply.

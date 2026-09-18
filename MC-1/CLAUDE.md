@@ -448,13 +448,28 @@ criteria for its replacement:
   onward for a third, etc. Lets one USB cable drive several independent
   FluxTron voice chains, each MC-1 tuned to a different channel via its
   encoder.
-- **⚠️ One MC-1 per system, not per chassis.** A downstream chassis is
-  mastered by its CX-1, so a second MC-1 there would put **two masters** on
-  that segment. CV and Gate reach a second chassis over a differential link on
-  the CX cable instead (`../BUS.md` §2.7) — cheaper than an MC-1 and without
-  the conflict. Daisy-chained MC-1s remain a *multi-voice* feature, each on its
-  own channel and its own chassis-0-equivalent segment, not a way to replicate
-  one voice across chassis.
+- **⚠️ One MC-1 per segment — a second MC-1 means a second *system*, not a
+  second voice in the same case.** Two MC-1s sharing one bus board was
+  considered and rejected: they would contend for the bus CV line, the bus
+  Gate line and the master role, and the CV contention is silent — two drivers
+  average to a plausible wrong pitch with no error raised anywhere. The
+  reasoning and the alternatives weighed are in `../BUS.md` §2.8.
+- **So a second MC-1 takes its own chassis**, with its own PS-1 and bus board,
+  where it is that segment's master and its chassis is a chassis 0 in its own
+  right. It gets a private address space, its own presets and its own Panic
+  domain; the two racks share no conductor. Note the desk consequence: a DAW
+  panic must go out on every channel that has an MC-1 on it, since one CC 120
+  reaches one rack.
+- **MIDI THRU is unaffected and stays.** The daisy chain — one USB cable into
+  the first MC-1, TRS THRU onward to the next, each filtering to its own
+  channel — is how two systems stay fed from one host, and it was never the
+  thing in conflict. What it does not do is make them one system.
+- **⚠️ A *bridged* chassis is mastered by its CX-1**, so an MC-1 there would
+  put two masters on that segment too. CV and Gate reach a bridged chassis over
+  the differential link on the CX cable instead (`../BUS.md` §2.7) — cheaper
+  than an MC-1 and without the conflict. Bus expansion (CX-1) and voice
+  expansion (another MC-1) are separate axes: a chassis is either bridged into
+  an existing system or the head of a new one, never both.
 
 ## Physical construction: boards by depth tier
 
