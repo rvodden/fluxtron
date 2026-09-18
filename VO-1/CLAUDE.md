@@ -317,9 +317,15 @@ overkill at two channels.
   parameters that had no panel control at all. See the push-switch scheme
   above.
 - **Sub divider**: 74HC74; pulse squaring 74HC14.
-- **Depth VCAs**: LM13700.
-- **Tune DAC**: **AD5693R** (16-bit, I2C, 2.5V on-chip reference at
-  2ppm/°C), sharing VO-1's local I2C bus with the MCP4728. See
+- **Depth VCAs**: LM13700. **Supply current 2.6mA** with both channels at
+  IABC = 500µA (SLYZ022, in `../datasheets/`) — below the ~4mA the range's
+  power budget assumed, so VO-1's ±12V estimate is conservative rather than
+  optimistic. Common-mode range ±12V typ on ±15V rails; check the headroom
+  again once the rails are ±12V.
+- **Tune DAC**: **AD5693R — specifically `AD5693RBRMZ`, the B grade**
+  (16-bit, I2C, 2.5V on-chip reference at 2ppm/°C typ). **⚠️ The A grade is
+  one letter away in the part number and is five times worse**; see
+  `../CLAUDE.md`. Shares VO-1's local I2C bus with the MCP4728. See
   `../CLAUDE.md` for the error budget and the output-stage rules — the
   matched resistor network matters more than the DAC does. Because it
   generates its own reference from the 3.3V rail, **VO-1 needs no 5V for
@@ -347,9 +353,26 @@ additionally needs:
   regulator and the MCU. Self-heating and local airflow both show up as
   pitch drift.
 - **No switching regulator on this board.** The 3.3V rail comes from a
-  linear LDO off +12V despite dissipating roughly 0.4W — a buck converter's
-  switching noise next to a precision expo converter is not worth the
-  efficiency. The per-module PTC rating must account for the LDO's draw.
+  linear LDO — a buck converter's switching noise next to a precision expo
+  converter is not worth the efficiency. **Its input is the bus +5V**, per
+  the range-wide rule, so it drops 1.7V and dissipates roughly **78mW**
+  rather than the 0.4W an earlier revision of this file recorded off +12V.
+  Keep the portability jumper that selects +12V instead, and note that
+  populating it restores the 0.4W and its thermal-separation problem. The
+  per-module PTC rating must account for the LDO's draw.
+  - **⚠️ The 0.4W figure was never measured and was roughly 3× too high.**
+    It implied a 46mA 3.3V domain. Against DS13560 Rev 6 the G0B1 draws
+    **8.6mA typ** at 64MHz from flash, and VO-1's peripherals (two GPIO
+    ports, I2C1 for the bus, I2C3 for the DACs, two timers, DMA) add about
+    1.7mA — so ~10.3mA of MCU, and **~15mA for the whole 3.3V domain**
+    including both DACs, the local pull-ups and LDO quiescent. The LDO
+    therefore dissipates about **26mW off +5V**, not 78mW, and would have
+    been ~130mW off +12V rather than 0.4W. A bench measurement is still
+    worth taking, but the order of magnitude is settled.
+  - **Switching noise did not go away, it moved.** This rule keeps a buck off
+    *this board*, but +5V comes from one on PS-1, so the 3.3V rail feeding
+    the AD5693R now traces back to a switcher. Filter the 5V input and treat
+    the LDO's high-frequency PSRR as a selection criterion.
 
 ## Open items
 

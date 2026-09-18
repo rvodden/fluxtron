@@ -58,10 +58,15 @@ Monophonic system. Modules:
 Total 72HP of 84HP (KOMA Case 3U/84HP) — 12HP spare, not yet allocated
 (candidates: extra spacing, blind panels, an output/headphone module).
 
-**PS-1 is a module in its own right, not a section of MC-1**, and may yet go
-to 16HP. It supplies **±12V and +5V** from an external 15V DC brick, and owns
-the bus board. Everything else about it — rail generation, regulator choice,
-current budget, thermals — is in `PS-1/CLAUDE.md` and does not belong here.
+**PS-1 is a module in its own right, not a section of MC-1.** It targets
+**8HP**, which it reaches only by mounting its board **perpendicular** to the
+panel — the one exemption to the parallel-PCB rule in the range (see PCB /
+panel construction). **16HP is the fallback** if the mechanical mounting that
+orientation needs does not close; budget the spare HP knowing that. It
+supplies **±12V and +5V** from an external **15V 3A** DC brick, and owns the
+bus board. Everything else about it — rail
+generation, regulator choice, current budget, thermals — is in
+`PS-1/CLAUDE.md` and does not belong here.
 
 Flagged for later, not in scope now: **LF-2**, a fuller multi-waveform
 crossfade LFO (separate sine/saw/square cores blended via a dual-VCA-style
@@ -131,8 +136,13 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     is not worth the efficiency. Budget the dissipation into the PTC rating.
   - **3.3V stays per-module, but its LDO is fed from the bus +5V, not +12V** —
     a 1.7V drop instead of 8.7V, which takes VO-1's regulator from 0.4W to
-    78mW beside its expo converter. A *shared* 3.3V rail stays rejected: no
-    rejection stage between modules, and it breaks the per-module PTC rule.
+    78mW beside its expo converter. (**⚠️ That 0.4W was an estimate and it was
+    roughly 3× too high.** DS13560 Rev 6 puts the G0B1 at **8.6mA typ** at
+    64MHz from flash, and the per-peripheral adders in its Table 36 bring a
+    realistic module to **~10.3mA** of MCU — so a module's whole 3.3V domain
+    is nearer **15mA** than the 46mA the 0.4W implied. See `PS-1/CLAUDE.md`.)
+    A *shared* 3.3V rail stays rejected: no rejection stage between modules,
+    and it breaks the per-module PTC rule.
     - **Consequence, now confirmed: every module fits a 16-pin power header.**
       If every module's 3.3V comes from +5V then every module needs +5V —
       there is no such thing as a module that can keep a 10-pin header. Deriving
@@ -153,6 +163,16 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   perpendicular. Panel-mount components (pots, encoders, jacks) are designed
   around this orientation; perpendicular would need right-angle variants of
   everything.
+  - **⚠️ The rule binds a module only in so far as that justification does,
+    and PS-1 is the one module it does not reach.** PS-1 has no pots, no
+    encoders and no jacks — its panel is a DC inlet (chassis-mount on flying
+    leads either way), possibly a switch, and THT indicator LEDs, which the
+    LED rule below already exempts. **PS-1's main board is therefore
+    perpendicular, deliberately**: it buys 1.6× the board area in an 8HP slot
+    and room for a proper heatsink in the airflow, which is what keeps the
+    module at 8HP instead of 16HP. See `PS-1/CLAUDE.md`. No other module
+    currently qualifies, and a module that grows a jack or an encoder stops
+    qualifying.
 - **Depth budget is set by whichever component needs the most reach from
   panel to PCB** — and different component families need very different
   reach, which is the recurring design problem across every module:
@@ -277,11 +297,23 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     module needs no extra connector, only extra current. Lay out the local
     LDO anyway, unpopulated, with a jumper selecting the source — it is what
     keeps the module working in a case whose PSU has no 5V rail. Budget that
-    dissipation into the module's PTC rating only if the LDO is populated. Note the margin is genuinely tight — a 3.8V worst-case segment
-    against the AS1115's 5.5V maximum leaves little for the drivers — and
-    a 5V AS1115 talking to a 3.3V MCU needs the I2C level shift thought
-    about. MC-1's spec works this through; any later module with a blue
-    display inherits the same three problems.
+    dissipation into the module's PTC rating only if the LDO is populated.
+    **⚠️ Budget the AS1115's rail at the pin, not at the bus**, and note its
+    absolute maximum is **7V** — 5.5V is the top of the *operating* range,
+    not the abs-max, which an earlier revision had confused. Worked through
+    against DS000206 in MC-1's spec, the result is that the chain needs
+    **4.21V at V+** with a worst-case 3.80V segment. After PS-1's feed
+    cable, the PTC and the backplane pour that leaves **+0.48V behind a
+    MOSFET** (+0.41V at connector end-of-life), +0.18V behind a Schottky,
+    and **−0.22V behind a 0.7V silicon diode, which fails.** That
+    is why the +5V MOSFET rule under Circuit protection is load-bearing
+    rather than precautionary, along with a low-resistance PTC and heavy
+    copper on the bus board's 5V pour.
+    **Two things any later blue-display module inherits**: the margin exists
+    only at low segment current (at the datasheet's own test currents the
+    sum is 5.45V and does not fit under 5V at all, so the intensity setting
+    is functional, not cosmetic), and **the I2C level shift is mandatory** —
+    `VIH = 0.7 × VDD` is 3.50V at V+ = 5V, which a 3.3V MCU cannot meet.
 - **Parameter DAC**: **MCP4728** — 12-bit, 4-channel, I2C, MSOP-10, with
   on-board EEPROM. The standard part for every module's parameter channels
   (pulse width, modulation depths, velocity, and their equivalents
@@ -305,19 +337,58 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   - **⚠️ Two on one bus needs address programming.** The three address LSBs
     are set by an LDAC-assisted write sequence, not by pins. Fine at one
     per module; plan for it if a module ever needs more than 4 channels.
+  - **Supply current scales with channels left in Normal mode** — 800µA typ
+    for four, then 600, 400, 200µA as each is powered down (40nA with all
+    four down). **Power down the channels a module does not use**: it is a
+    register write, and it takes MC-1 from 800µA to 200µA since it uses only
+    velocity. Small, but free.
 - **Pitch DAC**: **AD5693R** (nanoDAC+, 16-bit, single-channel, I2C,
   buffered rail-to-rail output, **2.5V on-chip reference at 2ppm/°C**).
   One on VO-1 (tune) and one on MC-1 (V/OCT out).
-  - **The on-chip reference is the point.** It beats a discrete REF5025 at
-    its 3ppm grade (0.48 cent of warm-up drift against 0.72), deletes a
-    part and its capacitors from two modules, and removes a whole class of
-    mistake — there is no wrong reference grade to order by accident.
-  - **It also removes VO-1's rail risk.** An AD5662 + REF5025 pairing would
-    have had the reference generating 2.5V from VO-1's 3.3V rail, since
-    VO-1 has no AS1115 and so nothing drawing on +5V beyond its LDO input. Whether the dropout allowed it
-    was an open question that could have forced a rail VO-1 does not
-    otherwise want. The AD5693R runs from 2.7–5.5V and makes its own
-    reference, so the question never arises.
+  - **⚠️ Order the B grade: `AD5693RBRMZ` (MSOP-10).** An earlier revision
+    of this file claimed the on-chip reference "removes a whole class of
+    mistake — there is no wrong reference grade to order by accident."
+    **That is wrong, and the datasheet says so plainly:**
+
+    | Grade | Reference TC typ | max | Cents over 20°C |
+    |---|---|---|---|
+    | **B — `AD5693RB…`** | **2 ppm/°C** | **5 ppm/°C** | **0.48 / 1.20** |
+    | A — `AD5693RA…` | 5 ppm/°C | 20 ppm/°C | 1.20 / **4.82** |
+
+    The grade is one letter buried mid-part-number — `AD5693R**B**RMZ`
+    against `AD5693R**A**RMZ` — which makes it *more* orderable-by-accident
+    than a separate reference IC would have been, not less. An A-grade part
+    at its maximum throws away 4.82 cents, second only to the discrete
+    resistor row in the error budget above.
+  - **⚠️ On drift alone, the discrete REF5025 is the better part — the
+    original comparison was not like-for-like.** It read "0.48 cent against
+    0.72", but 0.48 is the AD5693R's *typical* and 0.72 is the REF5025's
+    *maximum*: SBOS410 states the REF50xx grades as maxima explicitly
+    (enhanced 2.5, high 3, standard 8 ppm/°C). Max against max:
+
+    | Reference | Drift max | Cents |
+    |---|---|---|
+    | REF50xx**EI** enhanced | 2.5 ppm/°C | **0.60** |
+    | REF50xx**I** high (the "3ppm grade") | 3 ppm/°C | **0.72** |
+    | **AD5693R B grade** | **5 ppm/°C** | **1.20** |
+
+    So the AD5693R costs about **0.5 cent of worst-case drift** against the
+    discrete pairing it replaced. **This is not a reason to change back** —
+    see below — but the doc should not claim an advantage it does not have.
+  - **The reasons that survive are sourcing and part count**, which were the
+    original drivers anyway: the AD5683R (SPI sibling) proved hard to find,
+    and one part plus its capacitors comes off two boards — MC-1, the most
+    crowded in the range, and VO-1 at roughly 40 × 80mm. **VO-1 also does
+    not care**, since it auto-tunes and corrects reference drift
+    continuously; this is an MC-1-only question, and MC-1 is the board with
+    the least room to put a part back.
+  - **⚠️ Correction: the "VO-1 rail risk" was not real.** An earlier revision
+    said a discrete REF5025 "would have had the reference generating 2.5V
+    from VO-1's 3.3V rail. Whether the dropout allowed it was an open
+    question that could have forced a rail VO-1 does not otherwise want."
+    SBOS410 answers it: the part is specified from `VIN = VOUT + 0.2V`, so
+    2.5V out needs 2.7V in and 3.3V is comfortable. The dropout always
+    allowed it. Keep the decision, drop the reasoning.
   - **⚠️ Firmware must write pitch before raising gate.** The pitch DAC now
     shares the local I2C bus with the MCP4728 and any AS1115, so a note-on
     can in principle queue behind a parameter update. The magnitude is
@@ -327,6 +398,9 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     **This is now a firmware requirement rather than an optimisation**,
     which it would not have been on a separate SPI bus. It is the one real
     cost of the choice.
+  - **Supply current 350µA typ / 500µA max** in normal mode with the
+    internal reference enabled, 2µA max powered down — well under the
+    ~1.5mA the power budget had assumed.
   - Addresses do not clash: the AD5693R sits around 0x4C (A0-selectable),
     the MCP4728 at 0x60, the AS1115 low. On MC-1 it belongs on the **3.3V
     side of the AS1115 level shifter**, alongside the MCP4728.
@@ -343,13 +417,18 @@ number governs the whole chain, and the DAC contributes almost none of it:
 | Source | Drift over 20°C | Cents |
 |---|---|---|
 | 16-bit LSB over 10V | — | 0.18 |
-| AD5693R on-chip reference, 2ppm/°C | 40 ppm | 0.48 |
+| AD5693R on-chip reference, **B grade** 2ppm/°C typ | 40 ppm | 0.48 |
+| AD5693R on-chip reference, B grade 5ppm/°C **max** | 100 ppm | 1.20 |
+| *AD5693R reference, **A grade** 20ppm/°C max — wrong part* | *400 ppm* | ***4.82*** |
 | **Discrete 1% resistors, 25ppm/°C** | **500 ppm** | **6.00** |
 | Matched thin-film array, 1ppm/°C tracking | 20 ppm | 0.24 |
+| AD5693R **gain** tempco, ±1ppm/°C (separate from the reference) | 20 ppm | 0.24 |
+| AD5693R reference noise, 16.5µV p-p at gain 4 | — | 0.08 |
 | Precision op-amp, 3µV/°C at gain 4 | — | 0.29 |
 | Jellybean op-amp, 10µV/°C at gain 4 | — | 0.96 |
-| *INA2134 receiver offset drift* — **cross-chassis only** | *see below* | *see below* |
-| *INA2134 gain (resistor TCR) drift* — **cross-chassis only** | *see below* | *see below* |
+| *INA2134 offset drift, ±2µV/°C* — **cross-chassis only** | 40µV | *0.05* |
+| *INA2134 gain drift, ±1ppm/°C typ* — **cross-chassis only** | 20 ppm | *0.24* |
+| *INA2134 gain drift, **±10ppm/°C max*** — **cross-chassis only** | 200 ppm | ***2.41*** |
 
 #### ⚠️ The last two rows apply only to a chassis receiving CV over the link
 
@@ -363,29 +442,52 @@ account for:
 | **Offset drift** | `(µV/°C × 20) / 833µV` cents | No — fixed offset |
 | **Gain drift** (on-chip resistor TCR tracking) | `ppm/°C × 20 / 83` cents | Yes — worst at full scale |
 
-Sensitivity, to show which figure matters:
+**Both figures are now measured, from SBOS071** (in `datasheets/`), and they
+settle the question the earlier revision could only guess at:
 
-| If offset drift is | Cents | | If gain drift is | Cents |
-|---|---|---|---|---|
-| 2µV/°C | 0.05 | | 1 ppm/°C | 0.24 |
-| 5µV/°C | 0.12 | | 2 ppm/°C | 0.48 |
-| 10µV/°C | 0.24 | | 5 ppm/°C | **1.20** |
+| Parameter | Typ | Max | Cents over 20°C |
+|---|---|---|---|
+| Input offset voltage vs temperature | ±2µV/°C | *(none given)* | 0.05 |
+| **Gain vs temperature** | **±1 ppm/°C** | **±10 ppm/°C** | **0.24 typ / 2.41 max** |
 
-**Gain drift is the one to check first.** Offset drift costs at most a couple of
-tenths of a cent across any plausible value, but gain drift at 5ppm/°C would
-exceed every other term in the table combined. TI describe the on-chip
-resistors as laser-trimmed with "excellent TCR tracking", which suggests the
-1ppm/°C end — but that is a marketing phrase, not a number.
+**⚠️ The typical part is excellent and the worst-case part is the problem.**
+The guess recorded here previously — that TI's "excellent TCR tracking" meant
+the 1ppm/°C end — was right about *typical* and silent about the 10:1 spread.
+At the datasheet maximum the gain term alone is **2.41 cents**, which exceeds
+every other row in the table combined and is audible on a sustained note.
 
-**⚠️ Both figures are owed from the datasheet.** They are not recorded here
-because TI's site is unreachable from the environment these notes were written
-in, and guessing part specifications has already produced two errors in this
-project. Read them before relying on cross-chassis pitch accuracy.
+Three consequences, all of them cross-chassis only:
 
-**Separately: this table has never stated how its terms combine.** Summed
-linearly it is a worst case; root-sum-square is the realistic figure for
-independent drifts and is considerably kinder. Worth deciding which, since
-adding terms makes the difference matter more.
+- **Offset drift is a non-issue** at 0.05 cents. Stop worrying about it.
+- **A cross-chassis chain cannot inherit the single-chassis error budget.**
+  Either bin the parts, or accept that a downstream chassis may be a couple
+  of cents off and calibrate it out at the receiving end — which is possible,
+  because the drift is a *gain* error and MC-1 already carries a gain-and-
+  offset calibration routine.
+- **The calibration must live in the receiving chassis**, not in the sending
+  MC-1, since the error belongs to the receiver's INA2134.
+
+Also from SBOS071, and relevant to the impedance-balanced link the bus board
+sends CV over: **CMRR is 74dB minimum, 90dB typical** at VCM = ±31V with
+RS = 0Ω. The 0.1% resistor rule in `PS-1/CLAUDE.md` exists to avoid degrading
+that, and 74dB is the number it must not spoil.
+
+**⚠️ This table has never stated how its terms combine, and that now decides
+more than any part choice does.** For MC-1 with a B-grade AD5693R, summing
+the local terms (LSB, reference at max, matched array, DAC gain tempco,
+reference noise, precision op-amp):
+
+| Combination | AD5693R B grade | REF5025 high grade |
+|---|---|---|
+| Linear (absolute worst case) | **2.23 cents** | 1.75 cents |
+| Root-sum-square (realistic, independent drifts) | **1.30 cents** | 0.87 cents |
+
+The part choice moves the total by ~0.5 cent. **The combination method moves
+it by ~0.9 cent** — nearly twice as much — so deciding linear vs RSS is worth
+more than revisiting the DAC. RSS is the honest figure for independent drift
+mechanisms; linear is the number to quote only if every part lands at its
+limit in the same direction at once. **Decide this before anyone re-opens the
+reference question on the strength of the 2.23.**
 
 Two rules follow, and they matter more than the DAC part number:
 
@@ -429,6 +531,20 @@ spend the BOM on tempco rather than on initial accuracy.
     output against every other's.
   - **The pull-ups live on the bus board, populated exactly once**, never
     per-module. Sizing and the reasoning are in `PS-1/CLAUDE.md`.
+- **The range's complete connector inventory**, since the anti-confusion rule
+  above is only checkable against a full list. Nothing here mates with
+  anything else here, which is the property to preserve:
+
+  | Connector | Where | Carries |
+  |---|---|---|
+  | 2×8 (16-pin) IDC, shrouded/keyed | every module ↔ bus board | ±12V, +5V, CV, Gate |
+  | 2×6 (12-pin) IDC | every module ↔ bus board | I2C bus, §`BUS.md` 2 |
+  | Molex Micro-Fit 3.0 2×4 | **PS-1 → bus board only** | rail feed, keyed/latching |
+  | RJ45 (shielded) | CX port, populated only when chaining | inter-chassis |
+
+  **⚠️ Nothing but PS-1's feed may adopt Micro-Fit** without a different
+  circuit count or keying. It carries ±12V into the whole backplane, so a
+  mis-mate is a rack-wide failure rather than a module-level one.
   - **⚠️ The module 3.3V LDO must track its input** — no long enable delay or
     soft-start. Every G0B1 I2C pin is FT, so 5V tolerance holds in operation,
     but absolute-max VIN is `VDD + 4.0V`; a delayed-start regulator is the
@@ -561,12 +677,41 @@ must satisfy, not a per-module decision to re-derive.
   needed — worth checking on VO-1, whose main board is already down to roughly
   40 × 80mm. The CV and Gate pins come along with it, unconnected by default,
   which costs nothing and leaves a module able to tap the bus CV/Gate later
-  without a connector change *plus* a
+  without a connector change. The header is backed by a
   reverse-polarity protection circuit on each rail as a backstop for the
-  "offset by one pin" case a keyed shroud doesn't catch. Default to simple
-  series diodes (~0.7V drop, acceptable given ±12V headroom) unless a
-  specific module's circuit is voltage-sensitive enough to need an
-  ideal-diode/PMOS approach instead.
+  "offset by one pin" case a keyed shroud doesn't catch.
+  - **⚠️ On +5V, use a MOSFET.** Not a silicon diode, and not even a
+    Schottky where the margin is tight. A logic-level P-channel FET at
+    ~50mΩ drops **6mV** at a module's 126mA against a Schottky's 300mV,
+    which on a display module is worth more than half the AS1115's entire
+    driver margin (+0.48V with the FET against +0.18V with a Schottky, and
+    **−0.22V with a silicon diode, which fails**). The ±12V headroom
+    argument does not carry over to a rail feeding a 3.3V LDO with 1.7V to
+    spend.
+  - **On ±12V**: series diodes remain acceptable — the headroom is genuinely
+    there, and a diode is one part where a FET is three, which matters on
+    boards as tight as VO-1's. Use a FET if the module's own headroom
+    argues for it.
+  - **No ideal-diode controller is needed for any of this.** Plain reverse
+    polarity is not ORing or hot-swap: a single MOSFET with a gate resistor
+    does the whole job, and the controller is the thing that would have made
+    it expensive. Three rules make it work, and getting any of them wrong is
+    the usual way this circuit fails:
+    - **⚠️ Drain to the supply, source to the load — the FET goes in
+      "backwards".** The body diode must be *reverse* biased in the fault
+      case; wired source-to-supply it is forward biased on reversal and
+      conducts merrily, protecting nothing. P-channel on a positive rail,
+      N-channel on −12V, gate to ground through a resistor in both cases.
+    - **⚠️ Never put the FET in the ground return.** A low-side N-channel is
+      cheaper and lower-Rds(on) for the money, and it is wrong here: this is
+      one shared analogue ground carrying audio and CV returns across the
+      whole backplane, and breaking it per-module would be a serious fault.
+      High side only.
+    - **⚠️ On +5V it must be a logic-level part.** Vgs is only −5V, and an
+      ordinary P-FET specifies Rds(on) at −10V — it would be barely on.
+      Pick one characterised at −4.5V or lower. No such concern on ±12V.
+  - This protects against reversal only, not overvoltage. The TVS/clamping
+    requirements below still stand.
 - **Per-module overcurrent protection**: a resettable PTC polyfuse on each
   power rail, per module, so a fault on one module can't pull down the
   shared bus and affect its neighbours. Exact current rating TBD per
@@ -613,12 +758,15 @@ so rather than define the same thing twice.
 
 ## Open items / not yet decided
 
-- Spare 12HP allocation (extra spacing vs. blind panel vs. new module).
+- Spare 12HP allocation (extra spacing vs. blind panel vs. new module) —
+  drops to 4HP if PS-1 falls back to 16HP.
 - EG-1's control set (fully continuous ADSR via 4 encoders vs. some fixed
   stages) — affects whether it needs a dedicated encoder sub-board.
-- PS-1's own open items — 8HP vs. 16HP, whether it carries an MCU, and part
-  numbers. See `PS-1/CLAUDE.md`. (The external brick and 15V input are
-  settled.)
+- PS-1's own open items — whether it carries an MCU, the mechanical mounting
+  its perpendicular board needs (which is what 8HP is contingent on), and part
+  numbers. See `PS-1/CLAUDE.md`. (The external brick, the 15V 3A input, the
+  perpendicular orientation and the 16-module sizing basis are settled; the
+  per-module +5V draw is owed a measurement.)
 - `BUS.md`'s own open items — four register definitions owed (`COMMAND`
   opcodes, the bootloader magic value, the `INVENTORY` format, and the
   `CAPABILITIES`/`STATUS` bitfields), plus which of I2C1/I2C2 the bus takes.

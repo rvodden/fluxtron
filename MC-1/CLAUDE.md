@@ -383,25 +383,77 @@ Each daughterboard connects to the main PCB via a short header/jumper
     than blinking. The division encoding was deliberately designed not to
     need them, so this is a convenience, not a dependency.
 
-### ⚠️ The 5V rail is tighter than "blue needs 5V" suggests
+### The 5V rail closes — and it closes because the display runs dim
 
-The AS1115 sources segment current from its own V+, so V+ must clear the
-segment forward voltage plus the segment-driver and digit-driver drops in
-series. With a **worst-case Vf of 3.80V** and the AS1115's 5.5V absolute
-maximum, running it at 5V leaves only **1.2V** for both drivers at the
-worst-case part. Typical parts (3.00V) leave a comfortable 2.0V.
+**Resolved against DS000206** (`../datasheets/`), which was the tightest
+open electrical question on this module. The AS1115 sources segment current
+from its own V+, so V+ must clear the segment Vf plus both driver drops in
+series. The datasheet gives the drops as test conditions rather than as
+dropout figures:
 
-**Verify the AS1115's driver drops at the intended segment current before
-committing the board.** If worst-case parts prove dim, the options are to
-run V+ nearer 5.5V, or to accept the typical case and bin.
+| Driver | Datasheet condition | MC-1 runs at |
+|---|---|---|
+| Segment source | 1.00V drop at 41mA (`VDD=5.0V, VOUT=VDD−1V`) | **10mA** |
+| Digit sink | 0.65V drop at 320mA | **80mA** (8 segments) |
+
+MC-1 sits a factor of four below both, so scaled down the chain needs
+**4.21V at V+** with a worst-case 3.80V segment — leaving 0.79V spare on a
+clean 5.0V rail.
+
+**⚠️ The margin exists only because the display is run dim.** At the
+datasheet's own test currents the same sum is 5.45V and **would not work at
+5V at all**. MC-1 already intended to run well below full intensity for
+thermal reasons; that is now a *functional* requirement, not an aesthetic or
+thermal preference. Do not let anyone "fix" a dim display by raising the
+intensity register.
+
+**⚠️ And it only closes on a low-drop element.** Budgeted at the pin rather
+than at the bus, per the range-wide warning:
+
+| PS-1 5.00V, less… | At the pin | Margin |
+|---|---|---|
+| **P-FET 0.006** + PTC 0.20 + pour 0.05 + feed 0.06 | 4.68V | **+0.48V** |
+| the same at connector end-of-life (feed 0.13) | 4.62V | **+0.41V** |
+| Schottky 0.30 + PTC 0.20 + pour 0.05 + feed 0.06 | 4.39V | +0.18V |
+| Silicon diode 0.70 + PTC 0.20 + pour 0.05 + feed 0.06 | 3.99V | **−0.22V — fails** |
+
+The **feed** term is PS-1's Micro-Fit cable losing V+ and GND together
+(`../PS-1/CLAUDE.md`); it was missing from an earlier version of this table,
+which therefore read ~0.06V optimistic.
+
+**Fit the MOSFET.** At 126mA a ~50mΩ logic-level P-channel part drops 6mV
+where a Schottky drops 300mV, which more than doubles the margin for the
+cost of a gate resistor. It must be a *logic-level* part — Vgs is only −5V
+here. See the reverse-polarity rules in `../CLAUDE.md`, including the
+orientation gotcha.
+
+Two further levers if it is ever wanted: **raise the bus to 5.25V** (+0.49V
+on top, well inside the AS1115's 2.7–5.5V operating range), or drop the
+segment current below 10mA.
+
+**Correction: the AS1115's absolute maximum is 7V, not 5.5V.** 5.5V is the
+top of the *operating* range (2.7–5.5V). An earlier revision of this file
+had the two confused, which made running V+ near 5.5V look like flirting
+with the abs-max rating. It is not — it is an ordinary operating point and a
+legitimate margin lever.
 
 Two further consequences:
 
-- **I2C level shifting.** With the AS1115 at 5V and the MCU at 3.3V, the
-  bus cannot simply be tied together — pull-ups to 5V would over-voltage
-  the MCU pins, and the AS1115's input thresholds at V+=5V may sit above
-  what a 3.3V driver guarantees. Budget for a MOSFET level-shifter pair on
-  the local I2C, or confirm the AS1115's VIH allows 3.3V direct drive.
+- **⚠️ I2C level shifting is mandatory — settled, not a budget item.**
+  `VIH = 0.7 × VDD` for SDA and SCL (DS000206), so a 3.3V MCU cannot drive
+  the AS1115 directly at any V+ this module can use:
+
+  | V+ | VIH | 3.3V MCU |
+  |---|---|---|
+  | 5.50V | 3.85V | fails |
+  | 5.25V | 3.67V | fails |
+  | 5.00V | 3.50V | **fails** |
+  | 4.50V | 3.15V | would work — but steals segment headroom |
+
+  Dropping V+ to 4.5V is the only way to avoid the shifter, and the section
+  above shows the segment chain cannot spare the 0.5V. **Fit the MOSFET
+  level-shifter pair.** Pull-ups to 5V would also over-voltage the MCU pins,
+  which was always the other half of the reason.
 - **Where the 5V comes from — PS-1 changes this.** The rail should now be
   taken **from the bus**, not made locally. PS-1 provides a guaranteed +5V,
   and MC-1 carries a 16-pin power header like every module — that is now
@@ -420,15 +472,20 @@ Two further consequences:
   AS1115's intensity setting is a power decision here, not only a visual
   one. No switching regulator: MC-1 generates precision pitch CV, so the
   range-wide linear-only rule applies to it as much as to VO-1.
-  **Still to confirm**: AS1115 digit-drive polarity (common-anode vs.
-  common-cathode) is compatible with this part before ordering.
+  **Digit-drive polarity confirmed**: DS000206 describes the DIG0:DIG7 lines
+  as sinking current from the display common cathode, and the segment lines
+  as sourcing into it — which is the common-cathode GS2022C**x** already
+  specced. The two match; nothing left to check here.
 - **Parameter DAC**: **MCP4728** (12-bit, 4-channel, I2C) — velocity CV
   on one channel, three spare. On the local I2C port alongside the AS1115.
   **Sit it on the 3.3V side of the AS1115 level shifter**, not the 5V
   side: the AS1115 needs 5V only because blue segments demand it, and
   there is no reason to drag the DAC up with it.
-- **Pitch DAC**: **AD5693R** (16-bit, I2C, 2.5V on-chip reference at
-  2ppm/°C) for the V/OCT output. On the local I2C bus alongside the
+- **Pitch DAC**: **AD5693R — specifically `AD5693RBRMZ`, the B grade**
+  (16-bit, I2C, 2.5V on-chip reference at 2ppm/°C typ) for the V/OCT output.
+  **⚠️ `AD5693RARMZ` is the A grade** — 20ppm/°C max, 4.82 cents, and one
+  letter away. MC-1 has no auto-tune to hide it behind; see
+  `../CLAUDE.md`. On the local I2C bus alongside the
   MCP4728 and the AS1115 — and, like the MCP4728, on the **3.3V side of
   the level shifter**. **Firmware must write the pitch DAC before raising
   gate**, so a note-on cannot skew against a parameter update sharing the
@@ -495,9 +552,12 @@ notes, so MC-1 drops its gate and leaves the bus alone.
   shadow and downstream coalescing, discovery and rediscovery, preset
   stage/commit sequencing, and driving firmware updates.
 - Exact USB-C connector part number for the daughterboard.
-- **AS1115 segment/digit driver dropout at 5V** against the GS2022CB-B's
-  3.80V worst-case Vf — the tightest electrical margin on the module.
-- **I2C level shifting** between the 3.3V MCU and the 5V AS1115.
+- ~~AS1115 segment/digit driver dropout at 5V~~ — **settled** against
+  DS000206: it closes with +0.48V at the pin behind a MOSFET (+0.41V at
+  connector end-of-life), and only at 10mA/segment. A silicon diode fails it
+  outright. See the 5V rail section.
+- ~~I2C level shifting~~ — **settled: mandatory.** `VIH = 0.7 × VDD` puts
+  the threshold at 3.50V with V+ at 5V, so 3.3V direct drive is out.
 - **The 5V rail for the AS1115** is confirmed necessary. Source is settled
   in principle — from PS-1 over a 16-pin header, with an unpopulated local
   LDO and a jumper as the portability fallback — but the connector change and

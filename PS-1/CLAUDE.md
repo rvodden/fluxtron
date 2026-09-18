@@ -24,10 +24,11 @@ PS-1 owns two physically separate things that are easiest to design together:
 Three things that were previously worked around, and can now stop being:
 
 - **A guaranteed +5V rail.** The range doc currently reasons "+12V is
-  guaranteed on the power header; a +5V rail is not", and MC-1 therefore
-  generates 5V locally with an LDO from +12V, dissipating **~560mW** — the
+  guaranteed on the power header; a +5V rail is not" — and MC-1 therefore
+  generated 5V locally with an LDO from +12V, dissipating **~560mW**, the
   worst thermal spot in the range, on the module least able to absorb it.
-  Owning the PSU removes that premise. See "The +5V rail" below.
+  Owning the PSU removed that premise, and the range doc no longer reasons
+  that way. See "The +5V rail" below.
 - **A fixed home for the I2C pull-ups.** They must be populated exactly once
   (see `../CLAUDE.md`), which previously meant nominating a module. On the
   bus board they are simply always present and always singular, regardless of
@@ -104,6 +105,23 @@ another ~1V, leaving roughly **13.2V at the regulator input**. An LM317 needs
 about 3V of dropout and would fall out of regulation. This wants a genuinely
 low-dropout precision part — see below.
 
+**⚠️ Correction: with the real TPS7A47 number, dropout is no longer tight at
+all.** The regulator needs 12V + 450mV worst case = **12.45V** at its input,
+and every candidate input element clears it:
+
+| Input element | Input at −5% brick | Slack |
+|---|---|---|
+| P-channel MOSFET | 14.00V | +1.55V |
+| Schottky | 13.65V | +1.20V |
+| Silicon diode | 13.35V | +0.90V |
+
+So the "genuinely low-dropout precision part" requirement above was right, and
+satisfying it retired the problem. **The earlier claim that the MOSFET is
+*forced by the dropout budget* is wrong and is corrected in Protection** — the
+argument for it is now thermal, not dropout. What remains true is that the
+dissipation constraint still pulls the other way: a +5% brick cooks what a −5%
+brick was supposed to starve, and that half of the squeeze is real.
+
 ### The negative rail is the actual problem
 
 Worth stating plainly, because the intuitive framing is "derive the lower
@@ -124,15 +142,34 @@ is **mandatory**, not optional.
 - **+12V**: 15V → low-dropout linear → +12V.
 - **−12V**: 15V → inverting buck-boost → ~−13.5V → low-dropout linear → −12V.
 - **+5V**: buck straight off the brick, no linear stage. It feeds digital
-  only, so switcher ripple on it is harmless.
+  only, so switcher ripple on it is harmless *on this rail* — but note it is
+  the input to every module's 3.3V LDO, and so reaches the pitch DACs at one
+  remove. See the open item on it.
 
-Regulator candidates, to verify rather than adopt: **LT3045 / LT3094**
-(very low noise, ~0.4V dropout, but **500mA ceiling — check against the +12V
-budget below, the margin is thin**), or **TPS7A47 / TPS7A33** (1A, more
-current headroom). LM317/LM337 are ruled out by the dropout note above.
+**Regulators: settled — TPS7A47 and TPS7A33**, confirmed against the
+datasheets in `../datasheets/` rather than adopted on reputation:
+
+| | TPS7A47 (+12V) | TPS7A33 (−12V) |
+|---|---|---|
+| Max output current | **1A** | **1A** |
+| Dropout at 1A | 307mV typ, **450mV max** | 325mV typ, **800mV max** |
+| Dropout at 500mA | — | 290mV |
+| Ground current | 6.1mA at 1A | 210µA typ at 0mA |
+| Document | SBVS204G | SBVS169D |
+
+Both clear the 700/600mA ceilings as single parts, with the 450mV worst-case
+dropout comfortably inside the input budget (see below).
+
+- **⚠️ LT3045 / LT3094 are out.** 500mA against a 700mA target means a
+  paralleled pair, which is two parts, two footprints and a current-sharing
+  question, to buy noise performance that nothing downstream needs — every
+  module re-regulates to 3.3V behind its own LDO anyway. Recorded so it is
+  not re-proposed.
+- LM317/LM337 remain ruled out by the dropout note above.
 
 **Rail sequencing matters**: ±12V should come up together. Op-amps across the
-rack can latch up if one rail appears well before the other.
+rack can latch up if one rail appears well before the other. This is only
+two-thirds of the problem — see the three-rail sequencing open item.
 
 ### Where each voltage is derived
 
@@ -150,27 +187,218 @@ change from +12V to the bus +5V**: the same LDO then drops 1.7V instead of
 VO-1's 0.4W regulator — sitting beside the precision expo converter its own
 spec demands thermal separation for — into 78mW.
 
-### Current budget (estimate, not measured)
+### Sizing basis: 16 modules, not phase 1's eight
+
+**PS-1 is sized for a full bus segment — 16 slave modules — not for the eight
+of phase 1.** The bus gives out 16 slot addresses (`../BUS.md` §3), so 16 is
+the number the rack can grow to without a new addressing scheme, and a supply
+is the worst thing in the rack to have to redesign later.
+
+Two things follow that are easy to conflate, so keep them apart:
+
+- **The supply rating is 16 modules.** That is this section.
+- **The backplane position count is set by the chassis**, and stays at ten for
+  the 84HP case. Sixteen 8HP modules is 128HP and does not fit; a 16-slot
+  backplane is a later board for a larger chassis. Whether such a chassis is
+  served by one 16-slot segment or by two smaller ones with a bridge (which
+  is what the bus-board section below recommends) is **still open — and does
+  not change the power budget either way**, since the module count is the
+  same.
 
 Assumes every module takes 3.3V from the bus 5V rail, which moves the MCU
 domain's current off +12V and onto +5V.
 
-| Rail | Estimated draw | Design for |
+#### The per-module +5V figure, settled against DS13560 Rev 6
+
+This was carried as a 3× spread — 18mA from the datasheets against 46mA
+implied by VO-1's "roughly 0.4W off +12V". **The 46mA was wrong.**
+
+| Term | Per module |
+|---|---|
+| G0B1, 64MHz from flash, Range 1, all peripherals off (Table 28) | **8.6mA typ** (9.1 max @85°C) |
+| Peripherals a slave actually enables (Table 36, ×64MHz) | +1.7mA |
+| — 2 GPIO ports 0.40, I2C1 0.23, I2C3 0.06, 2 timers 0.63, DMA1 0.33 | |
+| **MCU subtotal** | **~10.3mA** |
+| AD5693R where fitted (350µA typ, 500µA max) | 0.35mA |
+| MCP4728 (800µA for 4 channels, 200µA for 1) | 0.2–0.8mA |
+| Local I2C pull-ups, LDO quiescent — *still estimated* | ~2.5mA |
+| **Whole 3.3V domain** | **~13.6–14.4mA** |
+
+MC-1 adds USB (0.21mA), CRS (0.01mA) and a MIDI USART (0.47mA) for ~16mA.
+
+**16 modules is therefore ~240mA, not 736mA.** The low estimate was the
+right one, and the +5V total lands near **~360–560mA** with displays. The
+1.5A ceiling stays — the margin is now comfort rather than uncertainty, and
+five modules are still unspecified.
+
+**Both DAC currents are now measured** (22187E and the AD5693R datasheet,
+both in `../datasheets/`) and came in *below* the estimates — the AD5693R at
+350µA against an assumed 1.5mA. **Only the pull-up and LDO-quiescent terms
+remain estimated**, and at ~2.5mA combined they cannot move the regulator
+choice. A bench measurement would retire them; nothing waits on it.
+
+#### Per-rail budget at 16 modules
+
+Display modules assumed to be four rather than MC-1 alone, since a 16-module
+rack will not have only one.
+
+| Rail | Load | Low estimate | High estimate |
+|---|---|---|---|
+| **+5V** | 3.3V LDO inputs ×16 | 288mA | 736mA |
+| | AS1115 displays ×4 (dimmed / full) | 120mA | 320mA |
+| | **Total** | **~410mA** | **~1050mA** |
+| **+12V** | analogue ×16 | 288mA | 400mA |
+| | blue indicators ×16 @ ~3mA | 48mA | 48mA |
+| | **Total** | **~336mA** | **~448mA** |
+| **−12V** | analogue only, no digital load | **~240mA** | **~352mA** |
+
+**+12V is not "analogue only"** despite the old label — the range-wide
+blue-LED rule puts every indicator on it through a transistor.
+
+#### Design-for ceilings
+
+| Rail | Design for | Note |
 |---|---|---|
-| +12V (analogue only) | ~240mA | 600mA |
-| −12V | ~200mA | 500mA |
-| +5V (all 3.3V domains + MC-1's AS1115) | ~280mA | 750mA |
+| +12V | 700mA | was 600mA |
+| −12V | 600mA | was 500mA |
+| **+5V** | **1.5A** | **was 750mA — the rail that broke** |
 
-About **10W actual**. A **15V 2A** brick (30W) is ample; 1.5A would do, and
-the headroom is for phase 2 rather than for its own sake. **Revise once
-modules are measured, not estimated.**
+**Everything that scales badly to 16 modules scales badly on +5V**, the rail
+that exists only because the 3.3V LDOs moved onto it. ±12V were already sized
+generously enough to absorb the change. That trade is still right — it buys
+back ~3.2W of scattered module heat — but it concentrates the current into one
+centrally regulated rail feeding LDOs that have 1.7V to spend, and that is the
+part to design carefully rather than the easy one.
 
-Total linear dissipation in PS-1 is roughly 2W, which an 8HP board can shed
-with decent copper and possibly a small heatsink on the positive regulator.
+#### What the ceilings cost at the brick
+
+| | Brick draw | Linear dissipation in PS-1 |
+|---|---|---|
+| Realistic simultaneous draw (+12V 400mA, −12V 300mA, +5V 700mA) | ~1.0A (15W) | ~1.8W |
+| Sum of design-for ceilings | **1.89A (28.4W)** | **3.31W** |
+
+The ceilings are conservative-on-conservative — they exist so no individual
+regulator saturates, and all three will not peak together. They are still the
+right basis while five phase-1 modules and eight hypothetical ones are
+unspecified.
+
+### Brick: 15V **3A** (45W)
+
+**Supersedes "15V 2A is ample; 1.5A would do."** That was written against the
+eight-module budget and does not survive 16.
+
+**⚠️ Bigger means more current at 15V, never more volts.** The obvious reading
+of "a bigger brick" is the one that makes PS-1 worse:
+
+| Brick | +12V regulator dissipation at 700mA |
+|---|---|
+| **15V** | **2.4W** |
+| 18V | 4.6W |
+
+Current headroom at the same voltage adds no dissipation anywhere; voltage
+headroom nearly doubles it in the part that already sizes this module's
+heatsink — and 4.6W is where 8HP would genuinely stop working, perpendicular
+board or not. The 15V choice made on dropout grounds above is unchanged.
+
+Why 3A rather than 2A:
+
+1. **Derating.** 1.89A on a 2A brick is 95% continuous — hot, and short-lived.
+   On a 3A brick it is 63%. This alone decides it, independently of whether
+   the rack ever reaches the ceilings.
+2. It costs nothing thermally, per the table above.
+3. It leaves room for the +5V question to resolve upward, which is the open
+   direction.
+
+**⚠️ Check the brick starts into the load.** Sixteen modules is roughly 1.6mF
+of bulk capacitance charging at once, and plenty of bricks with foldback
+current limiting will hiccup indefinitely into that whatever their
+steady-state rating. The soft-start below is what makes this work, so the two
+are selected together, not separately.
+
+**USB-C PD considered and rejected — do not re-propose.** 15V @ 3A is a
+standard PD fixed profile, so 45W PD supplies are commodity, certified and
+better-sourced than a 15V barrel brick (15V being a less common brick voltage
+than 12/19/24V), and a standalone sink controller (STUSB4500 class) needs no
+MCU. It loses on two counts: USB-C is exactly the connector that unplugs when
+nudged, against this module's explicit locking-connector requirement, and a
+failed negotiation leaves the rack silently on 5V.
+
+### Panel width: 8HP, on a PCB mounted **perpendicular** to the panel
+
+3.31W of linear dissipation plus buck losses is around 5W in the module, with
+2.4W of it worst-case in the positive regulator alone. **That does not settle
+the width — it settles the orientation**, and an earlier revision here got
+that wrong by declaring 8HP dead. A heatsink was always needed, at any width:
+
+| +12V regulator at 2.4W, 40°C case ambient | Sink | Junction |
+|---|---|---|
+| Bare DPAK on a copper pour (~30°C/W) | 112°C | ~118°C — **fails** |
+| Large pour with vias (~20°C/W) | 88°C | ~94°C — marginal |
+| Small extruded heatsink (~8°C/W) | 59°C | ~65°C |
+| 100mm vertical extrusion (~5°C/W) | 52°C | ~58°C |
+
+So the question was never "can 8HP shed 5W", it was "is there room for the
+heatsink and the parts". Turned perpendicular, there is:
+
+| 8HP slot, ~105mm usable height, 70mm case depth | Board area |
+|---|---|
+| Parallel to the panel (the range default) | 43cm² |
+| **Perpendicular** | **68cm² (1.6×)** |
+
+Across the 40.64mm width, a 1.6mm board plus clearances plus a 15mm extrusion
+comes to 20.6mm — **half the slot, with 20mm spare**. The fins run vertically
+through the full 70mm of case depth, which is the orientation natural
+convection wants anyway.
+
+**⚠️ This is a deliberate exemption from the range-wide parallel-PCB rule, not
+an oversight — do not "correct" it.** That rule exists because pots, encoders
+and jacks are built for a parallel board and would otherwise need right-angle
+variants of everything. **PS-1 has none of those.** Its panel carries a DC
+inlet (a chassis-mount part on flying leads regardless of orientation),
+possibly a switch, and THT indicator LEDs — which the range doc already
+exempts from depth constraints because their leads are bent to reach. The
+rule's justification simply does not reach this module. Recorded in
+`../CLAUDE.md` alongside the rule itself.
+
+What perpendicular costs, and it is not nothing:
+
+- **Mechanical support has to be designed.** Every other module is held by its
+  jack nuts; PS-1 has no jacks. It needs a front bracket to the panel and
+  probably a rear standoff — a part no other module in the range needs.
+- **It does *not* change how PS-1 feeds the backplane.** A perpendicular card
+  arrives at the bus board edge-on, and an earlier revision of this file
+  floated mating the two directly. **Rejected** — see the feed connector
+  below. It would tie PS-1's board outline to one backplane position in one
+  chassis, and the range designs around a particular case without treating it
+  as a constraint.
+- **16HP stays the fallback** if the mechanical work or the layout does not
+  close. Nothing above depends on 8HP; it is the better answer if it fits.
+
+**The +12V regulator ceiling is independent of all this.** At a 700mA design
+target an LT3045 (500mA) is out unless two are paralleled. Take the TPS7A47 at
+1A, or parallel a pair.
 
 ## Bus board
 
-- **Ten 16-pin power positions** (84HP ÷ 8HP), shrouded and keyed.
+- **Ten 16-pin power positions** (84HP ÷ 8HP), shrouded and keyed. PS-1 at
+  8HP consumes one position's worth of panel width, leaving **nine usable
+  module positions** in 84HP — phase 1 needs eight. (At the 16HP fallback it
+  is two positions and eight remain, which still fits.) The supply is rated
+  for 16 modules (see the sizing basis above); the *position count* is set by
+  this chassis, and a 16-slot backplane is a later board.
+- **⚠️ Heavy copper on the +5V pour — at least 2oz, a pour and not a trace.**
+  At 280mA this did not matter; at up to 1.5A it does, because +5V feeds LDOs
+  with 1.7V of headroom and, on a display module, the AS1115 directly.
+
+  | 5V conductor, ~600mm | Drop at 1.5A |
+  |---|---|
+  | 1oz, 2.5mm wide | 177mV |
+  | 2oz, 5mm wide | 44mV |
+  | 2oz, 10mm wide | 22mV |
+
+  The 1oz case eats an eighth of a display module's entire driver margin in
+  backplane resistance alone, and it is worst at the far slot — so a display
+  module at the end of a long board is the range's worst-case rail budget.
   - **A bus segment tops out around 16 modules**, set by I2C's 400pF limit
     rather than by the 4-bit slot field: ~16 modules is 210–290pF, ~26 is at
     or over the limit. A larger case (6U, or 2×104HP) therefore wants **two
@@ -245,15 +473,156 @@ with decent copper and possibly a small heatsink on the positive regulator.
   - **This corrects an earlier note here** claiming 2.2kΩ suited both speeds
     against 150–250pF. It does not; at 250pF and 400kHz the rise time is
     ~466ns against a 300ns limit.
-- Bulk decoupling distributed along the rails, not lumped at one end.
+- Bulk decoupling distributed along the rails, not lumped at one end. With
+  16 modules' bulk capacitance downstream this is a soft-start question as
+  much as a decoupling one; see Protection.
+
+### The feed connector: PS-1 → bus board
+
+PS-1 is the source, so it cannot plug into a 16-pin slot as a sink. It feeds
+the backplane over a **short cable with an ATX-style keyed, latching crimp
+connector** — header on each board, receptacles on the cable, so either board
+can be replaced and the cable is itself a serviceable part.
+
+**⚠️ A direct board-to-board mate is rejected.** It is the obvious thing to do
+with a perpendicular card sitting edge-on to the backplane, and it is wrong:
+it welds PS-1's board outline and mounting position to one backplane in one
+chassis. We design around a specific case; we do not build its dimensions into
+a board that could otherwise go anywhere. A cable also lets the bus board be
+driven by someone else's supply, and PS-1 to feed someone else's backplane.
+
+**It costs nothing electrically**, which is what makes the argument easy —
+300mm of 18AWG plus two crimp contacts is about 20mΩ:
+
+Using the real 10mΩ contact and 5mΩ crimp figures, two mated pairs per rail
+plus 300mm of 18AWG:
+
+| Rail | Current | Drop, initial | Drop, end of life |
+|---|---|---|---|
+| +5V (2 contacts) | 1.50A | 27mV | 57mV |
+| GND (3 contacts) | 2.80A | 34mV | 71mV |
+
+**⚠️ The +5V and GND drops add**, since what a module sees is V+ minus GND:
+**61mV lost across the feed initially, ~128mV at end of life.** Still noise
+against the rail's 1.7V of LDO headroom — but it is *not* noise against
+MC-1's AS1115 margin, which is the one budget in the range thin enough to
+care. Counted there, the margin goes from +0.54V to **+0.48V initial and
++0.41V at end of life**. Comfortable, and now complete rather than optimistic.
+
+**Part: Molex Micro-Fit 3.0, 2×4 (8 circuit).** Chosen for its mechanical
+properties, not its ampacity — which it has in great excess:
+
+Derating from **PS-43045** (`../datasheets/`), 18AWG, on a basis of **not
+exceeding a 30°C temperature rise**, with **all circuits powered** — which
+is our case:
+
+| Circuits | Wire-to-wire | Wire-to-board |
+|---|---|---|
+| 2 | 7.0A | 8.5A |
+| 6 | 6.0A | 6.5A |
+| 12 | 5.5A | 5.5A |
+| 24 | 5.0A | 5.0A |
+
+**⚠️ Two corrections to earlier revisions of this section.** The first
+quoted ~8.5A per contact from memory — that is the 2-circuit wire-to-board
+best case, not a 2×4's. The second took 6.5A/12-circuit figures from a
+search index, which had the 6- and 12-circuit rows shifted upward. From the
+document itself, a 2×4 interpolates between the 6- and 12-circuit rows at
+about **6.2A per circuit wire-to-board**. Every rail still clears it:
+
+| Rail | Current | Contacts | Per contact | Margin |
+|---|---|---|---|---|
+| +5V | 1.50A | 2 | 0.75A | 8.3× |
+| **GND** | **2.80A** | **3** | **0.93A** | **6.7×** |
+| +12V | 0.70A | 1 | 0.70A | 8.9× |
+| −12V | 0.60A | 1 | 0.60A | 10.3× |
+
+Three further notes from the document worth carrying:
+
+- **Contact resistance is 10mΩ max initial**, plus 5mΩ for the crimp — not
+  the ~7mΩ an earlier revision assumed. Durability, vibration and shock each
+  allow a further **20mΩ change from initial**, so design against ~35mΩ per
+  contact at end of life, not 10mΩ.
+- **Agency single-circuit ratings are UL 8A / CSA 8A / IEC 5A.** The IEC
+  figure is the low one; we are far below all three.
+- Molex flag the derating values as "for REFERENCE ONLY" and note that
+  **PCB trace design strongly affects wire-to-board temperature rise** —
+  which is this connector's case at both ends, and another reason for the
+  heavy copper the bus board already requires.
+
+| Pins | Rail | Per contact |
+|---|---|---|
+| 1 | +12V | 0.70A |
+| 1 | −12V | 0.60A |
+| 2 | +5V | 0.75A |
+| 3 | **GND** | 0.93A |
+| 1 | spare | — |
+
+- **⚠️ GND carries the sum of all three rails, not the largest.** 2.8A at the
+  ceilings, so it gets the most contacts. This is the detail that is easy to
+  get wrong by giving every rail one pin.
+- **Keyed and latching is the whole point.** This connector carries ±12V into
+  a backplane feeding the entire rack; inserting it reversed would destroy
+  every module at once. A plain 2.54mm header would permit that, and the range
+  already has a hard anti-confusion rule about connectors (see the 10-pin note
+  in `../CLAUDE.md`). Micro-Fit cannot mate with anything else in the range,
+  and nothing else in the range should adopt the family without differing
+  circuit count or keying.
+- **Mini-Fit Jr. is what ATX literally uses** and is the alternative if
+  tooling commonality argues for it — but at 4.2mm pitch it is roughly twice
+  the footprint of Micro-Fit for still more ampacity, on a board already
+  short of area. Micro-Fit is over-specified by 7× as it is. Take Micro-Fit
+  unless a Mini-Fit crimper is already to hand.
+- **⚠️ Budget for a crimp tool.** Either family needs one, and a genuine
+  Molex crimper is a few hundred pounds. Generic tools are adequate at
+  this volume but the joint quality is not the same — worth knowing before
+  committing to a crimped interconnect on a hand-built project.
+- **The spare pin is deliberately unassigned.** The obvious candidate is
+  **+5V remote sense**, letting the buck regulate at the backplane rather
+  than at PS-1's output and deleting cable and pour IR drop from the
+  AS1115's margin. Worth perhaps 75mV — real but not decisive, and it adds
+  an overvoltage failure mode if the sense line ever opens. Hold it until
+  bring-up says the display margin needs it.
+- **If the bus board becomes two PCBs** (an open item below), it needs either
+  a second feed connector or a link between the halves. Decide that with the
+  board split, not before.
 
 ## Protection
 
 The range-wide protection standard in `../CLAUDE.md` is written for modules
 *consuming* power. PS-1 is the source, so it needs a different list:
 
-- **Input reverse polarity and input overvoltage** — the wrong brick will be
-  plugged in eventually.
+- **Input reverse polarity — a P-channel MOSFET, and no controller.**
+  **⚠️ The reason is heat, not dropout.** An earlier revision justified this
+  on the dropout budget; the TPS7A47's measured 450mV worst case retired
+  that argument, and a plain silicon diode would still leave 0.9V of slack.
+  What it would not leave is thermal headroom — the element carries the full
+  ~1.9A of brick current:
+
+  | Input element | Drop | Dissipated there |
+  |---|---|---|
+  | **P-FET, 25mΩ** | **48mV** | **90mW** |
+  | P-FET, 50mΩ | 95mV | 181mW |
+  | Schottky | 300mV | 570mW |
+  | Silicon diode | 700mV | **1.33W** |
+
+  1.33W is over a quarter of this module's entire ~5W budget, spent on a
+  part that does nothing in normal operation. A 25mΩ FET spends 90mW.
+
+  **An *ideal-diode controller* is not required** — an earlier revision here
+  called for one, which overbuilt it. Reverse polarity is not ORing or
+  hot-swap, so a single FET plus a gate resistor suffices. Follow the
+  orientation and ground-return rules in `../CLAUDE.md`, plus one that is
+  specific to this module:
+  - **⚠️ Clamp Vgs at the 15V input.** Gate-to-ground puts Vgs at 15V
+    against a typical ±20V rating — only 5V of margin, which a brick's
+    turn-on overshoot can eat. Fit a gate Zener and series resistor. The
+    module +5V rails have no such problem.
+  - **Mind the interaction with soft-start.** The gate RC sets the FET's
+    turn-on ramp, and into 1.6mF of downstream bulk capacitance a slow ramp
+    means the FET spends real time in its linear region. Size it with the
+    soft-start, not independently.
+- **Input overvoltage** — the wrong brick will be plugged in eventually.
 - **Soft start / inrush limiting.** Every module's bulk capacitance charges
   at once at power-on.
 - **Per-rail current limiting** with sensible fault behaviour.
@@ -262,12 +631,39 @@ The range-wide protection standard in `../CLAUDE.md` is written for modules
 
 ## Open items
 
-- **Verify the +12V regulator's current ceiling.** An LT3045 stops at 500mA
-  against a ~600mA design target; either parallel two (they are designed for
-  it) or take the TPS7A47 at 1A.
-- **Panel width: 8HP or 16HP.** 8HP leaves 12HP spare and is probably enough
-  given a brick does the AC-DC conversion; 16HP leaves 4HP and is comfortable
-  for heatsinking. Decide once the thermal design is real.
+- **Measure one populated module's 3.3V domain.** Nice to have, not blocking.
+  Every silicon term is now from a datasheet — MCU ~10.3mA, AD5693R 0.35mA,
+  MCP4728 0.2–0.8mA — leaving only the pull-ups and LDO quiescent (~2.5mA
+  together) as estimates. VO-1 is the obvious module to put a meter on.
+- **One 16-slot segment or two bridged segments** for a larger chassis. The
+  bus-board section recommends two; sizing the supply for 16 modules assumes
+  the rack reaches that count either way, so this is a bus decision rather
+  than a power one — but the two documents should agree before a backplane
+  is laid out.
+- ~~How PS-1 feeds its own bus board~~ — **settled**: a cabled Micro-Fit 3.0
+  2×4, not a direct mate. See the feed connector section.
+- **PS-1's mechanical mounting.** A perpendicular card has no jack nuts
+  holding it; it needs a panel bracket and probably a rear standoff. This is
+  what 8HP is contingent on, and it is the item that would send the module
+  back to 16HP.
+- **Rail sequencing across three rails, not two.** The existing note only
+  covers ±12V rising together for op-amp latch-up. But +5V is a buck straight
+  off the brick and will come up first, while `../CLAUDE.md` requires each
+  module's 3.3V LDO to track its input with no soft-start (for DVCC
+  5V-tolerance). Every MCU therefore boots and starts driving DAC outputs
+  into op-amps whose rails do not exist yet. Probably benign; currently
+  nobody's stated problem.
+- **+5V switching noise reaches the precision DACs.** The range-wide "no buck
+  near precision analogue" rule keeps a switcher off each module, but PS-1's
+  +5V buck now feeds every 3.3V LDO, and that 3.3V rail supplies the AD5693R
+  on VO-1 and MC-1. Realistically HF noise rather than pitch error — a DC
+  pitch CV does not shift from 1MHz ripple — but it wants LC filtering at
+  each module's 5V input, and it makes the LDO's *high-frequency* PSRR a
+  selection criterion. Confirm rather than assume.
+- **Per-module PTC ratings are now derivable** from the budget above: ~100mA
+  hold on ±12V, ~100mA on +5V, and MC-1 separately at ~150mA for its display.
+  Choose low-resistance parts on +5V — the PTC's series resistance comes off
+  the same margin as the reverse-polarity element.
 - **Does PS-1 get an MCU?** The range rule puts one on every module, but PS-1
   has no MIDI-controllable parameters, so it is the one legitimate candidate
   for exemption. Against exemption: a cheap G0 reporting per-rail voltage and
