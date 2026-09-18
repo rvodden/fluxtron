@@ -196,6 +196,28 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
     needing meaningfully different depths do **not** share one daughterboard
     even if both are "digital" — depth compatibility decides board grouping,
     not function.
+    - **⚠️ Depth is measured to the panel's *rear* face, like the jacks'
+      10mm — not to its front.** A connector's datasheet height is its reach
+      above its own PCB, and once it is mounted flush that reach includes the
+      panel thickness. MC-1's USB-C is an 8.80mm part and an earlier revision
+      carried 8.8mm as its standoff; through a 2mm panel the standoff is
+      **6.80mm**. Convert before comparing a new part against anything here.
+  - **The ~6.5mm shallow tier.** Once converted, the panel-mount parts that
+    are not jacks cluster far more tightly than the rule above implies:
+
+    | Part | Depth behind panel rear face |
+    |---|---|
+    | Thonkiconn jack | 10.0mm |
+    | Molex 2193200001 USB-C, flush | 6.80mm |
+    | Bourns PEC11R body | 6.50mm |
+
+    **0.30mm apart is inside the thickness tolerance of a 2mm aluminium
+    panel**, so treat these as one tier rather than two. A board at
+    **6.50mm** serves both: the encoder is the datum, since its bushing and
+    nut clamp it rigidly to the panel and the board has to come to it, and
+    the USB-C then stands 0.30mm proud of the panel front — invisible on
+    matte black, and it guarantees the panel cannot foul the connector mouth
+    on insertion. A deep THT display can join the same tier; see MC-1.
   - **THT indicator LEDs**: not a depth constraint at all — leads are simply
     trimmed/bent to reach the panel flush, whatever the standoff. Prefer
     THT over SMD for any panel-facing indicator LED for this reason.
@@ -206,6 +228,25 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   header/ribbon back to the main board, rather than a growing bundle of
   loose flying leads. (Applies to VO-1; likely LF-1 too; check EG-1 once its
   control set — fixed vs. continuous ADSR stages — is settled.)
+  - **⚠️ The count is not the real test — an existing sub-board beats it.**
+    The 1–2 rule assumes flying leads are the only alternative. Where a
+    module already needs a sub-board at the same depth tier for something
+    else, put the encoder on it whatever the count: a small PCB's cost is
+    mostly shipping, so the marginal area is near-free, and it deletes the
+    hand-soldered flying leads, which are the least reliable joints on a
+    hand-built module. MC-1 has **one** encoder and takes a sub-board on
+    exactly this basis.
+  - **The geometry test that does still bind is jacks.** VO-1's problem was
+    not the encoder count but that a board spanning its scattered encoders
+    had to cover ground where jacks live, and jacks must reach the 10mm
+    plane. A sub-board is only free where the panel region it covers is
+    jack-free.
+  - **⚠️ Two panel-mount parts on one rigid board must agree with the
+    panel.** A flying-lead encoder is self-locating; a board-mounted one is
+    not, and that is what the convenience costs. Nominate the tightest part
+    as the datum and make the others compliant — on MC-1 the USB-C slot is
+    the datum and the encoder's bushing hole is opened to ~7.4mm, which the
+    washer and nut cover entirely.
   - **A sub-board only helps when the encoders are clustered**, so lay the
     panel out that way when a module has 3+. VO-1 went through a mockup with
     its four encoders scattered diagonally and interleaved with jacks, which
@@ -229,6 +270,14 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   the reasoning and for what a per-module substitution costs.
 - **Jacks**: Thonkiconn PJ301M-12, 3.5mm mono, panel-mount — 10mm depth,
   sets main PCB standoff on every module.
+  - **⚠️ It is mono, and a TRS MIDI jack is a different part.** The
+    PJ301M-12 has no ring contact, so it cannot carry 3.5mm TRS Type A —
+    yet MC-1's parts list called for six of them *including* "the TRS MIDI
+    IN/THRU pair", which specifies a part that physically cannot do the job
+    on two of its positions. Any module with TRS MIDI needs a **stereo**
+    jack (PJ320-class) there: a second BOM line, a different footprint, and
+    one more conductor per jack on whatever ribbon serves that row.
+    Currently MC-1 only; check any later module that grows a MIDI jack.
 - **Encoders**: **Bourns PEC11R**, 12mm incremental, THT, M7 × 0.75 metal
   bushing and metal shaft, 6.5mm behind the panel. Replaces the PEC16,
   which was larger (M9 bushing, 16mm body) and whose behind-panel depth the
@@ -521,6 +570,8 @@ and leaves only drift, which calibration cannot fix. It is the reason to
 spend the BOM on tempco rather than on initial accuracy.
 - **MIDI I/O**: **3.5mm TRS, Type A** (MIDI Association-ratified standard,
   2018) — not 5-pin DIN (too big), not 2.5mm (non-standard minority format).
+  **⚠️ TRS needs a stereo jack**, not the range's standard mono Thonkiconn —
+  see the jack entry above.
 - **Bus connector**: **2×6 (12-pin)**, separate from the power header,
   populated on every module regardless of phase. Pinout and the module-side
   requirements (~220Ω series resistors on SDA/SCL, ESD, the 5V-tolerance

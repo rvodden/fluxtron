@@ -206,7 +206,9 @@ One encoder serves two parameters, and they are **not** peers:
 
 Both values stay visible on their own display throughout, so there is no
 hidden mode — only a hidden *focus*, which is shown by blinking the active
-pair (or by its decimal point, which the GS2022CB-B does have).
+pair (or by its decimal point, which the GS2022CB-B does have). **⚠️ That
+property is under review** — see "Single display" below, which trades it for
+larger digits.
 
 **Division is the default because it is the parameter that actually gets
 used.** Channel is set once when the rack is patched and then left alone;
@@ -229,6 +231,81 @@ switch. A second encoder was never an option given the vertical budget.
 The rejected alternative was push-and-hold + turn for the secondary
 parameter. It needs no focus indicator at all, but is more awkward
 one-handed, and the timeout above gives most of the same safety.
+
+### Single display: proposed, not settled
+
+**Proposal: drop to one two-digit display**, showing division at rest and the
+MIDI channel only while the push-to-focus mode is active. The argument is
+that channel is set once when the rack is patched and then left alone, so it
+does not earn permanent panel area.
+
+**The reasoning is sound and the part count falls** — one display instead of
+two, two digit-select lines instead of four, spare AS1115 capacity. Keep it
+on those grounds.
+
+**⚠️ But it is not a source of vertical space, which is what it was reached
+for.** Two GS2022CB-Bs sit *side by side in one row*; one larger display is
+still one row. The saving is horizontal, and 24mm of a 40.64mm panel was
+never the problem. A 0.56" two-digit part is 25 × 19mm against the pair's
+24 × 10mm — the same width and **9mm more height**, spent in the one axis
+this module has "only single-digit millimetres of slack" in. Whether 8HP can
+carry that is the vertical-budget open item; this proposal does not resolve
+it.
+
+**⚠️ It creates a genuine hidden mode, and the codes collide.** Divisions
+include `16`, `08`, `04` and `02`; channels run `01`–`16`. On one display
+`04` is either a quarter-note division or MIDI channel 4, and position no
+longer tells them apart. VO-1's rule — *momentary, or audible, or indicated,
+never a silent latch* — is still satisfied, but only because the indication
+now carries real weight rather than being garnish. **Use both signals: light
+the decimal point in channel mode, and blink.** The division encoding was
+deliberately designed not to need decimal points, which is exactly what
+leaves them free for this.
+
+#### ⚠️ `SLR0562DBA3BD` is rejected — common anode
+
+Evaluated as the 0.56" candidate and it cannot be used.
+`../datasheets/C225942.pdf` states 共阳 (common anode), and its wiring
+diagram confirms it: pins 8 and 7 are the DIG.1/DIG.2 commons feeding the
+anodes, with segments returning on 10, 9, 1, 4, 3, 6, 5, 2. **The AS1115
+sources segment current and sinks digit current, so it requires common
+cathode** — which is why the GS2022**C**B-B was picked over the GS2022A.
+Not fixable in firmware. Source the common-cathode equivalent of the same
+family; the file is an LCSC part sheet (`C225942`), so the search starts
+there.
+
+Everything else about the part was good, and carries over as the screening
+criteria for its replacement:
+
+| | SLR0562DBA3BD |
+|---|---|
+| Digits | 0.56" (14.2mm), two, 8° slant, black face |
+| Body | 25 × 19 × **8.0mm**, leads 6.2 ±0.5mm, 10 pins |
+| Vf | typ 3.0 / **max 3.4V — specified only at IF = 20mA** |
+| Iv | 85 / 125 / 185 mcd at 20mA |
+| λd | 457 / 462 / 467nm — blue |
+
+- **⚠️ Screen any taller display on Vf at 10mA before digit height.** Many
+  parts above ~0.4" put **two dice in series per segment**, which takes Vf to
+  6–7V and cannot be driven by an AS1115 on a 5V rail at any current. This
+  part is single-die and at 3.4V max is *better* than the GS2022's 3.80V —
+  but its datasheet characterises Vf only at 20mA, so the 10mA figure is an
+  extrapolation and belongs on the bench list.
+- **The margin improves only if it still runs dim.** Scaling the AS1115
+  driver drops as the 5V-rail section does gives ~3.61V of chain at 10mA
+  (margin ~+1.07V) but ~4.21V at 20mA — no better than today. And this part
+  is *less* efficient than the GS2022 (85–185 mcd at 20mA against 120–180 at
+  10mA), so brightness pressure pushes toward the current that spends the
+  gain. The "do not fix a dim display by raising the intensity register"
+  rule holds whichever part is chosen.
+- **A thick THT display helps the board stack.** At 8.0mm deep with 6.2mm
+  leads it is nowhere near the 3.2mm SMD tier, and it reaches the panel from
+  the 6.50mm UI board — see the construction section. **Confirm the
+  replacement's body depth before that standoff is committed**, since the
+  6.50mm figure depends on it.
+- **A 25 × 19mm part needs a 25 × 19mm window** in a 40.64mm panel, leaving
+  ~3.8mm of aluminium each side and close to the encoder bushing hole. Check
+  that before cutting.
 
 ### Firmware notes
 
@@ -292,42 +369,97 @@ one-handed, and the timeout above gives most of the same safety.
   own channel and its own chassis-0-equivalent segment, not a way to replicate
   one voice across chassis.
 
-## Physical construction: three separate boards
+## Physical construction: boards by depth tier
 
-This module ended up needing more than the range-wide "main board + flying
-leads" default, because USB-C, the display, and the encoder all want
-different panel-to-PCB depths and none of them match the 10mm jack-driven
-main board:
+This module needs more than the range-wide "main board + flying leads"
+default, because USB-C, the display and the encoder all want panel-to-PCB
+depths that do not match the 10mm jack-driven main board.
 
-- **Main PCB** (10mm standoff, set by the 6 Thonkiconn jacks): carries the
-  jacks, power header, bus connector, STM32G0B1 MCU, DAC(s). No spacer
-  washers needed since jacks reach their native depth directly.
-- **Channel/division encoder**: off-board entirely, on flying leads (A, B,
-  common, switch ×2 — 5 wires) back to the main PCB. Its own panel nut
-  provides all the mechanical support. **No main-PCB keep-out is needed**:
-  the PEC11R sits 6.5mm behind the panel, wholly in front of the 10mm main
-  PCB, which retires the cutout worry the PEC16 carried. The switch pair is
-  now used: push reaches the MIDI channel, which the knob otherwise
-  does not touch.
-- **USB-C daughterboard**: separate small board, its own shallow standoff
-  set by whichever connector is chosen (checked against 219320-0001 as a
-  reference point — 8.8mm, i.e. deeper than the display, hence the separate
-  board). Needs the CC1/CC2 pull-downs placed on this board near the
-  connector.
-- **Display daughterboard**: separate small board, very shallow standoff —
-  see part choice below (3mm thick). Confirmed too different in depth from
-  the USB-C connector to share one carrier, even though both are "small
-  digital front-panel components." **Carries both displays** (CH and DIV):
-  same part, same 3mm depth, so the depth-grouping rule puts them on one
-  board. Its ribbon back to the main PCB grows by two digit-select lines.
+**⚠️ Supersedes "three separate boards"** — which put the encoder on flying
+leads and gave USB-C and the display a daughterboard each, on the grounds
+that their depths were incompatible. With the real connector drawing in hand
+(`../datasheets/2193200001_sd.pdf`) that grouping is wrong. Measured to the
+panel's **rear** face, as the jacks' 10mm is, the non-jack parts fall into
+**one tier at ~6.5mm**, not three separate ones. The old 8.8mm figure for
+USB-C was its height above its own PCB, which includes the 2mm panel.
 
-Each daughterboard connects to the main PCB via a short header/jumper
-(I2C for the display's driver, USB D+/D-/power for the USB board).
+- **UI daughterboard, 6.50mm standoff** — carries the encoder, the display,
+  the USB-C receptacle and the AS1115. Taking the panel's rear face as zero
+  and its front as −2.0mm:
+
+  | Part | Geometry | At a 6.50mm standoff |
+  |---|---|---|
+  | Encoder | body 6.5mm behind mounting surface | **exact** |
+  | USB-C | 8.80mm above PCB → face at −2.30mm | 0.30mm proud of panel front |
+  | Display (THT, 8.0mm body) | face at −1.50mm | 0.5mm recessed in its window |
+
+  The encoder is the rigid datum — bushing and nut clamp it to the panel, so
+  the board comes to it. The display pokes 1.5mm into the 2mm panel window
+  and stops half a millimetre shy of the front, which reads as intentional
+  rather than as a part behind a hole.
+
+  **⚠️ The display row of that table is provisional.** The 8.0mm body depth
+  comes from `SLR0562DBA3BD`, which is rejected (common anode — see the
+  display section). The 6.50mm standoff holds for the encoder and the USB-C
+  regardless, but re-check it against the replacement part's body depth
+  before committing the stack.
+
+  **1.6mm board.** It carries a large THT display, a THT encoder and a USB-C
+  receptacle, which out-votes Molex's 1.0mm footprint recommendation — see
+  the connector entry for what that costs.
+
+  **The AS1115 belongs here, not on the main board**: it keeps the segment
+  traces short, and the ribbon back to the main PCB then carries only
+  VBUS/GND/D+/D− (4), encoder A/B/common/switch ×2 (5), SDA/SCL/+5V (3) and
+  3.3V — roughly a 14-way, replacing two daughterboard connections and a
+  five-wire flying-lead bundle.
+
+- **Main PCB, 10mm standoff** (set by the six Thonkiconn jacks): jacks,
+  power header, bus connector, MCU, both DACs, protection.
+
+  **Only its *front* face is constrained** by the UI board sitting 3.5mm in
+  front of it. Its rear face is unobstructed, with ~58mm of case depth
+  behind it, so the dense work goes there — and the power and bus headers
+  want to face rearward to meet their ribbons anyway. That is what lets MC-1
+  stay at two boards despite the upper section growing.
+
+### ⚠️ Board count is deferred to schematic capture
+
+Splitting the jacks onto a third board, leaving a full-size "guts" board
+behind everything, was considered and is **not decided either way**. It
+needs a real circuit to lay out before the area question is answerable.
+
+Depth is not the obstacle — the stack comes to roughly 27mm of the KOMA's
+70mm. Two other things decide it, and both should be settled alongside the
+schematic:
+
+- **⚠️ Ground is the reason to be cautious, and it lands on MC-1 hardest.**
+  One cent is 833µV. With jacks on their own board every sleeve return
+  reaches the output stages' ground reference through a ribbon, and ~10mA of
+  gate current through ~50mΩ of ribbon ground is 0.5mV — about **0.6 cents**,
+  moving whenever the gate does. That is larger than every static term in the
+  range's pitch error budget except the discrete-resistor row, and MC-1 is
+  the module that cannot absorb it, having no auto-tune to hide behind. If
+  the split happens: alternate signal and ground through the ribbon rather
+  than running one ground wire, and give V/OCT its own return to the output
+  stage's ground reference rather than sharing with GATE.
+- **Mechanical support.** Every module in the range is held by its jack nuts.
+  Move the jacks to a daughterboard and the *jack* board is held while the
+  guts board has nothing holding it — the same problem `../PS-1/CLAUDE.md`
+  records as needing a panel bracket and a rear standoff, now invented for a
+  second module.
 
 ## Confirmed parts
 
-- **Jacks**: Thonkiconn PJ301M-12 ×6 — V/OCT, GATE, VEL, CLK, plus the
-  TRS MIDI IN/THRU pair. Two across, three rows.
+- **Jacks**: **four** Thonkiconn PJ301M-12 (V/OCT, GATE, VEL, CLK) plus
+  **two stereo jacks** for the TRS MIDI IN/THRU pair. Two across, three rows.
+  - **⚠️ Corrects "PJ301M-12 ×6".** The PJ301M-12 is a *mono* jack with no
+    ring contact and cannot carry 3.5mm TRS Type A, so the earlier list
+    specified a part that physically cannot do the job on two of its six
+    positions. A PJ320-class stereo jack is needed there: a second BOM line,
+    a different footprint, and an extra conductor per jack on whatever
+    ribbon serves that row. Exact part at schematic capture. See
+    `../CLAUDE.md`.
 - **Display**: **Guangcai GS2022CB-B ×2** (CH and DIV) — 0.2" (5.08mm)
   dual-digit SMD 7-segment, blue, common cathode, **black** reference
   surface. Supersedes the Opto Plus OPS-D2010, which was only ever in the
@@ -495,15 +627,64 @@ Two further consequences:
   routine** storing gain and offset in the reserved settings flash page.
 - **Encoder**: Bourns **PEC11R-4015F-S0024** — switched, since the push
   reaches the MIDI channel, which the knob otherwise does not touch. THT,
-  detentless, 15mm shaft, off-board on flying leads per above. See the
+  detentless, 15mm shaft, **on the UI daughterboard** per above —
+  superseding the flying leads, since a board at its tier now exists. See the
   range doc for the quadrature-counting rule. Both of MC-1's encoder
   parameters are discrete lists, so with no detents the CH and DIV
   displays carry all the step feedback — a reason to keep them bright
   enough to read at a glance while turning, and DIV especially, since
   that is the one being turned.
-- **USB-C connector**: not yet finalised. 219320-0001 (Molex, 8.8mm) used
-  as a reference depth point; still need to pick the actual part for the
-  daughterboard.
+- **USB-C connector**: **Molex `2193200001`** (219320-0001) — 16-pin USB 2.0
+  Type-C receptacle, vertical/top-mount, 8.80mm above PCB. **Settled**; it
+  was previously carried only as a reference depth point. Drawing:
+  `../datasheets/2193200001_sd.pdf`.
+
+  | | |
+  |---|---|
+  | Mating interface | 8.34 +0.06/−0.02 × 2.56 ±0.04 (USB-IF; both flagged FC) |
+  | **Body envelope** | **8.94 (W) × 3.16 (D)**, constant over the full height |
+  | Height above PCB | 8.80 |
+  | Contact coplanarity | 0.10 |
+  | Molex rec. PCB thickness | 1.0 ±0.10mm |
+
+  - **Panel cutout: a 9.3 × 3.5mm full-radius slot (R1.75).** Cut to clear
+    the **body**, not the 8.34mm mating oval — the shell is full-width right
+    down to the PCB, so the mating dimension is irrelevant once it passes
+    through the panel. That leaves ~0.18mm per side on width and ~0.17mm on
+    height, and a full-radius slot suits both a 3.5mm end mill and the
+    connector's oval-ended body. Use 9.6 × 3.8 (R1.9) if more assembly slack
+    is wanted on a hand-built panel. **Molex publish no panel cutout for
+    this part** — it is a board-mount connector with a land pattern, not a
+    panel-mount one with a bezel — so this figure is derived here, not
+    quoted from the drawing.
+  - **Mount it protruding, not recessed.** Flush with the panel *front*,
+    which puts the board 6.80mm behind the panel's rear face on its own, or
+    6.50mm on the shared UI board with the connector 0.30mm proud. Sitting
+    the connector wholly behind a 2mm panel would make the plug reach into a
+    recess, and a typical overmould fouls the panel before it seats.
+  - **⚠️ D+/D− are not internally bridged.** Both pairs come out separately
+    (Dp1/Dn1 on A6/A7, Dp2/Dn2 on B6/B7), so **tie A6↔B6 and A7↔B7 on the
+    board** — that is what makes the cable work either way up. On a 16-pin
+    part this is the designer's job; some 6-pin parts do it internally.
+  - **SBU1/SBU2 (A8/B8) go nowhere** for a MIDI device. Leave unconnected.
+  - CC1 (A5) and CC2 (B5) each take their own 5.1kΩ pull-down, placed on
+    this board near the connector.
+  - **Blind shell pegs are accepted, and should be confirmed at bring-up.**
+    The 1.00/1.10mm pegs do not break through the 1.6mm board the UI
+    daughterboard needs, so they get no back-side solder. Judged acceptable
+    because the close-fitting panel slot takes the cable insertion and
+    withdrawal load, which is the failure mode the pegs exist to prevent —
+    but that is reasoning, not a tested claim. The conservative alternative
+    is a 1.0mm board plus a mid-board support standoff. 1.2mm is not a
+    compromise; it is 0.1mm of peg and no retention.
+  - **⚠️ `2171780001` is rejected — do not re-propose it on depth grounds.**
+    It is a 6-pin part at 6.50mm, and its 2.3mm depth saving is real. It is
+    also **power-only**: its six contacts are CC1, CC2, VBUS ×2 and GND ×2,
+    with **no D+/D− at all** (`../datasheets/2171780001_sd.pdf`), so it
+    cannot carry USB MIDI. Distributor listings describe it only as "6
+    circuits", which reads as though it were VBUS/GND/D+/D−/CC1/CC2 — the
+    drawing is the thing that settles it, and this is the second USB-C part
+    number to fail on a property no listing stated.
 
 ## Circuit protection (beyond the range-wide baseline)
 
@@ -543,6 +724,11 @@ notes, so MC-1 drops its gate and leaves the bus alone.
 - **Vertical panel budget** — the row-of-4 problem is resolved and MC-1
   closes at 8HP, but height is now the tight axis with only a few
   millimetres of slack, on estimated rather than measured footprints.
+  **⚠️ It now also decides the display size** — whether 0.56" digits are
+  reachable at 8HP at all, or whether 0.3–0.4" is the honest ceiling. Real
+  footprints for the jacks, the PEC11R (13.2mm body) and the USB-C slot are
+  now in `../datasheets/`, so this can be totalled properly rather than
+  estimated. Do that before committing to a display part.
 - **Marking the MIDI jacks** — with icons dropped range-wide, IN/THRU
   still need distinguishing from the four CV jacks by some plain-word
   means. See the section above; it costs vertical space MC-1 does not
@@ -551,7 +737,20 @@ notes, so MC-1 drops its gate and leaves the bus alone.
   what remains is MC-1's own side of it: the NRPN state machine, the parameter
   shadow and downstream coalescing, discovery and rediscovery, preset
   stage/commit sequencing, and driving firmware updates.
-- Exact USB-C connector part number for the daughterboard.
+- ~~Exact USB-C connector part number for the daughterboard~~ — **settled:
+  Molex `2193200001`.** See the connector entry for the derived cutout, the
+  flush-mount depth and the D+/D− bridging.
+- **The display part is open again.** The single-display proposal stands, but
+  `SLR0562DBA3BD` is common anode and unusable; a common-cathode two-digit
+  blue equivalent is needed. Its body depth sets the UI board's 6.50mm
+  standoff, and its digit height waits on the vertical budget above.
+- **PCB count** — two boards (UI at 6.50mm, main at 10mm) or three (jacks
+  split out, full-size guts board behind). **Deliberately deferred to
+  schematic capture**, when the area question becomes answerable. See the
+  construction section for the ground and mounting consequences of the
+  three-board option.
+- **Stereo jack part** for the TRS MIDI pair, per the correction in the parts
+  list.
 - ~~AS1115 segment/digit driver dropout at 5V~~ — **settled** against
   DS000206: it closes with +0.48V at the pin behind a MOSFET (+0.41V at
   connector end-of-life), and only at 10mA/segment. A silicon diode fails it
