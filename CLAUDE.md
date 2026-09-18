@@ -82,6 +82,18 @@ Flagged for later, not in scope now: **LF-2**, a fuller multi-waveform
 crossfade LFO (separate sine/saw/square cores blended via a dual-VCA-style
 crossfader), vs. LF-1's single continuous triangle↔saw/square skew control.
 
+Also flagged for later: **MC-2**, a duophonic interface — one module, two
+CV/Gate pairs, voice allocation entirely inside its own MCU. **This is the
+shape polyphony has to take in this range**, because allocation must happen
+where the notes arrive and no note may cross a bus or a link (`BUS.md` §1).
+The alternative of distributing voices across chassis, by giving CX-1 its own
+MIDI channel, is rejected in `BUS.md` §2.8 — **polyphony is an MC question, not
+a CX one.** Budget it at 16HP rather than 8HP: four more jacks than MC-1, which
+already measures ~107mm of ~110mm of panel height. Against the 12HP spare that
+is 80HP of 84, tight but real. Note a two-voice rig is two cases either way,
+and voice 2's CV/Gate reaches the second case on patch cables, which `BUS.md`
+§2.7 already blesses for cross-chassis use.
+
 ## Case
 
 **KOMA Case 3U/84HP** — unpowered (bring your own PSU), 70mm depth. Bought

@@ -352,6 +352,63 @@ only**. A DAW's panic button has to reach every channel that has an MC-1 on it,
 not just the one in focus — which is a thing to say in the manual, not a thing
 to fix in firmware, since the racks have no path to tell each other.
 
+#### ⚠️ Rejected: giving CX-1 its own MIDI channel
+
+The obvious follow-on question, since a bridged chassis already has a module in
+it and a cable running to it: let CX-1 filter its own channel and generate a
+second voice, so one USB-C connection drives two.
+
+**It answers a question that is not open.** The TRS THRU chain already drives
+two voices from one USB-C connection — that is what it is for (`MC-1/CLAUDE.md`)
+— and §8 already makes the MIDI channel the system selector, so addressing is
+`(channel, chassis, slot)` and stays unambiguous across two racks. **The cable
+count between cases is the same either way**: one TRS lead for the daisy chain,
+or one Cat5 for a CX link.
+
+Of the three things it might have bought, two evaporate on inspection:
+
+| Candidate gain | Verdict |
+|---|---|
+| Unified presets and panic | **Non-gain.** Program Change and CC 120 are per-channel; a host sends two of each. The unification lives in the DAW, at no cost |
+| Unified NRPN addressing | **Non-gain.** Channel already selects the system before the chassis field is read (§8) |
+| **Voice allocation** | **Real** — and the only real one. Two MC-1s on fixed channels cannot negotiate, so no duophony on one channel, no note stealing, no allocated unison |
+
+**The blocker is §1, not the connector.** A second voice generated downstream
+means note data crosses the chassis boundary. Over I2C that fails the governing
+invariant twice over — an unbounded latency tail, and an event where copper
+would have held state.
+
+**There is room on the cable, and it is worth recording even though the idea is
+rejected.** Pairs 3 and 4 carry CV± and Gate± in order to *replicate voice 1
+downstream* (§2.7). A chassis that is its own voice does not want that
+replication, so **those two pairs free themselves in exactly the configuration
+that would need them** — one could carry a forwarded MIDI or UART stream on its
+own conductor, leaving the bus carrying no note data at all. Two conditions if
+anyone ever revisits it: it must stay **differential**, or §2.7's
+shield-as-ground argument collapses; and the two uses are **mutually
+exclusive**, so a chassis cannot be both a second voice and a unison extension.
+
+**What kills it is cost, and the cost is not where it looks.** The expensive
+half of MC-1 is not the USB-C — it is the pitch chain. A bridge generating CV
+has no feedback either, so it inherits the whole of `CLAUDE.md`'s "precision
+lands on MC-1" argument: a B-grade AD5693R, a matched thin-film network, a
+precision op-amp and a user calibration routine. Add V/OCT, GATE and VEL jacks,
+a channel control and a display to an 8HP panel that already carries an RJ45 —
+against MC-1's measured ~107mm of ~110mm for a comparable set — and the panel
+does not plausibly close. Set against a second MC-1 it saves a USB-C
+daughterboard and an opto-isolator, and adds strictly more than that. **CX-1
+converges on MC-1's BOM**, which is §2.7's "rolling CX-1's function into MC-1"
+objection running in reverse.
+
+**And it still would not deliver the one real gain.** Allocation has to happen
+where the notes arrive, so MC-1 would be shipping per-voice note assignments
+down the link — a proprietary note transport between cases, not a MIDI channel.
+
+**Polyphony is an MC question, not a CX question.** The cheap shape is one
+module with two CV/Gate pairs, where allocation never leaves the MCU and no
+link or bus carries a note — flagged as a possible **MC-2** in `CLAUDE.md`, not
+in scope. **The bridge stays digital plumbing.**
+
 
 ---
 
