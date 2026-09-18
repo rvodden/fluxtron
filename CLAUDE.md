@@ -485,23 +485,33 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
 One cent at 1V/oct is **833µV**, which over a 10V span is **83ppm**. That
 number governs the whole chain, and the DAC contributes almost none of it:
 
+**Drift terms** — each one a coefficient multiplied by an assumed 20°C
+excursion. That multiplier is itself a lever; see **calibrate warm** below.
+
 | Source | Drift over 20°C | Cents |
 |---|---|---|
-| 16-bit LSB over 10V | — | 0.18 |
 | AD5693R on-chip reference, **B grade** 2ppm/°C typ | 40 ppm | 0.48 |
 | AD5693R on-chip reference, B grade 5ppm/°C **max** | 100 ppm | 1.20 |
 | *AD5693R reference, **A grade** 20ppm/°C max — wrong part* | *400 ppm* | ***4.82*** |
 | **Discrete 1% resistors, 25ppm/°C** | **500 ppm** | **6.00** |
 | Matched thin-film array, 1ppm/°C tracking | 20 ppm | 0.24 |
 | AD5693R **gain** tempco, ±1ppm/°C (separate from the reference) | 20 ppm | 0.24 |
-| AD5693R reference noise, 16.5µV p-p at gain 4 | — | 0.08 |
 | Precision op-amp, 3µV/°C at gain 4 | — | 0.29 |
 | Jellybean op-amp, 10µV/°C at gain 4 | — | 0.96 |
 | *INA2134 offset drift, ±2µV/°C* — **cross-chassis only** | 40µV | *0.05* |
 | *INA2134 gain drift, ±1ppm/°C typ* — **cross-chassis only** | 20 ppm | *0.24* |
 | *INA2134 gain drift, **±10ppm/°C max*** — **cross-chassis only** | 200 ppm | ***2.41*** |
 
-#### ⚠️ The last two rows apply only to a chassis receiving CV over the link
+**Static floor** — real, and part of the RSS, but *not* drift, so kept out of
+a column headed "drift over 20°C". See the combination section for why the
+distinction is worth making.
+
+| Source | Cents |
+|---|---|
+| 16-bit LSB over 10V | 0.18 |
+| AD5693R reference noise, 16.5µV p-p at gain 4 | 0.08 |
+
+#### ⚠️ The INA2134 rows apply only to a chassis receiving CV over the link
 
 A locally generated CV does not have them. A chassis taking its CV from an
 upstream case over the CX link (`BUS.md` §2.7) puts an `INA2134` differential
@@ -543,24 +553,111 @@ sends CV over: **CMRR is 74dB minimum, 90dB typical** at VCM = ±31V with
 RS = 0Ω. The 0.1% resistor rule in `PS-1/CLAUDE.md` exists to avoid degrading
 that, and 74dB is the number it must not spoil.
 
-**⚠️ This table has never stated how its terms combine, and that now decides
-more than any part choice does.** For MC-1 with a B-grade AD5693R, summing
-the local terms (LSB, reference at max, matched array, DAC gain tempco,
-reference noise, precision op-amp):
+### How the terms combine: **RSS is the design figure, linear is the guarantee**
+
+**Settled.** The table had never stated this, and an earlier revision called
+it worth more than any part choice. It is worth less than that — for a reason
+that is itself the useful result. Summing MC-1's local terms with a B-grade
+AD5693R:
 
 | Combination | AD5693R B grade | REF5025 high grade |
 |---|---|---|
-| Linear (absolute worst case) | **2.23 cents** | 1.75 cents |
-| Root-sum-square (realistic, independent drifts) | **1.30 cents** | 0.87 cents |
+| Linear (absolute worst case) | 2.23 cents | 1.75 cents |
+| Root-sum-square | **1.30 cents** | 0.87 cents |
 
-The part choice moves the total by ~0.5 cent. **The combination method moves
-it by ~0.9 cent** — nearly twice as much — so deciding linear vs RSS is worth
-more than revisiting the DAC. RSS is the honest figure for independent drift
-mechanisms; linear is the number to quote only if every part lands at its
-limit in the same direction at once. **Decide this before anyone re-opens the
-reference question on the strength of the 2.23.**
+**The rule: RSS is the design figure, linear is the guarantee figure, and
+neither is ever quoted without saying which it is.** RSS is what decides
+where BOM money goes. Linear is what would go on a spec sheet, because it is
+the only one of the two that is actually a guarantee.
 
-Two rules follow, and they matter more than the DAC part number:
+**⚠️ The reasoning matters more than the rule, because it is what keeps the
+rule honest.** RSS properly applies to standard deviations, and what this
+table holds is datasheet *maxima* — so 1.30 cents is a convention, not a
+probability statement, and it carries no confidence level. Do not claim one
+for it. It is defensible here on the physics rather than the statistics: the
+drift terms are not independent random errors but **a set of coefficients
+multiplied by one shared ΔT**. What randomises part-to-part is the sign and
+magnitude of each coefficient, and *those* are independent; the two static
+terms are independent of both. The linear sum's extra 0.93
+cent is entirely the assumption that every coefficient lands at its limit in
+the same direction at once.
+
+#### One term is 86% of the variance, which settles more than the method does
+
+The reference at its 5ppm/°C maximum contributes 1.44 of a 1.678 total
+variance. The other five terms together move the RSS total from 1.20 to
+1.295 — **0.10 cent between them.** Three consequences:
+
+- **The two rules below are settled, not live levers.** The matched array and
+  the precision op-amp are ~8% of the variance between them. They were the
+  right calls and they stay, but there is no further accuracy to buy there,
+  and an earlier revision billing them as mattering "more than the DAC part
+  number" overstated it.
+- **"Linear vs RSS" is the reference question wearing a disguise**, and it
+  closes rather than re-opens it: under *either* method the AD5693R costs
+  ~0.5 cent against a REF5025 that puts two parts back on the range's most
+  crowded board. The 2.23 was never an argument for revisiting the DAC.
+- **A real population sits between 0.68 and 1.30 cents** — RSS with the
+  reference at its 2ppm/°C typical, against RSS at its 5ppm/°C max. At 1.3
+  cents on A440 that is a 0.33Hz beat against a unison reference, a
+  three-second beat period; 2.23 cents is 0.57Hz. The audible difference
+  between the two combination methods is a three-second beat against a
+  two-second one.
+
+#### The tripwire
+
+RSS's validity is not permanent, and the assumption becomes load-bearing
+exactly when the margin is thin. **If an RSS total ever comes within ~0.3
+cent of a figure that has to be met, stop using it** — go linear, or go and
+measure. The statistical assumption is free to make with a cent of headroom
+and dishonest without one.
+
+#### ⚠️ Independence holds everywhere except one place
+
+The reference tempco and the DAC's **gain** tempco are on the same die seeing
+the same thermal gradient. ADI specs them separately and their coefficients
+randomise independently part-to-part, so RSS is formally defensible — but
+they are the two terms most likely to correlate within any given unit, and
+the two MC-1's calibration routine cannot separate from each other.
+Everything else in the table is a different physical part and a different
+mechanism.
+
+#### ⚠️ The static floor is not drift, and does not belong in a ΔT budget
+
+Two terms were previously summed into the drift rows and are not drift. They
+now sit separately above, and this is why:
+
+| Source | Cents | Why it is separate |
+|---|---|---|
+| 16-bit LSB over 10V | 0.18 | Quantization. Present at every temperature; does not drift. |
+| AD5693R reference noise, 16.5µV p-p at gain 4 | 0.08 | Noise — and *peak-to-peak*, so a crest factor is already baked in. |
+
+Both belong in the RSS, being genuinely independent of everything else.
+Neither belongs in a column headed "drift over 20°C". Pull them out and the
+pure-drift budget is **1.97 linear / 1.28 RSS** — barely moved, because the
+reference dominates. That is the 86% result arriving a third way.
+
+#### ⚠️ The cheapest accuracy here is not in the table: **calibrate warm**
+
+Every drift row is a coefficient multiplied by an assumed **20°C excursion**,
+which makes that multiplier the largest single lever in the section. MC-1
+calibrates, so the excursion that matters is measured from **the temperature
+at which the user calibrated**, not from 25°C nominal:
+
+- Calibrate cold, at switch-on, and the module eats the whole warm-up.
+- Calibrate after the rack has been running half an hour and the real
+  excursion is nearer ±5°C — which scales **every drift row by 0.25**.
+
+That is worth about a cent, it costs a line in the manual, and it is worth
+more than the combination method and the DAC grade combined. **So MC-1's
+calibration routine must require a warm module rather than recommend one**;
+see `MC-1/CLAUDE.md`.
+
+#### The two rules that follow
+
+Both are settled, and per the variance result above they are smaller levers
+than an earlier revision claimed — but they are the reason the budget is
+dominated by the reference rather than by the output stage, so they stay:
 
 1. **Use a matched thin-film resistor network in the scaling stage, never
    two discretes.** It is *tracking* tempco that counts, not absolute —
