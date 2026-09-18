@@ -24,14 +24,14 @@ Layout, top to bottom:
 1. FLUXTRON wordmark + "MC–1"
 2. Jagged divider
 3. Encoder (no LED ring — just the knob; turns to set clock division,
-   push to reach channel — see below)
-4. Two 2-digit 7-segment displays side by side — **CH** (left, MIDI
-   channel 1–16) and **DIV** (right, clock division)
+   push to reach channel — see below), with the **CLK indicator LED** to
+   its lower right
+4. One 2-digit 7-segment display (division at rest, MIDI channel while the
+   push-to-focus mode is active — see "Single display" below)
 5. Jagged divider
 6. USB-C bulkhead, centred on its own row
 7. **IN** / **THRU** jacks (the TRS MIDI pair)
-8. **VEL** / **CLK** jacks, with the **CLK indicator LED** in the centre
-   gap, offset toward CLK
+8. **VEL** / **CLK** jacks
 9. **V/OCT** / **GATE** jacks
 10. Jagged divider
 
@@ -61,20 +61,92 @@ are estimates from the mockup, not measured footprints — this is the item
 most likely to force another re-layout, and it should be checked against
 real footprints before the board is laid out.
 
+#### The budget, measured off the panel mockup
+
+The mockup is drawn to scale (0.1337mm/px horizontal against 0.1327 vertical
+— isotropic to 0.4%), so it can be measured rather than estimated. Scaled to
+a 40.64 × 128.5mm panel, distances from the panel's top edge:
+
+| Feature | Measured |
+|---|---|
+| Jack row centres | **83.2 / 96.3 / 109.1mm** |
+| **Jack row pitch** | **12.95mm** (13.1 then 12.8) |
+| Display, lit segments | 17.0 × 14.3mm, centred y ≈ 54 |
+| USB-C cutout as drawn | 12.4 × 4.3mm, centred on the panel |
+| CLK LED | ~3.2mm dot at (32.5, 40.6) |
+
+**⚠️ It closes on the jack pitch, not on anything else.** Three rows at
+12.95mm is a **~34.7mm block against the ~54mm** the paragraph above budgets
+at 18mm pitch — about 19mm recovered, which is what pays for a display twice
+the height of the old pair. Totalling the rest with this file's own
+allowances (11mm wordmark block, 25mm encoder finger clearance, 19mm display
+*body*, ~10mm USB row, three dividers) gives **~107mm against ~110mm
+usable**: the single-digit slack, but now resting on one number.
+
+**⚠️ That number is below anything the range has validated.** `../CLAUDE.md`
+confirms 13.5mm centres work and that 10.16mm fails on nut-driver access;
+12.95mm sits in the untested gap between them. **Prove it with real
+Thonkiconns and a nut driver on a test panel before the board is laid out** —
+an FR4 blank from a cheap fab with the real footprints is the quick way. If
+12.95mm does not hold, the display is what gives, not the jacks.
+
+#### ⚠️ Two things the mockup under-draws
+
+Both make the panel look emptier than the real parts will:
+
+- **The display is drawn as bare segments, not as a package.** 17.0 × 14.3mm
+  of lit area against a real 0.56" two-digit body of **25 × 19mm** — 8mm
+  wider and 4.6mm taller than what is on the drawing. The height fits; the
+  **width** is the one to check, since 25mm in a 40.64mm panel leaves ~3.9mm
+  of aluminium each side, immediately below the encoder bushing hole.
+- **The USB-C cutout is drawn 12.4 × 4.3mm**; the derived cutout is
+  **9.3 × 3.5mm** (see the connector entry). Not wrong if it is deliberately
+  drawing overmould clearance, but the slot itself should be the smaller
+  figure. *(An earlier mockup had it at 26.2mm wide, nearly 3× — corrected.)*
+
 ### CLK indicator LED
 
-A blue THT LED beside the CLK jack, flashing on each emitted clock pulse.
+A blue THT LED in the control zone, flashing on each emitted clock pulse.
 It answers two questions the panel otherwise cannot: whether MIDI clock is
 arriving at all, and what rate is actually coming out — the latter being a
 check on the DIV setting that does not require reading the display.
 
-**Placement costs no vertical space**, which matters given the budget
-above: it sits in the centre gap on the existing VEL/CLK row rather than
-taking a row of its own. **Offset toward CLK, not centred** — an LED
-equidistant between VEL and CLK reads as belonging to both.
+**⚠️ Placement supersedes the earlier "centre gap on the VEL/CLK row".**
+That position put the LED between the two jack columns at jack height,
+which is precisely where patch cables sit: a plug body stands ~10mm proud
+of the panel, so the indicator was obscured from any off-axis viewing angle
+exactly when the clock mattered. It has moved to **the lower right of the
+encoder, above the display** — measured from the panel mockup, a ~3.2mm dot
+centred near (32.5, 40.6)mm from the panel's top-left.
 
-No icon accompanies it — icons are dropped range-wide. None is needed: the
-LED sits beside a jack already labelled CLK, and proximity says the rest.
+Two reasons, and the second is a board decision as much as a panel one:
+
+- **Cables no longer cover it.** The new position is in the control zone,
+  which never has anything plugged into it.
+- **It lands on the UI daughterboard** with the encoder, display and USB-C
+  (see the construction section), so it needs no flying leads and no
+  separate mounting. It is a THT LED, which the range's depth rules exempt
+  from standoff constraints entirely — leads are bent to reach the panel —
+  so it could have gone on any board; being on this one is simply tidier.
+
+**It carries no label, deliberately.** The old justification — that it sat
+beside a jack already labelled CLK, so proximity said the rest — does not
+survive the move: it is now ~55mm from the CLK jack. The decision stands on
+the range-wide rule instead (see `../CLAUDE.md`): **a module's only
+indicator needs no label**, because nothing competes with it, its behaviour
+identifies it the moment a clock is running, and the manual documents it.
+**If MC-1 ever gains a second LED, both get labelled** — at that point
+neither is self-identifying.
+
+**⚠️ One risk the position carries, for whoever lays out the panel art.**
+Sitting beside the encoder and 5mm above the display, an unlabelled blue
+dot invites reading as an *encoder* indicator — and MC-1 does have a hidden
+encoder state (division vs. channel focus) which is signalled by the
+display's decimal point, also blue. Two blue indicators 5mm apart meaning
+different things. Judged acceptable because the LED's behaviour is
+unmistakable once a clock runs, but if the panel ever feels ambiguous in
+the hand, this is why, and moving the LED further from the encoder is the
+fix rather than labelling it.
 
 - **Driven from its own MCU GPIO, not the AS1115.** MC-1 has an AS1115 for
   the displays and it has spare capacity, but hanging the clock LED off it
@@ -84,6 +156,17 @@ LED sits beside a jack already labelled CLK, and proximity says the rest.
   keeps clock timing independent of display refresh and lets the LED be
   dimmed on its own terms. +12V through a series resistor and a small
   NPN/MOSFET, per the range-wide blue-LED rule.
+- **⚠️ It therefore puts +12V on the UI daughterboard's ribbon.** That rail
+  was not in the ribbon's original budget (VBUS/GND/D+/D−, encoder
+  A/B/common/switch ×2, SDA/SCL/+5V, 3.3V). One more conductor, either
+  feeding a transistor on the UI board or carrying the LED's switched leg
+  from a transistor on the main board.
+  - **⚠️ Do not "simplify" this by driving the LED from the +5V already on
+    that board.** It works electrically, and it is wrong: at 4.68V at the
+    pin, a blue LED's 3.0V typical / 3.8V maximum Vf leaves only 0.88–1.68V
+    across the series resistor, so brightness varies about **2:1 part to
+    part** — the same defect the range doc rejects 3.3V GPIO drive for. From
+    +12V the Vf spread is swamped. Spend the conductor.
 - **The LED needs its own on-time, longer than the jack pulse.** The CLK
   output is `min(10ms, period/4)`; 10ms of light reads as a flicker, not a
   blink. Use **`min(50ms, period/2)`** for the LED. That gives a crisp 50ms
@@ -123,6 +206,10 @@ The section-label form is preferable if it can be fitted into the band
 already separating the USB-C row from the jacks, since MC-1's vertical
 budget has no room for a new row. Unresolved — it needs deciding against
 the real panel layout, not here.
+
+**Still unaddressed as of the latest mockup**, where IN and THRU are drawn
+as plain Thonkiconns indistinguishable from VEL, CLK, V/OCT and GATE. It is
+the oldest open item on this module and the cheapest to get wrong in use.
 
 ## Outputs: CLK and velocity are both kept
 
@@ -384,8 +471,10 @@ panel's **rear** face, as the jacks' 10mm is, the non-jack parts fall into
 USB-C was its height above its own PCB, which includes the 2mm panel.
 
 - **UI daughterboard, 6.50mm standoff** — carries the encoder, the display,
-  the USB-C receptacle and the AS1115. Taking the panel's rear face as zero
-  and its front as −2.0mm:
+  the USB-C receptacle, the AS1115 and the **CLK indicator LED** (a THT part,
+  which the range's depth rules exempt from the standoff entirely; its leads
+  are bent to reach the panel). Taking the panel's rear face as zero and its
+  front as −2.0mm:
 
   | Part | Geometry | At a 6.50mm standoff |
   |---|---|---|
@@ -410,9 +499,10 @@ USB-C was its height above its own PCB, which includes the 2mm panel.
 
   **The AS1115 belongs here, not on the main board**: it keeps the segment
   traces short, and the ribbon back to the main PCB then carries only
-  VBUS/GND/D+/D− (4), encoder A/B/common/switch ×2 (5), SDA/SCL/+5V (3) and
-  3.3V — roughly a 14-way, replacing two daughterboard connections and a
-  five-wire flying-lead bundle.
+  VBUS/GND/D+/D− (4), encoder A/B/common/switch ×2 (5), SDA/SCL/+5V (3),
+  3.3V and **+12V for the CLK LED** — roughly a 15-way, replacing two
+  daughterboard connections and a five-wire flying-lead bundle. See the LED
+  section for why that +12V conductor is not optional.
 
 - **Main PCB, 10mm standoff** (set by the six Thonkiconn jacks): jacks,
   power header, bus connector, MCU, both DACs, protection.
@@ -460,7 +550,14 @@ schematic:
     a different footprint, and an extra conductor per jack on whatever
     ribbon serves that row. Exact part at schematic capture. See
     `../CLAUDE.md`.
-- **Display**: **Guangcai GS2022CB-B ×2** (CH and DIV) — 0.2" (5.08mm)
+- **Display**: **⚠️ the quantity and the part are both open** — the panel
+  now carries **one** display, not two (see "Single display" above), and the
+  0.56" candidate evaluated for it was rejected as common anode. What follows
+  describes the two-display arrangement it replaces; it stands only as the
+  fallback if the single-display scheme is abandoned, and as the reference
+  for what a replacement part has to match electrically.
+
+  **Guangcai GS2022CB-B ×2** (CH and DIV) — 0.2" (5.08mm)
   dual-digit SMD 7-segment, blue, common cathode, **black** reference
   surface. Supersedes the Opto Plus OPS-D2010, which was only ever in the
   spec for its 3mm thickness and whose blue availability was never
@@ -630,10 +727,11 @@ Two further consequences:
   detentless, 15mm shaft, **on the UI daughterboard** per above —
   superseding the flying leads, since a board at its tier now exists. See the
   range doc for the quadrature-counting rule. Both of MC-1's encoder
-  parameters are discrete lists, so with no detents the CH and DIV
-  displays carry all the step feedback — a reason to keep them bright
-  enough to read at a glance while turning, and DIV especially, since
-  that is the one being turned.
+  parameters are discrete lists, so with no detents **the display carries
+  all the step feedback** — a reason to keep it bright enough to read at a
+  glance while turning. That argument gets stronger, not weaker, with a
+  single display: division and channel now share one readout, so it is the
+  only feedback either parameter has.
 - **USB-C connector**: **Molex `2193200001`** (219320-0001) — 16-pin USB 2.0
   Type-C receptacle, vertical/top-mount, 8.80mm above PCB. **Settled**; it
   was previously carried only as a reference depth point. Drawing:
@@ -724,11 +822,11 @@ notes, so MC-1 drops its gate and leaves the bus alone.
 - **Vertical panel budget** — the row-of-4 problem is resolved and MC-1
   closes at 8HP, but height is now the tight axis with only a few
   millimetres of slack, on estimated rather than measured footprints.
-  **⚠️ It now also decides the display size** — whether 0.56" digits are
-  reachable at 8HP at all, or whether 0.3–0.4" is the honest ceiling. Real
-  footprints for the jacks, the PEC11R (13.2mm body) and the USB-C slot are
-  now in `../datasheets/`, so this can be totalled properly rather than
-  estimated. Do that before committing to a display part.
+  **⚠️ Now measured rather than estimated, and it closes at ~107mm of ~110mm
+  — on a 12.95mm jack pitch the range has never validated.** See "The budget,
+  measured off the panel mockup" above. 0.56" digits are reachable *if* that
+  pitch is buildable, which is a bench test with real Thonkiconns and a nut
+  driver, not a calculation. That test is now the gate on the display part.
 - **Marking the MIDI jacks** — with icons dropped range-wide, IN/THRU
   still need distinguishing from the four CV jacks by some plain-word
   means. See the section above; it costs vertical space MC-1 does not

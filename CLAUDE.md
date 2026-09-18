@@ -25,6 +25,16 @@ Module-specific decisions live in each module's own folder
   rejected; don't re-propose them. Everything is named in words: jack
   names, control labels, and a plain word heading a section where one is
   needed.
+  - **⚠️ A module's *only* indicator LED goes unlabelled; a second one makes
+    both need labels.** With one LED there is nothing to confuse it with, its
+    behaviour identifies it in use, and the manual covers the rest — so a
+    label would be clutter on a panel whose whole aesthetic is restraint.
+    Add a second and neither is self-identifying any more, at which point
+    both get a word (never an icon — those are rejected above). MC-1's CLK
+    LED and VO-1's status LED are both unlabelled on this basis. **This is
+    the rule to apply, not proximity to a labelled jack** — MC-1's LED moved
+    away from its jack and stayed unlabelled, which the old proximity
+    argument could not have justified.
 - **Indicators are blue, range-wide — FluxTron is cold, not warm.** Every
   indicator LED, and every 7-segment display where a blue part can be
   sourced, is blue. No amber, no warm white, no stock red. This is a
