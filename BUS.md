@@ -926,17 +926,25 @@ details, not protocol. Flash endurance is ~10k cycles.
 
 MC-1 can reflash any module using the STM32's I2C system bootloader (M16).
 
-- **Either I2C1 or I2C2 may be used**, per AN2606's STM32G0B1xx/0C1x table.
-  The pin set *within* each is fixed — no alternate AF mappings — but there is
-  a choice of peripheral.
+- **The bus is `I2C1`, on `PB6` (SCL) / `PB7` (SDA), range-wide. Settled.**
+  AN2606's STM32G0B1xx/0C1x table qualifies either I2C1 or I2C2 as
+  bootloader-capable; the pin set *within* each is fixed — no alternate AF
+  mappings — but there was a choice of peripheral.
 
-  | Peripheral | SCL / SDA |
-  |---|---|
-  | I2C1 | **PB6 / PB7** |
-  | I2C2 | **PB10 / PB11** |
+  | Peripheral | SCL / SDA | |
+  |---|---|---|
+  | **I2C1** | **PB6 / PB7** | **the bus** |
+  | I2C2 | PB10 / PB11 | free |
 
-  Both are on port B and bonded out on LQFP-48, so the choice is free.
-  **Pick one and use it on every module.**
+  Both are on port B and bonded out on LQFP-48, so the choice was genuinely
+  free and was made arbitrarily to stop it blocking schematic work — there is
+  no technical argument either way, and none should be looked for later. What
+  matters is only that **every module uses the same one**, since the bus is a
+  shared physical net.
+  **I2C2 stays free** on every module: an unplanned second local peripheral
+  port if one is ever wanted, and the fallback if a module's layout makes
+  PB6/PB7 awkward. Taking that fallback on one module means rerouting the bus
+  on all of them, so treat it as a range-wide re-decision, not a local one.
 - **Consequence: local peripherals go on I2C3**, the port that is *not*
   bootloader-capable, leaving both qualifying ports free for the bus.
 - **Bootloader address: 7-bit `0x5D`** (`0xBA` write, `0xBB` read). Clear of
@@ -1222,8 +1230,6 @@ Owed by each module rather than by this file:
 
 Genuinely undecided:
 
-- **Which of I2C1/I2C2 the bus takes.** Free choice (§6.5); pick one
-  range-wide.
 - Whether the PA3 bootloader-hang erratum applies to the G0B1's bootloader
   version, or only to the G030 it was reported against.
 - Whether a `PROTOCOL_VERSION` mismatch should refuse or degrade.

@@ -757,11 +757,17 @@ The deciding factors, strongest first:
 **⚠️ Layout constraint that comes with the I2C bootloader:** the
 inter-module bus must land on a **bootloader-capable I2C peripheral and pin
 set**, or the reflash-over-bus feature is lost. Per AN2606's STM32G0B1xx/0C1x
-table that is **I2C1 or I2C2** — the pins within each are fixed, but there is
-a choice of peripheral. **So put local peripherals (AS1115, MCP4728,
-AD5693R) on I2C3**, which is not bootloader-capable and does not need to be;
-that satisfies the two-port rule above and leaves both qualifying ports free
-for the bus. Free if designed in, impossible to retrofit.
+table that is I2C1 or I2C2, the pins within each fixed.
+
+**Settled: the bus is `I2C1`, on `PB6`/`PB7`, on every module.** Both
+candidates are on port B and bonded out on LQFP-48, so the choice was free and
+was made arbitrarily rather than argued — don't re-open it looking for a
+reason. The only thing that matters is that every module agrees, the bus being
+one shared net. **I2C2 stays free**; see `BUS.md` §6.5.
+
+**So put local peripherals (AS1115, MCP4728, AD5693R) on I2C3**, which is not
+bootloader-capable and does not need to be; that satisfies the two-port rule
+above. Free if designed in, impossible to retrofit.
 
 ### What this gives up
 
@@ -939,8 +945,8 @@ so rather than define the same thing twice.
   per-module +5V draw is owed a measurement.)
 - `BUS.md`'s own open items — four register definitions owed (`COMMAND`
   opcodes, the bootloader magic value, the `INVENTORY` format, and the
-  `CAPABILITIES`/`STATUS` bitfields), plus which of I2C1/I2C2 the bus takes.
-  (DVCC, I2C pin tolerance, the bootloader address and pin sets, and Panic
-  are all settled.)
+  `CAPABILITIES`/`STATUS` bitfields). (DVCC, I2C pin tolerance, the bootloader
+  address and pin sets, **which peripheral the bus takes — I2C1, PB6/PB7** —
+  and Panic are all settled.)
 - **Each module's safe state for Panic**, per the section above. MC-1 and VO-1
   both still owe theirs.
