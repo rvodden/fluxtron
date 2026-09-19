@@ -75,30 +75,54 @@ a 40.64 × 128.5mm panel, distances from the panel's top edge:
 | USB-C cutout as drawn | 12.4 × 4.3mm, centred on the panel |
 | CLK LED | ~3.2mm dot at (32.5, 40.6) |
 
-**⚠️ It closes on the jack pitch, not on anything else.** Three rows at
-12.95mm is a **~34.7mm block against the ~54mm** the paragraph above budgets
-at 18mm pitch — about 19mm recovered, which is what pays for a display twice
-the height of the old pair. Totalling the rest with this file's own
-allowances (11mm wordmark block, 25mm encoder finger clearance, 19mm display
-*body*, ~10mm USB row, three dividers) gives **~107mm against ~110mm
-usable**: the single-digit slack, but now resting on one number.
+**It used to close on the jack pitch. The 0.52" display is what unpicked
+that.** Three rows at 12.95mm is a **~34.7mm block against the ~54mm** the
+paragraph above budgets at 18mm pitch — about 19mm recovered, which is what
+pays for a display twice the height of the old pair. Totalling the rest with
+this file's own allowances (11mm wordmark block, 25mm encoder finger
+clearance, display *body*, ~10mm USB row, three dividers) gave **~107mm
+against ~110mm usable** while the display body was the 19mm of the rejected
+0.56" part.
 
-**⚠️ That number is below anything the range has validated.** `../CLAUDE.md`
-confirms 13.5mm centres work and that 10.16mm fails on nut-driver access;
-12.95mm sits in the untested gap between them. **Prove it with real
-Thonkiconns and a nut driver on a test panel before the board is laid out** —
-an FR4 blank from a cheap fab with the real footprints is the quick way. If
-12.95mm does not hold, the display is what gives, not the jacks.
+**`SLR0522DBC3BD`'s body is 17.5mm, so the budget gets 1.5mm back** — and
+that is worth more than it sounds, because it can be spent on the jack pitch:
+
+| | Pitch | Jack block | Display body | Total |
+|---|---|---|---|---|
+| As budgeted | 12.95mm *(unvalidated)* | 34.7mm | 19.0mm | ~107.0mm |
+| **With this display** | **13.5mm — validated** | 35.8mm | **17.5mm** | **~106.6mm** |
+
+Three rows at 13.5mm centres span 27.0mm between the outer two against
+25.9mm at 12.95mm, so the jack block grows 1.1mm — less than the 1.5mm the
+display hands back. **MC-1 can therefore use the pitch `../CLAUDE.md` already
+validates and still come in slightly under the old figure.**
+
+**⚠️ So the 12.95mm bench test stops being a gate**, which is the real
+result here. It was the item most likely to force a re-layout: `../CLAUDE.md`
+confirms 13.5mm centres work and that 10.16mm fails on nut-driver access, and
+12.95mm sat in the untested gap between them with the display's digit height
+riding on it. At 13.5mm there is nothing to prove. Test the tighter pitch
+anyway if a test panel is being made for other reasons — 0.4mm of slack is
+worth having — but **lay the board out at 13.5mm and do not wait for it.**
+
+**⚠️ The absolute ~106.6mm is still soft; the delta is not.** These are the
+mockup's estimates rather than measured footprints, and the 8.8mm of jack
+allowance beyond the row centres is back-derived from this file's own 34.7mm.
+What is solid is the comparison: −1.5mm of display against +1.1mm of pitch,
+both from dimensioned drawings. Re-total against real footprints before the
+board is laid out, as always.
 
 #### ⚠️ Two things the mockup under-draws
 
 Both make the panel look emptier than the real parts will:
 
 - **The display is drawn as bare segments, not as a package.** 17.0 × 14.3mm
-  of lit area against a real 0.56" two-digit body of **25 × 19mm** — 8mm
-  wider and 4.6mm taller than what is on the drawing. The height fits; the
+  of lit area against `SLR0522DBC3BD`'s real body of **25 × 17.5mm** — 8mm
+  wider and 3.2mm taller than what is on the drawing. The height fits; the
   **width** is the one to check, since 25mm in a 40.64mm panel leaves ~3.9mm
-  of aluminium each side, immediately below the encoder bushing hole.
+  of aluminium each side, immediately below the encoder bushing hole. (The
+  mockup was drawn against the 19mm-tall 0.56" part; the chosen 0.52" one is
+  1.5mm shorter, which the vertical budget above spends on the jack pitch.)
 - **The USB-C cutout is drawn 12.4 × 4.3mm**; the derived cutout is
   **9.3 × 3.5mm** (see the connector entry). Not wrong if it is deliberately
   drawing overmould clearance, but the slot itself should be the smaller
@@ -333,9 +357,10 @@ on those grounds.
 **⚠️ But it is not a source of vertical space, which is what it was reached
 for.** Two GS2022CB-Bs sit *side by side in one row*; one larger display is
 still one row. The saving is horizontal, and 24mm of a 40.64mm panel was
-never the problem. A 0.56" two-digit part is 25 × 19mm against the pair's
-24 × 10mm — the same width and **9mm more height**, spent in the one axis
-this module has "only single-digit millimetres of slack" in. Whether 8HP can
+never the problem. The chosen 0.52" two-digit part is 25 × 17.5mm against
+the pair's 24 × 10mm — the same width and **7.5mm more height**, spent in the
+one axis this module has "only single-digit millimetres of slack" in. (A
+0.56" part would have been 19mm and cost 9mm.) Whether 8HP can
 carry that is the vertical-budget open item; this proposal does not resolve
 it.
 
@@ -349,50 +374,79 @@ the decimal point in channel mode, and blink.** The division encoding was
 deliberately designed not to need decimal points, which is exactly what
 leaves them free for this.
 
-#### ⚠️ `SLR0562DBA3BD` is rejected — common anode
+#### The display is **`SLR0522DBC3BD`** — settled
 
-Evaluated as the 0.56" candidate and it cannot be used.
-`../datasheets/C225942.pdf` states 共阳 (common anode), and its wiring
-diagram confirms it: pins 8 and 7 are the DIG.1/DIG.2 commons feeding the
-anodes, with segments returning on 10, 9, 1, 4, 3, 6, 5, 2. **The AS1115
-sources segment current and sinks digit current, so it requires common
-cathode** — which is why the GS2022**C**B-B was picked over the GS2022A.
-Not fixable in firmware. Source the common-cathode equivalent of the same
-family; the file is an LCSC part sheet (`C225942`), so the search starts
-there.
+Datasheet `../datasheets/C2913048.pdf` (Dongguan Sunlight, file 1805110 rev
+A). It is the common-**cathode** sibling of the rejected `SLR0562DBA3BD`, and
+it is **0.52" rather than 0.56"** — a smaller part than the one that was
+being screened for, which turns out to be the point (see the vertical budget
+below).
 
-Everything else about the part was good, and carries over as the screening
-criteria for its replacement:
+| | SLR0522DBC3BD | *was: SLR0562DBA3BD* |
+|---|---|---|
+| Polarity | **common cathode** (共阴) | *common anode — fatal* |
+| Digits | 0.52" (13.2mm), two, 10° slant, black face | *0.56" (14.2mm), 8°* |
+| Body | **25 × 17.5 × 7.0mm** | *25 × 19 × 8.0mm* |
+| Leads | 7.6 ±0.5mm, ø0.51, 2.54mm pitch, 5 per row, rows 14.8mm apart | *6.2 ±0.5mm* |
+| Commons | **DIG.1 = pin 5, DIG.2 = pin 10** | *pins 8 and 7* |
+| Segments | **A=7, B=6, C=4, D=1, E=3, F=8, G=9, DP=2** | *10, 9, 1, 4, 3, 6, 5, 2* |
+| Vf | typ 3.0 / **max 3.4V — specified only at IF = 20mA** | *identical* |
+| Iv | 85 / 125 / 185 mcd at 20mA | *identical* |
+| λd | 457 / 462 / 467nm — blue | *identical* |
+| Abs max | IF 20mA, IFP 60mA (≤0.1ms, ≤1/10), VR 5V | |
+| Operating | −20 to +60°C | |
 
-| | SLR0562DBA3BD |
-|---|---|
-| Digits | 0.56" (14.2mm), two, 8° slant, black face |
-| Body | 25 × 19 × **8.0mm**, leads 6.2 ±0.5mm, 10 pins |
-| Vf | typ 3.0 / **max 3.4V — specified only at IF = 20mA** |
-| Iv | 85 / 125 / 185 mcd at 20mA |
-| λd | 457 / 462 / 467nm — blue |
-
+- **Polarity is confirmed twice over**, which is worth doing given what went
+  wrong last time: the text states 共阴 (common cathode), and the wiring
+  diagram agrees — the diodes point *into* the DIG.1/DIG.2 rails, so the
+  commons are the cathodes. The AS1115 sources segment current and sinks
+  digit current, which is exactly this.
+- **⚠️ The pinout is different, not just the polarity.** Commons move from
+  8/7 to **5/10** and every segment pin moves with them. A footprint drawn
+  against `SLR0562DBA3BD` is wrong for this part — it is not a drop-in on the
+  board even though it is a drop-in on the panel.
 - **⚠️ Screen any taller display on Vf at 10mA before digit height.** Many
   parts above ~0.4" put **two dice in series per segment**, which takes Vf to
   6–7V and cannot be driven by an AS1115 on a 5V rail at any current. This
   part is single-die and at 3.4V max is *better* than the GS2022's 3.80V —
   but its datasheet characterises Vf only at 20mA, so the 10mA figure is an
-  extrapolation and belongs on the bench list.
+  extrapolation and belongs on the bench list. Unchanged from the rejected
+  part: the two share a die.
 - **The margin improves only if it still runs dim.** Scaling the AS1115
   driver drops as the 5V-rail section does gives ~3.61V of chain at 10mA
   (margin ~+1.07V) but ~4.21V at 20mA — no better than today. And this part
   is *less* efficient than the GS2022 (85–185 mcd at 20mA against 120–180 at
   10mA), so brightness pressure pushes toward the current that spends the
   gain. The "do not fix a dim display by raising the intensity register"
-  rule holds whichever part is chosen.
-- **A thick THT display helps the board stack.** At 8.0mm deep with 6.2mm
-  leads it is nowhere near the 3.2mm SMD tier, and it reaches the panel from
-  the 6.50mm UI board — see the construction section. **Confirm the
-  replacement's body depth before that standoff is committed**, since the
-  6.50mm figure depends on it.
-- **A 25 × 19mm part needs a 25 × 19mm window** in a 40.64mm panel, leaving
-  ~3.8mm of aluminium each side and close to the encoder bushing hole. Check
-  that before cutting.
+  rule holds.
+- **Decimal points on both digits**, which the single-display hidden-mode
+  scheme above depends on — *"light the decimal point in channel mode, and
+  blink"* is only available because the part has them. Confirmed on the
+  drawing.
+- **Body depth 7.0mm, and the 6.50mm standoff survives it.** See the
+  construction section: the face lands 1.5mm behind the panel front rather
+  than 0.5mm, still recessed, still intentional-looking. The open question
+  the rejected part left on that standoff is closed.
+- **A 25 × 17.5mm part needs a 25 × 17.5mm window** in a 40.64mm panel,
+  leaving ~7.8mm of aluminium top and bottom of the window and ~3.8mm each
+  side. The side margin is unchanged and still close to the encoder bushing
+  hole — check that before cutting.
+- **Hand-solderable, unlike the encoder.** Iron at **300°C max for 3s**, wave
+  at 260°C max for 5s after a 100°C/60s preheat, and in both cases keep 2mm
+  clear of the resin base. **Solder each joint once only**, and apply no
+  force to the part until it is back at room temperature. That is a real
+  constraint on a 10-pin THT part being fitted by hand to a board that also
+  has to mate with a panel.
+
+#### ⚠️ `SLR0562DBA3BD` was rejected — common anode. Don't re-propose it.
+
+Kept because the part is the obvious search hit for "0.56" two-digit blue"
+and the mistake is invisible from a listing title.
+`../datasheets/C225942.pdf` states 共阳 (common anode), and its wiring
+diagram confirms it: pins 8 and 7 are the DIG.1/DIG.2 commons feeding the
+anodes, with segments returning on 10, 9, 1, 4, 3, 6, 5, 2. **The AS1115
+sources segment current and sinks digit current, so it requires common
+cathode.** Not fixable in firmware.
 
 ### Firmware notes
 
@@ -495,18 +549,24 @@ USB-C was its height above its own PCB, which includes the 2mm panel.
   |---|---|---|
   | Encoder | body 6.5mm behind mounting surface | **exact** |
   | USB-C | 8.80mm above PCB → face at −2.30mm | 0.30mm proud of panel front |
-  | Display (THT, 8.0mm body) | face at −1.50mm | 0.5mm recessed in its window |
+  | Display (THT, **7.0mm** body) | face at −0.50mm | **1.5mm recessed in its window** |
 
   The encoder is the rigid datum — bushing and nut clamp it to the panel, so
-  the board comes to it. The display pokes 1.5mm into the 2mm panel window
-  and stops half a millimetre shy of the front, which reads as intentional
-  rather than as a part behind a hole.
+  the board comes to it. The display pokes 0.5mm into the 2mm panel window
+  and stops 1.5mm shy of the front, which reads as intentional rather than as
+  a part behind a hole.
 
-  **⚠️ The display row of that table is provisional.** The 8.0mm body depth
-  comes from `SLR0562DBA3BD`, which is rejected (common anode — see the
-  display section). The 6.50mm standoff holds for the encoder and the USB-C
-  regardless, but re-check it against the replacement part's body depth
-  before committing the stack.
+  **The display row is now settled**, against `SLR0522DBC3BD`'s measured
+  7.0mm body (was provisional at 8.0mm from the rejected part). **The 6.50mm
+  standoff is unchanged** — it was always set by the encoder, which is the
+  datum, and the display had only to be compatible with it. It is: 7.0mm of
+  body from a board 6.50mm behind the panel's rear face puts the face 0.5mm
+  into a 2mm panel.
+
+  **⚠️ A deeper recess is not a free parameter.** At 1.5mm the window wall
+  starts to occlude the far edge of the display only beyond ~80° off-axis,
+  which no one will ever see. A *much* thicker panel or a *much* shallower
+  part would change that, so re-check the angle if either moves.
 
   **1.6mm board.** It carries a large THT display, a THT encoder and a USB-C
   receptacle, which out-votes Molex's 1.0mm footprint recommendation — see
@@ -565,12 +625,14 @@ schematic:
     a different footprint, and an extra conductor per jack on whatever
     ribbon serves that row. Exact part at schematic capture. See
     `../CLAUDE.md`.
-- **Display**: **⚠️ the quantity and the part are both open** — the panel
-  now carries **one** display, not two (see "Single display" above), and the
-  0.56" candidate evaluated for it was rejected as common anode. What follows
-  describes the two-display arrangement it replaces; it stands only as the
-  fallback if the single-display scheme is abandoned, and as the reference
-  for what a replacement part has to match electrically.
+- **Display**: **`SLR0522DBC3BD` ×1** — 0.52" two-digit blue THT
+  7-segment, **common cathode**, 25 × 17.5 × 7.0mm, on the UI daughterboard.
+  Settled: see the display section for the pinout, the drive margin and the
+  vertical-budget consequence, and `../datasheets/C2913048.pdf`.
+
+  What follows describes the **two-display arrangement it replaces**. It
+  stands only as the fallback if the single-display scheme is abandoned, and
+  as the electrical reference the chosen part was screened against.
 
   **Guangcai GS2022CB-B ×2** (CH and DIV) — 0.2" (5.08mm)
   dual-digit SMD 7-segment, blue, common cathode, **black** reference
@@ -643,6 +705,15 @@ dropout figures:
 MC-1 sits a factor of four below both, so scaled down the chain needs
 **4.21V at V+** with a worst-case 3.80V segment — leaving 0.79V spare on a
 clean 5.0V rail.
+
+**⚠️ Keep the 3.80V even though the chosen part is specified at 3.4V max.**
+`SLR0522DBC3BD` looks 0.4V better, but its Vf is characterised **only at
+20mA** while this whole chain is computed at 10mA, so the number that would
+replace 3.80V does not exist on its datasheet. The likely-real margin is
+therefore better than what is written here — **do not bank it.** Measure Vf
+at the intensity setting actually used and re-derive then; until that bench
+figure exists, the GS2022's 3.80V is the only 10mA blue segment number the
+project has.
 
 **⚠️ The margin exists only because the display is run dim.** At the
 datasheet's own test currents the same sum is 5.45V and **would not work at
@@ -718,8 +789,8 @@ Two further consequences:
   range-wide linear-only rule applies to it as much as to VO-1.
   **Digit-drive polarity confirmed**: DS000206 describes the DIG0:DIG7 lines
   as sinking current from the display common cathode, and the segment lines
-  as sourcing into it — which is the common-cathode GS2022C**x** already
-  specced. The two match; nothing left to check here.
+  as sourcing into it — which is what `SLR0522DBC3BD` is: commons on pins 5
+  and 10 are the cathodes. The two match; nothing left to check here.
 - **Parameter DAC**: **MCP4728** (12-bit, 4-channel, I2C) — velocity CV
   on one channel, three spare. On the local I2C port alongside the AS1115.
   **Sit it on the 3.3V side of the AS1115 level shifter**, not the 5V
@@ -857,13 +928,13 @@ notes, so MC-1 drops its gate and leaves the bus alone.
 ## Open items
 
 - **Vertical panel budget** — the row-of-4 problem is resolved and MC-1
-  closes at 8HP, but height is now the tight axis with only a few
-  millimetres of slack, on estimated rather than measured footprints.
-  **⚠️ Now measured rather than estimated, and it closes at ~107mm of ~110mm
-  — on a 12.95mm jack pitch the range has never validated.** See "The budget,
-  measured off the panel mockup" above. 0.56" digits are reachable *if* that
-  pitch is buildable, which is a bench test with real Thonkiconns and a nut
-  driver, not a calculation. That test is now the gate on the display part.
+  closes at 8HP, but height is still the tight axis. **The 12.95mm jack-pitch
+  bench test is no longer a gate**: the 0.52" display's 17.5mm body hands back
+  1.5mm, which more than covers the 1.1mm of going to the range-validated
+  13.5mm pitch, for ~106.6mm of ~110mm. See "The budget, measured off the
+  panel mockup". What remains is the ordinary obligation to re-total against
+  **real footprints rather than the mockup's estimates** before layout — the
+  absolute figure is soft even though the display-vs-pitch delta is not.
 - **Marking the MIDI jacks** — with icons dropped range-wide, IN/THRU
   still need distinguishing from the four CV jacks by some plain-word
   means. See the section above; it costs vertical space MC-1 does not
@@ -879,10 +950,11 @@ notes, so MC-1 drops its gate and leaves the bus alone.
 - ~~Exact USB-C connector part number for the daughterboard~~ — **settled:
   Molex `2193200001`.** See the connector entry for the derived cutout, the
   flush-mount depth and the D+/D− bridging.
-- **The display part is open again.** The single-display proposal stands, but
-  `SLR0562DBA3BD` is common anode and unusable; a common-cathode two-digit
-  blue equivalent is needed. Its body depth sets the UI board's 6.50mm
-  standoff, and its digit height waits on the vertical budget above.
+- ~~The display part~~ — **settled: `SLR0522DBC3BD`**, 0.52" two-digit blue,
+  common cathode, 25 × 17.5 × 7.0mm. Its 7.0mm body confirms the UI board's
+  6.50mm standoff rather than changing it, and being 1.5mm shorter than the
+  rejected 0.56" part it is what lets the jack rows go to a validated pitch.
+  See the display section.
 - **PCB count** — two boards (UI at 6.50mm, main at 10mm) or three (jacks
   split out, full-size guts board behind). **Deliberately deferred to
   schematic capture**, when the area question becomes answerable. See the

@@ -345,8 +345,11 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   drive polarity).
 - **⚠️ Blue LEDs do not run off the 3.3V rail.** Red and amber AlGaInP dice
   drop about 2.0V typical / 2.5V max; blue InGaN/GaN drops **3.0V typical
-  and 3.8V maximum** (figures from the Guangcai GS2022 datasheet, MC-1's
-  display, and representative of blue dice generally). Two consequences of
+  and 3.8V maximum** (figures from the Guangcai GS2022 datasheet, and
+  representative of blue dice generally — **keep them as the range-wide
+  worst case even though MC-1's chosen `SLR0522DBC3BD` is tighter at 3.4V
+  max**, because the next blue part sourced for another module will not
+  necessarily be). Two consequences of
   the blue-indicator decision, both of which have to be designed in rather
   than discovered at bring-up:
   - **A blue LED cannot be driven directly from a 3.3V MCU GPIO.** Allowing
