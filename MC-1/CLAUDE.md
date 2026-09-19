@@ -751,6 +751,10 @@ Two further consequences:
     display rather than failing silently. The exact period is a bench
     measurement (watch the V/OCT output settle from cold), not a guess; 30
     minutes is the working assumption until someone measures it.
+  - **⚠️ The gate belongs to the routine, not to the panel button.** A host
+    can start this calibration remotely over NRPN (`../BUS.md` §8.1, LSB
+    `0x13`), so a gate implemented in the panel handler is a gate a DAW walks
+    straight past. Put it at the entry point both paths call.
   - Calibration removes *absolute* error, not drift, which is the reason the
     BOM spends on tempco rather than initial accuracy. It also cannot
     separate the reference tempco from the DAC's gain tempco — they are one
@@ -867,7 +871,11 @@ notes, so MC-1 drops its gate and leaves the bus alone.
 - **Bus master firmware** — the protocol itself is specified in `../BUS.md`;
   what remains is MC-1's own side of it: the NRPN state machine, the parameter
   shadow and downstream coalescing, discovery and rediscovery, preset
-  stage/commit sequencing, and driving firmware updates.
+  stage/commit sequencing, and driving firmware updates. Now also the
+  system-command set (§8.1) and **capability-gated command dispatch** — read
+  each slot's `CAPABILITIES` at discovery and never send an opcode a module
+  does not claim (§6.8.5), plus suppressing absence-marking for any slot with
+  an outstanding command (§6.8.2).
 - ~~Exact USB-C connector part number for the daughterboard~~ — **settled:
   Molex `2193200001`.** See the connector entry for the derived cutout, the
   flush-mount depth and the D+/D− bridging.

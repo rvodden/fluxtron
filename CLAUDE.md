@@ -932,6 +932,20 @@ For most modules this is the same as the power-on state the MCP4728's EEPROM
 already holds (pulse width at 50%, depths at zero). Where they coincide, say
 so rather than define the same thing twice.
 
+### ⚠️ And every module states its `CAPABILITIES` bits
+
+Same checklist, same reason. `BUS.md` §6.8.5 defines a bitfield of the
+*optional* things a module supports — calibration, identify, persistent
+settings, preset staging, reflash over the bus — and **MC-1 will not send a
+command whose bit is clear.**
+
+**A module that never fills this in reads back as zero**, which MC-1 correctly
+interprets as "supports nothing optional". The module then simply never gets
+calibrated, never saves its settings, and never flashes its LED on identify —
+with no error anywhere, because nothing went wrong. That is a worse failure
+than a missing register would have been, so treat the value as part of the
+spec rather than something firmware works out later.
+
 ## Open items / not yet decided
 
 - Spare 12HP allocation (extra spacing vs. blind panel vs. new module) —
@@ -943,10 +957,11 @@ so rather than define the same thing twice.
   numbers. See `PS-1/CLAUDE.md`. (The external brick, the 15V 3A input, the
   perpendicular orientation and the 16-module sizing basis are settled; the
   per-module +5V draw is owed a measurement.)
-- `BUS.md`'s own open items — four register definitions owed (`COMMAND`
-  opcodes, the bootloader magic value, the `INVENTORY` format, and the
-  `CAPABILITIES`/`STATUS` bitfields). (DVCC, I2C pin tolerance, the bootloader
-  address and pin sets, **which peripheral the bus takes — I2C1, PB6/PB7** —
-  and Panic are all settled.)
+- `BUS.md`'s own open items — **one register definition still owed**, the
+  `INVENTORY` payload format. (DVCC, I2C pin tolerance, the bootloader address
+  and pin sets, the peripheral the bus takes — I2C1, PB6/PB7 — Panic, the
+  `COMMAND` opcodes and `CAPABILITIES`/`STATUS` bitfields (§6.8), the
+  `ENTER_BOOTLOADER` magic `0xA55A` (§6.5) and the NRPN system-command set
+  (§8.1) are all settled.)
 - **Each module's safe state for Panic**, per the section above. MC-1 and VO-1
   both still owe theirs.
