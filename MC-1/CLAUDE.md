@@ -737,6 +737,24 @@ Two further consequences:
   **MC-1 is the module where pitch accuracy actually matters** — it has no
   feedback loop, unlike VO-1's auto-tune. It needs a **user calibration
   routine** storing gain and offset in the reserved settings flash page.
+  - **⚠️ The routine must require a warm module, not merely recommend one.**
+    Calibration fixes gain and offset *at the temperature it runs at*, so the
+    excursion the pitch error budget is spent against is measured from that
+    temperature — not from 25°C nominal. Calibrating cold at switch-on makes
+    the module eat the entire warm-up; calibrating after ~30 minutes of
+    running cuts the real excursion to nearer ±5°C, which **scales every
+    drift term in `../CLAUDE.md`'s budget by about 0.25**. That is worth
+    roughly a cent — more than the DAC grade and the linear-vs-RSS question
+    combined — for the cost of a timer.
+  - **So the firmware gates it on uptime**: refuse to enter calibration until
+    the module has been powered for a set warm-up period, and say why on the
+    display rather than failing silently. The exact period is a bench
+    measurement (watch the V/OCT output settle from cold), not a guess; 30
+    minutes is the working assumption until someone measures it.
+  - Calibration removes *absolute* error, not drift, which is the reason the
+    BOM spends on tempco rather than initial accuracy. It also cannot
+    separate the reference tempco from the DAC's gain tempco — they are one
+    die at one temperature — so both land in the residual together.
 - **Encoder**: Bourns **PEC11R-4015F-S0024** — switched, since the push
   reaches the MIDI channel, which the knob otherwise does not touch. THT,
   detentless, 15mm shaft, **on the UI daughterboard** per above —
@@ -864,6 +882,10 @@ notes, so MC-1 drops its gate and leaves the bus alone.
   three-board option.
 - **Stereo jack part** for the TRS MIDI pair, per the correction in the parts
   list.
+- **The warm-up period the calibration routine gates on.** The requirement is
+  settled — calibration must refuse to run on a cold module, per the pitch
+  DAC entry — but 30 minutes is a working assumption. Owed a bench
+  measurement: log the V/OCT output from switch-on and see when it settles.
 - ~~AS1115 segment/digit driver dropout at 5V~~ — **settled** against
   DS000206: it closes with +0.48V at the pin behind a MOSFET (+0.41V at
   connector end-of-life), and only at 10mA/segment. A silicon diode fails it
