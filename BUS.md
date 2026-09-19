@@ -714,12 +714,12 @@ rack ends up half-updated.
 | `0x82` | `PROTOCOL_VERSION` | R | This document's revision |
 | `0x83` | `FW_VERSION` | R | |
 | `0x84` | `PARAM_COUNT` | R | How much of `0x00–0x7F` is real |
-| `0x85` | `CAPABILITIES` | R | Bitfield — **undefined, §9** |
-| `0x86` | `STATUS` | R | Busy, calibrating, error — **undefined, §9** |
+| `0x85` | `CAPABILITIES` | R | Bitfield of **optional** features, §6.8.5 |
+| `0x86` | `STATUS` | R | Busy, calibrating, error, command rejection — §6.8.4 |
 | `0x87–0x88` | `DIRTY` | R | 32-bit bitmap, so it spans **two** registers |
-| `0x89` | `COMMAND` | W | Identify, calibrate, clear error — **codes undefined, §9** |
+| `0x89` | `COMMAND` | W | `[op, arg]`, §6.8. ACK means *accepted*, never *done* |
 | `0x90` | `STAGE` | W | Preset staging, §6.4 |
-| `0x9F` | `ENTER_BOOTLOADER` | W | Magic value — **undefined, §9** |
+| `0x9F` | `ENTER_BOOTLOADER` | W | 16-bit magic `0xA55A`, §6.5 |
 | `0xA0` | `FORWARD` | W | **Bridge only.** Tunnelled write, §7.1 |
 | `0xA1` | `INVENTORY` | R | **Bridge only.** Downstream contents — **format undefined, §9** |
 | `0xA2` | `FWD_STATUS` | R | **Bridge only.** Queue depth *and* delivery errors |
@@ -735,13 +735,13 @@ Everything the bus can say. `RS` is a repeated START.
 | M1 | Parameter write | master → slave | `0x20+slot` | `[reg, hi, lo]`, auto-incrementing | ACK |
 | M2 | Parameter read | master → slave | `0x20+slot` | `[reg]` RS read 2n | n × uint16 |
 | M3 | System register read | master → slave | `0x20+slot` | `[0x80…]` RS read | value |
-| M4 | Command | master → slave | `0x20+slot` | `[0x89, hi, lo]` | ACK |
+| M4 | Command | master → slave | `0x20+slot` | `[0x89, op, arg]` | ACK — *accepted*, §6.8.2 |
 | M5 | Stage set / abort | master → slave | `0x20+slot` | `[0x90, 0x00, 0x01\|0x00]` | ACK |
 | M6 | Dirty bitmap read | master → slave | `0x20+slot` | `[0x87]` RS read 4 | 32-bit bitmap |
 | M7 | **Attention** | slave → master | ATTN line | open-drain assert, wired-OR | master issues M6 |
 | M8 | **Commit** | master → all | general call `0x00` | `[0x10]` | none meaningful |
 | M9 | **Panic** | master → all | general call `0x00` | `[0x11]` | none meaningful — §6.7 |
-| M10 | Enter bootloader | master → slave | `0x20+slot` | `[0x9F, magic]` | ACK |
+| M10 | Enter bootloader | master → slave | `0x20+slot` | `[0x9F, 0xA5, 0x5A]` | ACK |
 | M11 | Tunnelled write | master → bridge | `0x30` | `[0xA0, addr_msb, param, hi, lo]` | ACK **from the bridge only** |
 | M12 | Tunnelled read | master → bridge | `0x30` | `[0xA4, addr_msb, param]` RS read 2 | uint16 **from the bridge's cache** |
 | M13 | Inventory read | master → bridge | `0x30` | `[0xA1]` RS read | slot/type list |
@@ -926,17 +926,25 @@ details, not protocol. Flash endurance is ~10k cycles.
 
 MC-1 can reflash any module using the STM32's I2C system bootloader (M16).
 
-- **Either I2C1 or I2C2 may be used**, per AN2606's STM32G0B1xx/0C1x table.
-  The pin set *within* each is fixed — no alternate AF mappings — but there is
-  a choice of peripheral.
+- **The bus is `I2C1`, on `PB6` (SCL) / `PB7` (SDA), range-wide. Settled.**
+  AN2606's STM32G0B1xx/0C1x table qualifies either I2C1 or I2C2 as
+  bootloader-capable; the pin set *within* each is fixed — no alternate AF
+  mappings — but there was a choice of peripheral.
 
-  | Peripheral | SCL / SDA |
-  |---|---|
-  | I2C1 | **PB6 / PB7** |
-  | I2C2 | **PB10 / PB11** |
+  | Peripheral | SCL / SDA | |
+  |---|---|---|
+  | **I2C1** | **PB6 / PB7** | **the bus** |
+  | I2C2 | PB10 / PB11 | free |
 
-  Both are on port B and bonded out on LQFP-48, so the choice is free.
-  **Pick one and use it on every module.**
+  Both are on port B and bonded out on LQFP-48, so the choice was genuinely
+  free and was made arbitrarily to stop it blocking schematic work — there is
+  no technical argument either way, and none should be looked for later. What
+  matters is only that **every module uses the same one**, since the bus is a
+  shared physical net.
+  **I2C2 stays free** on every module: an unplanned second local peripheral
+  port if one is ever wanted, and the fallback if a module's layout makes
+  PB6/PB7 awkward. Taking that fallback on one module means rerouting the bus
+  on all of them, so treat it as a range-wide re-decision, not a local one.
 - **Consequence: local peripherals go on I2C3**, the port that is *not*
   bootloader-capable, leaving both qualifying ports free for the bus.
 - **Bootloader address: 7-bit `0x5D`** (`0xBA` write, `0xBB` read). Clear of
@@ -945,6 +953,17 @@ MC-1 can reflash any module using the STM32's I2C system bootloader (M16).
   addressing, analog filter on, up to 1MHz.
 - **`ENTER_BOOTLOADER` takes a magic value, never a bare flag.** A module that
   jumps to the bootloader by accident goes dark until power-cycled.
+  **The magic is the 16-bit value `0xA55A`**, written as `[0x9F, 0xA5, 0x5A]`.
+  - **⚠️ It is 16 bits, not 8. This corrects the wire form M10 used to
+    carry.** M10 was written `[0x9F, magic]` — two bytes — which broke the
+    uniform `[reg, hi, lo]` shape that §6.2 states one paragraph below its own
+    table. Restoring the shape also doubles the magic's width, and width is
+    the entire point of a magic value.
+  - **Why this value.** Eight ones and eight zeros, no run longer than two
+    bits, and the two bytes are exact complements — so a stuck byte, a
+    duplicated byte or a shifted transaction all fail it. It is also maximally
+    far from `0x0000` and `0xFFFF`, which are what a bus held low or released
+    high actually delivers.
 
 **⚠️ Layout constraint:** the inter-module bus must land on a
 bootloader-capable peripheral and pin set, or the whole feature is lost. Free
@@ -1067,6 +1086,198 @@ same thing twice.
 "silence everything" is exactly rack-wide. **CC 123 (All Notes Off) stays
 local**: it is about notes, so MC-1 drops its gate and does not touch the bus.
 
+### 6.8 Commands, status and capabilities
+
+`COMMAND` (`0x89`), `STATUS` (`0x86`) and `CAPABILITIES` (`0x85`) are one
+design, not three. Opcodes without a capability bit leave MC-1 guessing which
+modules can run them; a write-only `COMMAND` without a rejection path in
+`STATUS` makes a refused command invisible. They are defined together here.
+
+#### 6.8.1 Encoding
+
+`COMMAND` is written as M4, `[0x89, op, arg]` — the uniform `[reg, hi, lo]`
+shape, so **`hi` is the opcode and `lo` is its argument**. 256 opcodes, 256
+argument values. A flat 16-bit opcode space would throw the argument away for
+a range nobody could ever fill.
+
+- **`arg = 0x00` is always the *safe* choice**, and for every opcode but one it
+  is also the sensible default — so a module may ignore `arg` entirely and
+  still be correct, which is what makes a minimal implementation possible.
+  **`IDENTIFY` is the exception**: there `0x00` means *stop*, which is safe but
+  is not "do the default thing", so it is the one opcode whose argument a
+  module must actually read.
+- **⚠️ Opcode `0x00` is `NOP` and must never be anything else.** A truncated
+  transaction, a bus stuck low, or a half-initialised master all deliver
+  zeros. If `0x00` were a real command, one of those would calibrate a module
+  or overwrite its settings. Same reasoning that gives `ENTER_BOOTLOADER` a
+  magic value (§6.5).
+
+#### 6.8.2 ⚠️ A command's ACK means *accepted*, never *done*
+
+§5.3 bounds clock stretching at ~1ms. VO-1's auto-tune takes seconds and a
+flash erase takes tens of milliseconds, so **every command is asynchronous by
+construction**:
+
+1. The write ACKs immediately. The module has *accepted* the command.
+2. The work runs in the background. `STATUS.BUSY` is set while it does —
+   except for `IDENTIFY`, which blocks nothing and has its own bit (§6.8.4).
+3. Completion surfaces through the ordinary `DIRTY`/ATTN path (§6.3), because
+   a command that changes parameter values leaves MC-1's shadow stale exactly
+   as Panic does.
+
+Doing the work inside the I2C callback is both the obvious implementation and
+the one that wedges the bus. It is the single most likely firmware error here.
+
+**⚠️ A busy module must ACK and reject in `STATUS`. It must never NAK.**
+§5.3 has already spent NAK on a different meaning — *"A missing module NAKs.
+MC-1 marks the slot absent"* — so a busy module that NAKs gets marked absent
+and thrown into rediscovery. Rejection is visible only in `STATUS`, which is
+why `CMD_REJECTED` and its reason field exist below and are not optional.
+
+**⚠️ The same ambiguity bites a second time, on flash.** §5.3 permits a flash
+write to run "from SRAM or with the peripheral disabled" — but a module with
+its I2C peripheral disabled does not ACK, and not ACKing is how absence is
+detected. Two rules resolve it, and both are needed:
+
+- **Prefer SRAM-resident flash routines that keep I2C alive.** A module that
+  goes deaf mid-command is indistinguishable from a module that has been
+  pulled.
+- **MC-1 must suppress absence-marking for any slot with an outstanding
+  command**, until it completes or MC-1's own timeout expires. This is
+  cheaper than forbidding the deaf case outright and does not over-constrain
+  module firmware.
+
+#### 6.8.3 The opcode map
+
+| Range | Owner | Contents |
+|---|---|---|
+| `0x00` | — | **`NOP`.** Never anything else. |
+| `0x01–0x0F` | this document | Diagnostic. Never moves an output. |
+| `0x10–0x1F` | this document | Calibration. |
+| `0x20–0x2F` | this document | Persistent state. |
+| `0x30–0x7F` | this document | Reserved. |
+| `0x80–0xFF` | **the module** | Module-specific; defined in that module's own `CLAUDE.md`. |
+
+Ranges rather than tight packing: a sparse map costs nothing and running out
+of contiguous space costs a renumber.
+
+The last row is what keeps this document out of each module's business — VO-1
+can define an opcode for something only VO-1 does without `BUS.md` needing to
+know it exists. A module that uses the range advertises `CAPABILITIES.MODULE_OPCODES`.
+
+**⚠️ This deliberately inverts the register map, where `0x80–0xFF` is *this
+document's* half and the low half is the module's.** Here the high half is the
+module's. The inversion is forced rather than careless: `0x00` has to be `NOP`,
+which pushes the protocol's own block to the low end. Worth remembering with
+that reason attached — *"zero must be safe, so the protocol starts at one"* —
+because a bare convention with no reason behind it is the kind that gets
+misremembered.
+
+| Op | Name | `arg` | Notes |
+|---|---|---|---|
+| `0x00` | `NOP` | ignored | Always accepted, always does nothing. |
+| `0x01` | `IDENTIFY` | duration × 100ms | `0x00` **stops** identifying; `0xFF` = 25.5s. Re-issuing restarts the timer. |
+| `0x02` | `CLEAR_ERROR` | `0x00` = all | Clears the latched `STATUS` bits except `PANICKED`. Nonzero reserved. |
+| `0x10` | `CALIBRATE_START` | routine index, `0x00` = the default | Long-running. Sets `BUSY` and `CALIBRATING`. |
+| `0x11` | `CALIBRATE_ABORT` | ignored | Leaves the previous calibration intact. |
+| `0x20` | `SETTINGS_SAVE` | `0x00` = all | Writes the module's flash settings page. |
+| `0x21` | `SETTINGS_RELOAD` | `0x00` = all | Discards RAM, reloads from flash. |
+| `0x22` | `PARAMS_DEFAULT` | `0x00` = all | Parameters to power-on defaults. |
+
+Three things about that list:
+
+- **`IDENTIFY` gets cancel for free**, because `arg = 0x00` stops it rather
+  than meaning "default duration". No second opcode needed.
+  It flashes the module's indicator LED, and it is the payoff for the range's
+  one-unlabelled-LED rule (`../CLAUDE.md`): with exactly one indicator there
+  is no ambiguity about which light will blink. **MC-1 is the exception and
+  does not receive this over the bus at all** — it is the master. Any module
+  whose sole LED already has a job (a clock, a gate) must use a pattern
+  distinct from that job, or identify just looks like normal operation.
+- **`SETTINGS_SAVE` is the most dangerous opcode here**, and the one that most
+  needs §6.8.2. It is a flash erase on a bus with a ~1ms stretch budget.
+- **`PARAMS_DEFAULT` is not Panic.** Panic is *safe*; defaults are *sane*.
+  A VCO's safe state is not silence (§6.7) and its default pulse width is not
+  a safety property. Keep them separate.
+
+**No `PING` opcode, deliberately.** Reading `MODULE_TYPE` (`0x80`) is already
+a liveness check that costs the same and cannot have side effects. Recorded so
+nobody adds one later reasoning from first principles.
+
+#### 6.8.4 `STATUS` (`0x86`, read, 16-bit)
+
+| Bit | Name | Latched | Meaning |
+|---|---|---|---|
+| 0 | `BUSY` | no | A command is running. |
+| 1 | `CALIBRATING` | no | …and it is a calibration. Implies `BUSY`. |
+| 2 | `IDENTIFYING` | no | Identify is running. Does **not** imply `BUSY` — identify never blocks anything. |
+| 3 | `ERROR` | **yes** | A fault occurred. |
+| 4 | `CMD_REJECTED` | **yes** | The last `COMMAND` was not accepted. |
+| 5–7 | `REJECT_REASON` | **yes** | Why. See below. |
+| 8 | `SETTINGS_DIRTY` | no | RAM differs from the flash settings page. |
+| 9 | `CAL_INVALID` | no | No valid calibration stored. |
+| 10 | `STAGING` | no | `STAGE = 1` is in force (§6.4). |
+| 11 | `PANICKED` | **yes** | Panic applied, no parameter write since. |
+| 12–15 | — | — | Reserved, read as 0. |
+
+| `REJECT_REASON` | Meaning |
+|---|---|
+| `0` | None — no rejection recorded |
+| `1` | Unsupported opcode |
+| `2` | Busy |
+| `3` | Bad argument |
+| `4` | **Preconditions unmet** — the command is supported but not permitted *now* |
+| `5` | Hardware fault |
+| `6–7` | Reserved |
+
+Reason `4` is the one that earns its place: MC-1's calibration routine must
+refuse to run on a cold module (`../MC-1/CLAUDE.md`), and "supported but not
+right now" is genuinely different from "unsupported" — the first is worth
+retrying, the second never is.
+
+`CLEAR_ERROR` clears `ERROR`, `CMD_REJECTED` and `REJECT_REASON`. **It does
+not clear `PANICKED`**, which has its own clear condition — the next parameter
+write — and would otherwise have two, letting a rack look un-panicked while
+every output still sits where Panic put it.
+
+**Clearing is *acknowledge*, not *suppress*:** a fault that is still live
+re-raises immediately, and firmware that implements clear as "stop reporting"
+has implemented the wrong thing.
+
+#### 6.8.5 `CAPABILITIES` (`0x85`, read, 16-bit)
+
+**This register lists only what is *optional*.** Parameter read/write, the
+identity registers and Panic are obligations on every module (§6.7), so they
+have no bits here — a bit would imply a module might opt out.
+
+| Bit | Name | Module supports |
+|---|---|---|
+| 0 | `CAL` | `CALIBRATE_START` / `CALIBRATE_ABORT` |
+| 1 | `IDENTIFY` | `IDENTIFY` — i.e. it has an indicator to flash |
+| 2 | `SETTINGS` | `SETTINGS_SAVE` / `SETTINGS_RELOAD` |
+| 3 | `DEFAULTS` | `PARAMS_DEFAULT` |
+| 4 | `STAGING` | `STAGE` and commit (§6.4) |
+| 5 | `BOOTLOADER` | `ENTER_BOOTLOADER` (§6.5) |
+| 6 | `MODULE_OPCODES` | Defines opcodes in `0x80–0xFF` |
+| 7–15 | — | Reserved, read as 0 |
+
+- **A clear bit means MC-1 must not send the opcode.** That is the point of
+  the register: it is cheaper to not ask than to ask and handle a refusal.
+- **A module must still reject an opcode it does not support**, capability bit
+  or no. Never rely on the master alone — a stale `CAPABILITIES` read, or a
+  bridge relaying a command from a chassis that has not rescanned, both put
+  unsupported opcodes on the wire.
+- **`STAGING` exists for the parameterless case.** Any module with parameters
+  must set it, or preset recall silently skips it. It is a bit rather than an
+  obligation only because a module with nothing to stage (PS-1, if it gains an
+  MCU) would otherwise have to fake one.
+- **`BOOTLOADER` looks universal but is not.** Every module in the range runs
+  a G0B1 whose system bootloader speaks I2C, so in principle every module can
+  be reflashed — but only if its layout actually landed the bus on I2C1
+  (§6.5), which is a board property that can be got wrong. The bit lets a
+  module that missed the constraint say so at discovery, rather than MC-1
+  finding out halfway through an update with the application already erased.
+
 ---
 
 ## 7. Bridging: the logical layer of a multi-chassis system
@@ -1183,8 +1394,8 @@ an incremental encoder.
 - **14→16-bit widening is `(v << 2) | (v >> 12)`** — exact at both endpoints,
   one instruction.
 - **`NRPN MSB = 127` is reserved for system commands** addressed to MC-1
-  itself: preset save, preset recall, panic, identify, bus rescan, enter
-  bootloader for slot N. It costs one slot in a chassis nobody will build.
+  itself. It costs one slot in a chassis nobody will build. The set is
+  enumerated in §8.1 — it is **a second opcode space, not the `COMMAND` one**.
 - **MIDI channel selects the voice chain**, i.e. which MC-1, consistent with
   the existing daisy-chain design.
 
@@ -1192,6 +1403,61 @@ an incremental encoder.
 and pushes clean `(chassis, slot, register, value)` tuples. Slaves never see
 MIDI semantics, so adding a second control surface later touches no module
 firmware.
+
+### 8.1 System commands (`NRPN MSB = 127`)
+
+**⚠️ There are two opcode spaces in this design and they are not the same
+one.** §6.8 defines what MC-1 says to a *slave over the bus*; this defines
+what a *host says to MC-1 over MIDI*. They overlap but neither contains the
+other: preset save and bus rescan have no slave-side equivalent, and
+`SETTINGS_SAVE` is not something a DAW needs. **Do not unify them**, and do
+not assume a number means the same thing in both.
+
+The NRPN **LSB is the command**; data entry carries its arguments. The set
+mixes three different fan-outs, which is what structures the numbering:
+
+| LSB | Command | Fan-out | Data entry |
+|---|---|---|---|
+| `0x00` | Reserved — no-op | — | ignored |
+| `0x01` | **Panic** | broadcast (M9) | ignored |
+| `0x02–0x0F` | Reserved | broadcast | |
+| `0x10` | Preset save | MC-1 local | LSB = preset number |
+| `0x11` | Preset recall | MC-1 local | LSB = preset number |
+| `0x12` | Bus rescan | MC-1 local | ignored |
+| `0x13` | **Calibrate MC-1's own V/OCT** | MC-1 local | LSB = routine, `0` = default |
+| `0x14–0x3F` | Reserved | MC-1 local | |
+| `0x40` | Identify | relayed to a slot | MSB = **target**, LSB = duration × 100ms |
+| `0x41` | Calibrate | relayed to a slot | MSB = **target**, LSB = routine |
+| `0x42` | **Enter bootloader** | relayed to a slot | MSB = **target**, LSB must be `0x5A` |
+| `0x43–0x5F` | Reserved | relayed | |
+| `0x60–0x7F` | Reserved | — | |
+
+- **A relayed command's *target* is packed exactly as §8 packs an address**:
+  data entry MSB bits 6:4 = chassis, bits 3:0 = slot. Same field, same layout,
+  a different byte — so there is one addressing convention in this protocol
+  rather than two, and a relayed command reaches a downstream chassis over the
+  bridge on the ordinary path (§7.1) with no special case.
+- **`0x00` is reserved as a no-op** for the same reason opcode `0x00` is `NOP`
+  (§6.8.1): a stray or truncated NRPN delivers zeros, and zero must be safe.
+  Note this makes target `0x00` — chassis 0, slot 0 — perfectly addressable,
+  because it is the *command* that must be zero-safe, not the address.
+- **A relayed command is not a tunnel.** MC-1 receives it, decides whether the
+  target slot supports it by reading `CAPABILITIES` (§6.8.5), and only then
+  issues the corresponding M4. A host never addresses the bus directly.
+- **⚠️ `0x42` requires the confirmation byte `0x5A`**, mirroring the bus-side
+  magic. Without it a single stray NRPN — a mis-mapped DAW control, a bad
+  MIDI cable — would take a module dark until it is power-cycled. MC-1 ignores
+  the message entirely if the byte is wrong; it does not report an error,
+  because a stray message is not a request.
+- **⚠️ `0x13` is subject to MC-1's warm-up gate**, exactly as the panel path
+  is. MC-1's calibration must refuse to run on a cold module
+  (`../MC-1/CLAUDE.md`), and that requirement belongs to the *routine*, not to
+  the panel button that happens to be one way of reaching it. A DAW can
+  trigger it remotely, so the gate has to live where the routine does.
+- **MC-1 is the master, so it never receives an M4 `COMMAND`.** Its own
+  calibrate and identify are reachable only from its panel or from this table
+  — which is exactly why this table has to exist rather than being left as
+  prose.
 
 ### ⚠️ Why coarse and fine tune are separate parameters
 
@@ -1205,25 +1471,29 @@ than 14 bits must split the same way.
 ## 9. Open items
 
 Building the message catalogue (§6.2) exposed four definitions that the prose
-had assumed without ever giving. They are design detail rather than open
-questions, but nothing can be implemented against them as they stand:
+had assumed without ever giving. **Three of the four are now closed**, and
+defining them turned up a fifth that had been hiding in a sentence of §8:
 
-- **`COMMAND` opcodes** (`0x89`) — identify, calibrate, clear error are named
-  but uncoded.
-- **`ENTER_BOOTLOADER` magic value** (`0x9F`).
-- **`INVENTORY` payload format** (`0xA1`) — how a bridge reports what its
-  segment holds.
-- **`CAPABILITIES` and `STATUS` bitfields** (`0x85`, `0x86`).
+| Was owed | Now |
+|---|---|
+| `COMMAND` opcodes (`0x89`) | **Settled, §6.8.3** |
+| `CAPABILITIES` / `STATUS` bitfields (`0x85`, `0x86`) | **Settled, §6.8.4–6.8.5** |
+| `ENTER_BOOTLOADER` magic (`0x9F`) | **Settled: `0xA55A`, §6.5** — which also corrected M10's wire form to the uniform three-byte shape |
+| *(not previously listed)* NRPN system commands | **Settled, §8.1** — a second opcode space, deliberately not the same one |
+| **`INVENTORY` payload format** (`0xA1`) | **Still owed** — how a bridge reports what its segment holds |
 
 Owed by each module rather than by this file:
 
 - **Every module's safe state for Panic** (§6.7). MC-1 and VO-1 both still owe
   theirs.
+- **Every module's `CAPABILITIES` value** (§6.8.5), new with this revision.
+  A register nobody fills in is worse than no register: MC-1 reads zero and
+  concludes the module supports nothing optional, so calibration and settings
+  never get triggered and the failure is silent. Every module spec owes its
+  bits, MC-1 and VO-1 included.
 
 Genuinely undecided:
 
-- **Which of I2C1/I2C2 the bus takes.** Free choice (§6.5); pick one
-  range-wide.
 - Whether the PA3 bootloader-hang erratum applies to the G0B1's bootloader
   version, or only to the G030 it was reported against.
 - Whether a `PROTOCOL_VERSION` mismatch should refuse or degrade.
