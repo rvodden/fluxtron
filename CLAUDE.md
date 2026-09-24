@@ -345,8 +345,11 @@ the supply and the backplane the rack plugs into. See `PS-1/CLAUDE.md`.
   drive polarity).
 - **⚠️ Blue LEDs do not run off the 3.3V rail.** Red and amber AlGaInP dice
   drop about 2.0V typical / 2.5V max; blue InGaN/GaN drops **3.0V typical
-  and 3.8V maximum** (figures from the Guangcai GS2022 datasheet, MC-1's
-  display, and representative of blue dice generally). Two consequences of
+  and 3.8V maximum** (figures from the Guangcai GS2022 datasheet, and
+  representative of blue dice generally — **keep them as the range-wide
+  worst case even though MC-1's chosen `SLR0522DBC3BD` is tighter at 3.4V
+  max**, because the next blue part sourced for another module will not
+  necessarily be). Two consequences of
   the blue-indicator decision, both of which have to be designed in rather
   than discovered at bring-up:
   - **A blue LED cannot be driven directly from a 3.3V MCU GPIO.** Allowing
@@ -757,11 +760,17 @@ The deciding factors, strongest first:
 **⚠️ Layout constraint that comes with the I2C bootloader:** the
 inter-module bus must land on a **bootloader-capable I2C peripheral and pin
 set**, or the reflash-over-bus feature is lost. Per AN2606's STM32G0B1xx/0C1x
-table that is **I2C1 or I2C2** — the pins within each are fixed, but there is
-a choice of peripheral. **So put local peripherals (AS1115, MCP4728,
-AD5693R) on I2C3**, which is not bootloader-capable and does not need to be;
-that satisfies the two-port rule above and leaves both qualifying ports free
-for the bus. Free if designed in, impossible to retrofit.
+table that is I2C1 or I2C2, the pins within each fixed.
+
+**Settled: the bus is `I2C1`, on `PB6`/`PB7`, on every module.** Both
+candidates are on port B and bonded out on LQFP-48, so the choice was free and
+was made arbitrarily rather than argued — don't re-open it looking for a
+reason. The only thing that matters is that every module agrees, the bus being
+one shared net. **I2C2 stays free**; see `BUS.md` §6.5.
+
+**So put local peripherals (AS1115, MCP4728, AD5693R) on I2C3**, which is not
+bootloader-capable and does not need to be; that satisfies the two-port rule
+above. Free if designed in, impossible to retrofit.
 
 ### What this gives up
 
@@ -926,6 +935,20 @@ For most modules this is the same as the power-on state the MCP4728's EEPROM
 already holds (pulse width at 50%, depths at zero). Where they coincide, say
 so rather than define the same thing twice.
 
+### ⚠️ And every module states its `CAPABILITIES` bits
+
+Same checklist, same reason. `BUS.md` §6.8.5 defines a bitfield of the
+*optional* things a module supports — calibration, identify, persistent
+settings, preset staging, reflash over the bus — and **MC-1 will not send a
+command whose bit is clear.**
+
+**A module that never fills this in reads back as zero**, which MC-1 correctly
+interprets as "supports nothing optional". The module then simply never gets
+calibrated, never saves its settings, and never flashes its LED on identify —
+with no error anywhere, because nothing went wrong. That is a worse failure
+than a missing register would have been, so treat the value as part of the
+spec rather than something firmware works out later.
+
 ## Open items / not yet decided
 
 - Spare 12HP allocation (extra spacing vs. blind panel vs. new module) —
@@ -937,10 +960,11 @@ so rather than define the same thing twice.
   numbers. See `PS-1/CLAUDE.md`. (The external brick, the 15V 3A input, the
   perpendicular orientation and the 16-module sizing basis are settled; the
   per-module +5V draw is owed a measurement.)
-- `BUS.md`'s own open items — four register definitions owed (`COMMAND`
-  opcodes, the bootloader magic value, the `INVENTORY` format, and the
-  `CAPABILITIES`/`STATUS` bitfields), plus which of I2C1/I2C2 the bus takes.
-  (DVCC, I2C pin tolerance, the bootloader address and pin sets, and Panic
-  are all settled.)
+- `BUS.md`'s own open items — **one register definition still owed**, the
+  `INVENTORY` payload format. (DVCC, I2C pin tolerance, the bootloader address
+  and pin sets, the peripheral the bus takes — I2C1, PB6/PB7 — Panic, the
+  `COMMAND` opcodes and `CAPABILITIES`/`STATUS` bitfields (§6.8), the
+  `ENTER_BOOTLOADER` magic `0xA55A` (§6.5) and the NRPN system-command set
+  (§8.1) are all settled.)
 - **Each module's safe state for Panic**, per the section above. MC-1 and VO-1
   both still owe theirs.
